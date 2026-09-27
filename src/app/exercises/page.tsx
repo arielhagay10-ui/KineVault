@@ -114,7 +114,7 @@ export default async function ExplorePage({ searchParams }: Props) {
       <header className="border-b border-[#dce5de] bg-white/80">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
           <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-          <span className="text-sm text-[#66786e]">Exercise encyclopedia</span>
+          <Link href="/dashboard" className="text-sm font-medium text-[#4d745c]">My library</Link>
         </div>
       </header>
 

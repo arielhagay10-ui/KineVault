@@ -16,6 +16,7 @@ Publication requires a clear character demonstration. Reviewers inspect every mo
 - Normalize `muscles`, `joints`, `joint_actions`, `equipment_categories`, `equipment`, `attachments`, `movement_patterns` and `exercise_families`. Keep role, resistance profile, peak position, mechanic, force type and laterality as controlled values; use lookup tables where admin editing or future extension matters. Keep confidence and reviewer notes with resistance classifications.
 - Keep rig motion separate from anatomical classification: versioned `rigs`, `rig_joints`, `equipment_assets`, `exercise_scenes`, `scene_equipment`, `motion_keyframes`, `motion_joint_poses` and timed annotations. Store joint transforms as typed numeric fields linked to rig joints. Rig joints are not anatomical joint-action records.
 - `profiles` and database-managed `roles` link to Supabase Auth. New accounts receive `user`; only admin operations grant `reviewer` or `admin`. Public reads expose published content only. Owners control private drafts and see their submissions; reviewers see moderation records; admins manage taxonomies and roles. RLS and Storage policies back every access rule. Privileged functions live outside exposed schemas.
+- MVP accounts use email and password. A private exercise may be shared through an unguessable, revocable view link. Link visitors may view its draft classifications; only the owner may edit or submit it. Shared drafts stay out of search and are marked noindex.
 - One search document per published exercise combines weighted name, aliases and description full-text terms. PostgreSQL GIN/trigram indexes support text queries. SQL `EXISTS` filters avoid join fan-out. Different groups combine with AND; every selected value within a group must match. Apply stable cursor pagination to IDs, then batch-load details. Keep URL parameters validated with Zod. Measure query plans with at least 50,000 exercises.
 - Duplicate detection compares normalized names/aliases, trigram candidates, family and relational overlaps. Show heuristic scores, never auto-reject fuzzy matches. A contributor identifies a duplicate or variation before submitting.
 - Submitted scenes render through a queued worker using only approved rig and equipment assets. Store private source and output until approval; publish WebM, MP4 and poster with source, license, rig version, camera and lineage metadata. Retain editable source. Keep submission media private through Storage RLS.
@@ -42,6 +43,7 @@ After **each milestone**, run `npm run lint`, `npm run typecheck`, `npm test` an
 ### Phase 3 — Accounts, favorites and private exercises
 
 1. Add sign-in, account pages, favorites and private exercise CRUD. Test ownership and favorite counts.
+   Add anonymous view links for private exercises, including rotation and revocation tests.
 2. Build the pose-keyframe workshop, interpolation, approved equipment placement, camera selection, preview and draft persistence. Test pose and equipment round-trips.
 3. Add public motion inspection and copying into private drafts with source lineage. Test copy isolation.
 

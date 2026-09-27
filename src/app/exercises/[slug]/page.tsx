@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Dumbbell, Info } from "lucide-react";
+import { ArrowLeft, Dumbbell, Heart, Info } from "lucide-react";
+import { toggleFavorite } from "@/app/favorites/actions";
+import { getIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +16,15 @@ function label(value: string | null | undefined) {
 export default async function ExercisePage({ params }: Props) {
   const { slug } = await params;
   const supabase = await createClient();
+  const identity = await getIdentity();
   const { data: exercise } = await supabase.from("exercises")
     .select("id,slug,current_content_id,status,favorite_count")
     .eq("slug", slug).eq("status", "published").maybeSingle();
   if (!exercise) notFound();
+  const { data: savedFavorite } = identity
+    ? await supabase.from("favorites").select("exercise_id")
+      .eq("exercise_id", exercise.id).eq("user_id", identity.userId).maybeSingle()
+    : { data: null };
 
   const contentId = exercise.current_content_id;
   const [contentResult, musclesResult, jointsResult, actionsResult, equipmentResult,
@@ -102,6 +109,19 @@ export default async function ExercisePage({ params }: Props) {
             {content.short_description && <p className="mt-5 text-lg leading-8 text-[#5d7164]">{content.short_description}</p>}
             {family && <Link href={`/families/${family.slug}`} className="mt-4 inline-flex rounded-full bg-[#e4f0e7] px-3 py-1.5 text-sm font-semibold text-[#28785f]">{family.name} family</Link>}
             {(aliasesResult.data?.length ?? 0) > 0 && <p className="mt-4 text-sm text-[#748477]">Also known as: {aliasesResult.data?.map((item) => item.alias).join(", ")}</p>}
+            <div className="mt-6 flex items-center gap-4">
+              {identity ? <form action={toggleFavorite}>
+                <input type="hidden" name="exerciseId" value={exercise.id} />
+                <input type="hidden" name="slug" value={exercise.slug} />
+                <button type="submit" aria-pressed={Boolean(savedFavorite)} className="inline-flex items-center gap-2 rounded-xl border border-[#cbdace] bg-white px-4 py-2.5 text-sm font-semibold text-[#2f6347] hover:bg-[#eef6ef]">
+                  <Heart size={17} fill={savedFavorite ? "currentColor" : "none"} /> {savedFavorite ? "Saved" : "Save favorite"}
+                </button>
+              </form> : <Link href={`/sign-in?next=${encodeURIComponent(`/exercises/${exercise.slug}`)}`}
+                className="inline-flex items-center gap-2 rounded-xl border border-[#cbdace] bg-white px-4 py-2.5 text-sm font-semibold text-[#2f6347] hover:bg-[#eef6ef]">
+                <Heart size={17} /> Sign in to save
+              </Link>}
+              <span className="text-sm text-[#788a7c]">{exercise.favorite_count} saved</span>
+            </div>
 
             <section className="mt-9 space-y-6 rounded-2xl border border-[#dce5de] bg-white p-6">
               <TagSection title="Primary muscles" items={(musclesResult.data ?? []).filter((item) => item.role === "primary" && item.muscles).map((item) => ({ name: item.muscles!.name, href: `/muscles/${item.muscles!.slug}` }))} />

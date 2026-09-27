@@ -18,6 +18,10 @@ npx supabase db reset
 
 Copy `.env.example` to `.env.local`, then fill its public Supabase URL and anon key from `npx supabase status`. Keep the service-role key server-only.
 
+Set `NEXT_PUBLIC_SITE_URL` to the application origin. The MVP uses Supabase email/password Auth. In production, enable email confirmation, configure custom SMTP, and set the confirmation and recovery email templates to reach `/auth/confirm` with `token_hash` and `type` so the server can establish a cookie session.
+
+Use `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` for the confirmation template and the same URL with `type=recovery&next=/reset-password/update` for recovery. Add the site origin to Supabase Auth redirect URLs.
+
 ```sh
 npm run dev
 ```
@@ -39,6 +43,8 @@ The seed includes 20 original catalog candidates and normalized taxonomies. Cand
 `/exercises` searches published exercise names, aliases and descriptions in PostgreSQL. URL filters cover muscle roles, joints and joint actions, families, movement, equipment, attachments, biomechanics and difficulty. Values within and across filter groups use ALL semantics. Results use cursor pagination. Public family, muscle, joint, joint-action and equipment pages link back to filtered Explore.
 
 `npm run db:types` refreshes the generated Supabase types after schema changes. `npm run db:test` runs PostgreSQL and RLS checks. Browser tests require the local Supabase stack and `.env.local`.
+
+Signed-in users can save favorites and create private exercises. A private exercise can have one active, revocable view link; anyone holding it can see its draft classifications, while editing remains owner-only. The link is shown once when created. Replacing the link revokes the old one.
 
 ## Documentation
 

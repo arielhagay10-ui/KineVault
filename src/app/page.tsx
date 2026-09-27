@@ -12,7 +12,10 @@ export default function Home() {
           </div>
           <span className="text-xl font-bold tracking-[-0.05em]">KineVault</span>
         </div>
-        <Link href="/exercises" className="rounded-full border border-[#cbd9d0] px-4 py-2 text-sm font-medium text-[#355c45] hover:bg-white">Explore exercises</Link>
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="text-sm font-medium text-[#355c45] hover:underline">My library</Link>
+          <Link href="/exercises" className="rounded-full border border-[#cbd9d0] px-4 py-2 text-sm font-medium text-[#355c45] hover:bg-white">Explore exercises</Link>
+        </div>
       </header>
 
       <section className="mx-auto grid max-w-7xl gap-12 px-6 pb-20 pt-12 lg:grid-cols-[0.83fr_1.17fr] lg:items-center lg:gap-16 lg:px-10 lg:pt-20">

@@ -771,6 +771,25 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"private_exercise_shares": {
+                  Row: {
+                    "created_at": string,"created_by": string,"id": string,"private_exercise_id": string,"revoked_at": string | null,"token_hash": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by": string,"id"?: string,"private_exercise_id": string,"revoked_at"?: string | null,"token_hash": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string,"id"?: string,"private_exercise_id"?: string,"revoked_at"?: string | null,"token_hash"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "private_exercise_shares_private_exercise_id_fkey"
+      columns: ["private_exercise_id"]
+isOneToOne: false
+      referencedRelation: "private_exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"private_exercises": {
                   Row: {
                     "content_id": string,"copied_from_exercise_id": string | null,"created_at": string,"id": string,"owner_id": string,"updated_at": string
@@ -992,10 +1011,25 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "explore_exercises":
+            "delete_private_exercise":
+{ Args: { "p_private_id": string }; Returns: undefined
+                           },
+"explore_exercises":
 { Args: { "attachment_slugs"?: (string)[],"body_position_slugs"?: (string)[],"cursor_favorite_count"?: number,"cursor_id"?: string,"cursor_name"?: string,"cursor_published_at"?: string,"difficulty_values"?: (Database["public"]['Enums']["exercise_difficulty"])[],"equipment_category_slugs"?: (string)[],"equipment_slugs"?: (string)[],"family_slugs"?: (string)[],"force_type_values"?: (Database["public"]['Enums']["force_type"])[],"joint_action_slugs"?: (string)[],"joint_slugs"?: (string)[],"laterality_values"?: (Database["public"]['Enums']["laterality"])[],"mechanic_values"?: (Database["public"]['Enums']["exercise_mechanic"])[],"movement_pattern_slugs"?: (string)[],"muscle_slugs"?: (string)[],"page_size"?: number,"peak_resistance_positions"?: (Database["public"]['Enums']["peak_resistance_position"])[],"plane_slugs"?: (string)[],"primary_muscle_slugs"?: (string)[],"resistance_profiles"?: (Database["public"]['Enums']["resistance_profile"])[],"resistance_source_slugs"?: (string)[],"search_text"?: string,"secondary_muscle_slugs"?: (string)[],"sort_key"?: string,"stabilizer_muscle_slugs"?: (string)[] }; Returns: {
               "content_id": string,"exercise_id": string,"family_slug": string,"favorite_count": number,"name": string,"normalized_name": string,"published_at": string,"short_description": string,"slug": string
             }[]
+                           },
+"read_shared_private_exercise":
+{ Args: { "p_token_hash": string }; Returns: Json
+                           },
+"replace_private_share":
+{ Args: { "p_private_id": string,"p_token_hash": string }; Returns: string
+                           },
+"revoke_private_share":
+{ Args: { "p_private_id": string }; Returns: undefined
+                           },
+"save_private_exercise":
+{ Args: { "p_body_position_slug"?: string,"p_equipment_slugs"?: (string)[],"p_family_slug"?: string,"p_joint_action_slugs"?: (string)[],"p_joint_slugs"?: (string)[],"p_name"?: string,"p_primary_muscle_slugs"?: (string)[],"p_private_id"?: string,"p_resistance_profile"?: Database["public"]['Enums']["resistance_profile"],"p_secondary_muscle_slugs"?: (string)[],"p_short_description"?: string,"p_stabilizer_muscle_slugs"?: (string)[] }; Returns: string
                            }
           }
           Enums: {
