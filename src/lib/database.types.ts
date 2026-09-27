@@ -458,13 +458,13 @@ isOneToOne: true
                   ]
                 },"exercise_submissions": {
                   Row: {
-                    "created_at": string,"editorial_content_id": string | null,"id": string,"merged_into_exercise_id": string | null,"original_content_id": string,"owner_id": string,"related_exercise_id": string | null,"source_private_exercise_id": string | null,"status": Database["public"]['Enums']["submission_status"],"submitted_at": string | null,"updated_at": string
+                    "allow_motion_reuse": boolean,"created_at": string,"duplicate_disposition": string,"editorial_content_id": string | null,"id": string,"merged_into_exercise_id": string | null,"original_content_id": string,"owner_id": string,"related_exercise_id": string | null,"revision_of_id": string | null,"source_private_exercise_id": string | null,"status": Database["public"]['Enums']["submission_status"],"submitted_at": string | null,"updated_at": string
                   }
                   Insert: {
-                    "created_at"?: string,"editorial_content_id"?: string | null,"id"?: string,"merged_into_exercise_id"?: string | null,"original_content_id": string,"owner_id": string,"related_exercise_id"?: string | null,"source_private_exercise_id"?: string | null,"status"?: Database["public"]['Enums']["submission_status"],"submitted_at"?: string | null,"updated_at"?: string
+                    "allow_motion_reuse"?: boolean,"created_at"?: string,"duplicate_disposition"?: string,"editorial_content_id"?: string | null,"id"?: string,"merged_into_exercise_id"?: string | null,"original_content_id": string,"owner_id": string,"related_exercise_id"?: string | null,"revision_of_id"?: string | null,"source_private_exercise_id"?: string | null,"status"?: Database["public"]['Enums']["submission_status"],"submitted_at"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"editorial_content_id"?: string | null,"id"?: string,"merged_into_exercise_id"?: string | null,"original_content_id"?: string,"owner_id"?: string,"related_exercise_id"?: string | null,"source_private_exercise_id"?: string | null,"status"?: Database["public"]['Enums']["submission_status"],"submitted_at"?: string | null,"updated_at"?: string
+                    "allow_motion_reuse"?: boolean,"created_at"?: string,"duplicate_disposition"?: string,"editorial_content_id"?: string | null,"id"?: string,"merged_into_exercise_id"?: string | null,"original_content_id"?: string,"owner_id"?: string,"related_exercise_id"?: string | null,"revision_of_id"?: string | null,"source_private_exercise_id"?: string | null,"status"?: Database["public"]['Enums']["submission_status"],"submitted_at"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -490,6 +490,12 @@ isOneToOne: true
       columns: ["related_exercise_id"]
 isOneToOne: false
       referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "exercise_submissions_revision_of_id_fkey"
+      columns: ["revision_of_id"]
+isOneToOne: true
+      referencedRelation: "exercise_submissions"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "exercise_submissions_source_private_exercise_id_fkey"
@@ -1011,7 +1017,15 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "copy_public_exercise":
+            "claim_render_job":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "camera_angle": Database["public"]['Enums']["camera_angle"],"content_id": string,"duration_ms": number,"job_id": string,"scene_id": string,"submission_id": string
+            }[]
+                           },
+"complete_render_job":
+{ Args: { "p_asset_group_id": string,"p_job_id": string,"p_mp4_path": string,"p_poster_path": string,"p_webm_path": string }; Returns: undefined
+                           },
+"copy_public_exercise":
 { Args: { "p_exercise_id": string }; Returns: string
                            },
 "delete_private_exercise":
@@ -1021,6 +1035,17 @@ isOneToOne: false
 { Args: { "attachment_slugs"?: (string)[],"body_position_slugs"?: (string)[],"cursor_favorite_count"?: number,"cursor_id"?: string,"cursor_name"?: string,"cursor_published_at"?: string,"difficulty_values"?: (Database["public"]['Enums']["exercise_difficulty"])[],"equipment_category_slugs"?: (string)[],"equipment_slugs"?: (string)[],"family_slugs"?: (string)[],"force_type_values"?: (Database["public"]['Enums']["force_type"])[],"joint_action_slugs"?: (string)[],"joint_slugs"?: (string)[],"laterality_values"?: (Database["public"]['Enums']["laterality"])[],"mechanic_values"?: (Database["public"]['Enums']["exercise_mechanic"])[],"movement_pattern_slugs"?: (string)[],"muscle_slugs"?: (string)[],"page_size"?: number,"peak_resistance_positions"?: (Database["public"]['Enums']["peak_resistance_position"])[],"plane_slugs"?: (string)[],"primary_muscle_slugs"?: (string)[],"resistance_profiles"?: (Database["public"]['Enums']["resistance_profile"])[],"resistance_source_slugs"?: (string)[],"search_text"?: string,"secondary_muscle_slugs"?: (string)[],"sort_key"?: string,"stabilizer_muscle_slugs"?: (string)[] }; Returns: {
               "content_id": string,"exercise_id": string,"family_slug": string,"favorite_count": number,"name": string,"normalized_name": string,"published_at": string,"short_description": string,"slug": string
             }[]
+                           },
+"fail_render_job":
+{ Args: { "p_error_code": string,"p_job_id": string }; Returns: undefined
+                           },
+"find_exercise_duplicates":
+{ Args: { "p_private_id": string }; Returns: {
+              "alias_match": boolean,"exact_name": boolean,"exercise_id": string,"name": string,"same_family": boolean,"score": number,"shared_equipment": number,"shared_joint_actions": number,"shared_muscles": number,"shared_patterns": number,"slug": string
+            }[]
+                           },
+"read_render_scene":
+{ Args: { "p_job_id": string }; Returns: Json
                            },
 "read_shared_private_exercise":
 { Args: { "p_token_hash": string }; Returns: Json
@@ -1039,6 +1064,12 @@ isOneToOne: false
                            },
 "save_private_scene":
 { Args: { "p_private_id": string,"p_scene": Json }; Returns: string
+                           },
+"submit_private_exercise":
+{ Args: { "p_allow_motion_reuse"?: boolean,"p_duplicate_disposition": string,"p_private_id": string,"p_related_exercise_id"?: string,"p_revision_of_id"?: string,"p_suggestions"?: Json }; Returns: string
+                           },
+"withdraw_submission":
+{ Args: { "p_submission_id": string }; Returns: undefined
                            }
           }
           Enums: {

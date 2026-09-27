@@ -31,6 +31,14 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   await expect(page.getByRole("group", { name: "Left shoulder" }).getByLabel("Z")).toHaveValue("-80");
   await page.getByRole("link", { name: "Exercise details" }).click();
 
+  await page.getByRole("link", { name: "Submit for review" }).click();
+  await expect(page.getByRole("heading", { name: "Ready for review" })).toBeVisible();
+  await page.getByRole("button", { name: "Submit for review" }).click();
+  await expect(page).toHaveURL(/\/submissions\/[0-9a-f-]+$/);
+  await expect(page.getByText(/submitted ·/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Motion study" })).toBeVisible();
+  await page.getByRole("link", { name: "Edit my private copy" }).click();
+
   await page.getByRole("button", { name: "Create share link" }).click();
   const relativeLink = await page.getByRole("textbox", { name: "Share link" }).inputValue();
   expect(relativeLink).toMatch(/^\/shared\/[A-Za-z0-9_-]{43}$/);

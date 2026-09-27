@@ -18,10 +18,13 @@ export default async function EditPrivateExercisePage({ params, searchParams }: 
   const { id } = await params;
   const supabase = await createClient();
   const { data: record } = await supabase.from("private_exercises")
-    .select("id,content_id").eq("id", id).eq("owner_id", identity.userId).maybeSingle();
+    .select("id,content_id,copied_from_exercise_id").eq("id", id).eq("owner_id", identity.userId).maybeSingle();
   if (!record) notFound();
 
   const contentId = record.content_id;
+  const { data: sourceExercise } = record.copied_from_exercise_id
+    ? await supabase.from("exercises").select("slug").eq("id", record.copied_from_exercise_id).maybeSingle()
+    : { data: null };
   const [content, family, muscles, joints, actions, equipment, biomechanics, shares, options] = await Promise.all([
     supabase.from("exercise_content").select("name,short_description,family_id").eq("id", contentId).single(),
     supabase.from("exercise_families").select("id,slug"),
@@ -64,7 +67,11 @@ export default async function EditPrivateExercisePage({ params, searchParams }: 
           <DeletePrivateButton privateId={record.id} />
         </div>
         {saved && <p role="status" className="my-6 rounded-xl border border-[#b8dfc3] bg-[#e9f6eb] px-4 py-3 text-sm text-[#276448]">Saved privately.</p>}
-        <Link href={`/my-exercises/${record.id}/workshop`} className="mt-7 inline-flex rounded-xl bg-[#174a3e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#246a53]">Open motion workshop →</Link>
+        {sourceExercise && <p className="mt-4 text-sm text-[#647568]">Copied from <Link href={`/exercises/${sourceExercise.slug}`} className="font-semibold text-[#28785f] underline">the public exercise</Link>. Your edits are independent.</p>}
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link href={`/my-exercises/${record.id}/workshop`} className="inline-flex rounded-xl bg-[#174a3e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#246a53]">Open motion workshop →</Link>
+          <Link href={`/my-exercises/${record.id}/submit`} className="inline-flex rounded-xl border border-[#a9cbb6] bg-white px-5 py-3 text-sm font-semibold text-[#246a53] hover:bg-[#eef6ef]">Submit for review →</Link>
+        </div>
         <div className="mt-8"><PrivateExerciseForm initial={initial} options={options} /></div>
         <SharePanel privateId={record.id} active={(shares.data?.length ?? 0) > 0} />
       </div>

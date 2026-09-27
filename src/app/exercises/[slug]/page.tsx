@@ -126,7 +126,7 @@ export default async function ExercisePage({ params }: Props) {
             {identity && <form action={copyPublicExercise} className="mt-4">
               <input type="hidden" name="exerciseId" value={exercise.id} />
               <button type="submit" className="rounded-xl bg-[#174a3e] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#246a53]">Copy to my exercises</button>
-              <p className="mt-2 text-xs leading-5 text-[#748477]">Make an independent private copy of the reviewed classifications and motion.</p>
+              <p className="mt-2 text-xs leading-5 text-[#748477]">Make an independent private copy of the reviewed classifications. The motion is included when its creator allowed reuse.</p>
             </form>}
 
             <section className="mt-9 space-y-6 rounded-2xl border border-[#dce5de] bg-white p-6">

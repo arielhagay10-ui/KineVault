@@ -46,6 +46,14 @@ The seed includes 20 original catalog candidates and normalized taxonomies. Cand
 
 Signed-in users can save favorites, create private exercises, and copy published exercises into independent private drafts with source lineage. The motion workshop saves nine named rig joints as relational keyframes and offers original dumbbell, barbell, and cable assets. A private exercise can have one active, revocable view link; anyone holding it can see its classifications and motion, while editing remains owner-only. The link is shown once when created. Replacing the link revokes the old one.
 
+Contributors can submit a private draft after saving a complete motion demo and either selecting or suggesting required classifications. Submission freezes a separate copy, records possible duplicates and reuse consent, and queues a private render. Requested changes create a linked new revision; the private draft remains editable.
+
+## Render worker
+
+Local Supabase Storage must be running. Set `SUPABASE_SERVICE_ROLE_KEY` in the ignored `.env.local` from local Supabase status and generate a random `RENDER_WORKER_TOKEN` of at least 32 characters. The app and worker must share that token. Set `RENDER_APP_URL` to the app origin. Keep both secrets out of client code and commits.
+
+Run `npm run render:once` to process one queued job or `npm run render:worker` for continuous processing. The worker captures the original 3D scene with headless Chrome, encodes WebM, MP4 and a WebP poster with pinned FFmpeg, uploads to private Storage, then records the three assets in one database transaction. Failed jobs retry up to three times. Publication will copy approved assets into the public bucket.
+
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md)

@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(7);
+select plan(11);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-4000-8000-000000000061', 'copy-owner@example.test', 'authenticated', 'authenticated'),
@@ -31,9 +31,17 @@ where id = '00000000-0000-4000-8000-000000000063';
 insert into public.exercises (id, slug, current_content_id, status, published_at)
 values ('00000000-0000-4000-8000-000000000067', 'reviewed-raise',
   '00000000-0000-4000-8000-000000000063', 'published', now());
-insert into public.exercise_versions (exercise_id, version_number, content_id)
+insert into public.exercise_content (id, kind, owner_id, name)
+values ('00000000-0000-4000-8000-000000000068', 'submission_original',
+  '00000000-0000-4000-8000-000000000061', 'Contributor Source');
+insert into public.exercise_submissions (id, owner_id, original_content_id, status, allow_motion_reuse)
+values ('00000000-0000-4000-8000-000000000069',
+  '00000000-0000-4000-8000-000000000061',
+  '00000000-0000-4000-8000-000000000068', 'approved', false);
+insert into public.exercise_versions (exercise_id, version_number, content_id, source_submission_id)
 values ('00000000-0000-4000-8000-000000000067', 1,
-  '00000000-0000-4000-8000-000000000063');
+  '00000000-0000-4000-8000-000000000063',
+  '00000000-0000-4000-8000-000000000069');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000061', true);
@@ -53,12 +61,29 @@ select is((select count(*)::integer from public.exercise_muscles m
 select is((select count(*)::integer from public.motion_keyframes frame
   join public.exercise_scenes scene on scene.id = frame.scene_id
   join public.private_exercises private_exercise on private_exercise.content_id = scene.content_id
-  where private_exercise.id = current_setting('test.copy_id')::uuid), 2,
-  'copy retains editable motion keyframes');
+  where private_exercise.id = current_setting('test.copy_id')::uuid), 0,
+  'copy excludes motion without contributor consent');
+set local role postgres;
+update public.exercise_submissions set allow_motion_reuse = true
+where id = '00000000-0000-4000-8000-000000000069';
+set local role authenticated;
+select set_config('test.consent_copy_id', public.copy_public_exercise(
+  '00000000-0000-4000-8000-000000000067')::text, true);
+select is((select count(*)::integer from public.motion_keyframes frame
+  join public.exercise_scenes scene on scene.id = frame.scene_id
+  join public.private_exercises private_exercise on private_exercise.content_id = scene.content_id
+  where private_exercise.id = current_setting('test.consent_copy_id')::uuid), 2,
+  'consented motion copies as editable keyframes');
 select isnt((select content_id from public.private_exercises
   where id = current_setting('test.copy_id')::uuid),
   '00000000-0000-4000-8000-000000000063'::uuid,
   'copy has an independent content record');
+select is((select score from public.find_exercise_duplicates(current_setting('test.copy_id')::uuid)
+  where exercise_id = '00000000-0000-4000-8000-000000000067'), 100,
+  'an exact public name is ranked at 100');
+select is((select shared_muscles from public.find_exercise_duplicates(current_setting('test.copy_id')::uuid)
+  where exercise_id = '00000000-0000-4000-8000-000000000067'), 1,
+  'duplicate comparison counts relational muscle overlap');
 set local role postgres;
 select throws_ok(
   $$update public.motion_keyframes set position_ms = 500
@@ -70,6 +95,11 @@ select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000062
 select is((select count(*)::integer from public.private_exercises
   where id = current_setting('test.copy_id')::uuid), 0,
   'another user cannot see the private copy');
+select throws_ok(
+  $$select * from public.find_exercise_duplicates(current_setting('test.copy_id')::uuid)$$,
+  'P0001', 'private exercise not found',
+  'another user cannot run duplicate search on the private copy'
+);
 
 select * from finish();
 rollback;
