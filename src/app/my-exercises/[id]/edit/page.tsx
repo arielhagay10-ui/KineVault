@@ -64,6 +64,7 @@ export default async function EditPrivateExercisePage({ params, searchParams }: 
           <DeletePrivateButton privateId={record.id} />
         </div>
         {saved && <p role="status" className="my-6 rounded-xl border border-[#b8dfc3] bg-[#e9f6eb] px-4 py-3 text-sm text-[#276448]">Saved privately.</p>}
+        <Link href={`/my-exercises/${record.id}/workshop`} className="mt-7 inline-flex rounded-xl bg-[#174a3e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#246a53]">Open motion workshop →</Link>
         <div className="mt-8"><PrivateExerciseForm initial={initial} options={options} /></div>
         <SharePanel privateId={record.id} active={(shares.data?.length ?? 0) > 0} />
       </div>

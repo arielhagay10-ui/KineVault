@@ -1011,7 +1011,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "delete_private_exercise":
+            "copy_public_exercise":
+{ Args: { "p_exercise_id": string }; Returns: string
+                           },
+"delete_private_exercise":
 { Args: { "p_private_id": string }; Returns: undefined
                            },
 "explore_exercises":
@@ -1022,6 +1025,9 @@ isOneToOne: false
 "read_shared_private_exercise":
 { Args: { "p_token_hash": string }; Returns: Json
                            },
+"read_shared_private_scene":
+{ Args: { "p_token_hash": string }; Returns: Json
+                           },
 "replace_private_share":
 { Args: { "p_private_id": string,"p_token_hash": string }; Returns: string
                            },
@@ -1030,6 +1036,9 @@ isOneToOne: false
                            },
 "save_private_exercise":
 { Args: { "p_body_position_slug"?: string,"p_equipment_slugs"?: (string)[],"p_family_slug"?: string,"p_joint_action_slugs"?: (string)[],"p_joint_slugs"?: (string)[],"p_name"?: string,"p_primary_muscle_slugs"?: (string)[],"p_private_id"?: string,"p_resistance_profile"?: Database["public"]['Enums']["resistance_profile"],"p_secondary_muscle_slugs"?: (string)[],"p_short_description"?: string,"p_stabilizer_muscle_slugs"?: (string)[] }; Returns: string
+                           },
+"save_private_scene":
+{ Args: { "p_private_id": string,"p_scene": Json }; Returns: string
                            }
           }
           Enums: {

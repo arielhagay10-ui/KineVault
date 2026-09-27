@@ -44,7 +44,7 @@ The seed includes 20 original catalog candidates and normalized taxonomies. Cand
 
 `npm run db:types` refreshes the generated Supabase types after schema changes. `npm run db:test` runs PostgreSQL and RLS checks. Browser tests require the local Supabase stack and `.env.local`.
 
-Signed-in users can save favorites and create private exercises. A private exercise can have one active, revocable view link; anyone holding it can see its draft classifications, while editing remains owner-only. The link is shown once when created. Replacing the link revokes the old one.
+Signed-in users can save favorites, create private exercises, and copy published exercises into independent private drafts with source lineage. The motion workshop saves nine named rig joints as relational keyframes and offers original dumbbell, barbell, and cable assets. A private exercise can have one active, revocable view link; anyone holding it can see its classifications and motion, while editing remains owner-only. The link is shown once when created. Replacing the link revokes the old one.
 
 ## Documentation
 

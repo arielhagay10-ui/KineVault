@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { SharedMotion } from "@/components/character/shared-motion";
+import { decodeSharedScene } from "@/lib/motion/load-scene";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -26,11 +28,15 @@ export default async function SharedExercisePage({ params }: { params: Promise<{
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) notFound();
   const hash = createHash("sha256").update(token).digest("hex");
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("read_shared_private_exercise", { p_token_hash: hash });
+  const [{ data, error }, { data: sceneData }] = await Promise.all([
+    supabase.rpc("read_shared_private_exercise", { p_token_hash: hash }),
+    supabase.rpc("read_shared_private_scene", { p_token_hash: hash }),
+  ]);
   if (error || !data) notFound();
   const parsed = sharedExercise.safeParse(data);
   if (!parsed.success) notFound();
   const exercise = parsed.data;
+  const scene = sceneData ? decodeSharedScene(sceneData) : null;
 
   return (
     <main className="min-h-screen bg-[#f7f8f5] text-[#172a27]">
@@ -45,6 +51,7 @@ export default async function SharedExercisePage({ params }: { params: Promise<{
           {exercise.description && <p className="mt-5 text-lg leading-8 text-[#5f7365]">{exercise.description}</p>}
           <p className="mt-5 text-sm text-[#748578]">This is its owner’s private draft. Classifications can change as they refine it.</p>
         </div>
+        {scene && <SharedMotion scene={scene} />}
         <div className="mt-10 grid gap-5 md:grid-cols-2">
           <InfoCard title="Movement">
             <InfoRow label="Family" value={exercise.family} />

@@ -442,3 +442,56 @@ from (values
   ('pull-up', 'Pullup', 'pullup')
 ) as a(exercise_slug, alias, normalized_alias)
 join public.exercises e on e.slug = a.exercise_slug;
+
+-- Original code-native rig and equipment. These identifiers are versioned so
+-- workshop scenes remain reproducible as the art system evolves.
+insert into public.rigs (name, version, source_storage_path, license_name, active)
+values ('KineVault Anatomical Figure', 1, 'procedural:humanoid-v1', 'KineVault original', true)
+on conflict (name, version) do nothing;
+
+insert into public.rig_joints (
+  rig_id, anatomical_joint_id, slug, name,
+  min_x_degrees, max_x_degrees, min_y_degrees, max_y_degrees,
+  min_z_degrees, max_z_degrees
+)
+select r.id, j.id, control.slug, control.name,
+  control.min_x, control.max_x, control.min_y, control.max_y,
+  control.min_z, control.max_z
+from (values
+  ('torso', 'spine', 'Torso', -35, 35, -45, 45, -30, 30),
+  ('left-shoulder', 'shoulder', 'Left Shoulder', -160, 160, -90, 90, -170, 170),
+  ('right-shoulder', 'shoulder', 'Right Shoulder', -160, 160, -90, 90, -170, 170),
+  ('left-elbow', 'elbow', 'Left Elbow', -15, 155, -20, 20, -150, 150),
+  ('right-elbow', 'elbow', 'Right Elbow', -15, 155, -20, 20, -150, 150),
+  ('left-hip', 'hip', 'Left Hip', -120, 120, -60, 60, -75, 75),
+  ('right-hip', 'hip', 'Right Hip', -120, 120, -60, 60, -75, 75),
+  ('left-knee', 'knee', 'Left Knee', -150, 15, -15, 15, -30, 30),
+  ('right-knee', 'knee', 'Right Knee', -150, 15, -15, 15, -30, 30)
+) as control(slug, joint_slug, name, min_x, max_x, min_y, max_y, min_z, max_z)
+join public.rigs r on r.name = 'KineVault Anatomical Figure' and r.version = 1
+join public.joints j on j.slug = control.joint_slug
+on conflict (rig_id, slug) do nothing;
+
+update public.rig_joints child set parent_joint_id = parent.id
+from public.rig_joints parent, public.rigs r
+where child.rig_id = r.id and parent.rig_id = r.id
+  and r.name = 'KineVault Anatomical Figure' and r.version = 1
+  and (
+    (child.slug in ('left-shoulder', 'right-shoulder', 'left-hip', 'right-hip') and parent.slug = 'torso')
+    or (child.slug = 'left-elbow' and parent.slug = 'left-shoulder')
+    or (child.slug = 'right-elbow' and parent.slug = 'right-shoulder')
+    or (child.slug = 'left-knee' and parent.slug = 'left-hip')
+    or (child.slug = 'right-knee' and parent.slug = 'right-hip')
+  );
+
+insert into public.equipment_assets (
+  equipment_id, slug, version, source_storage_path, license_name, active
+)
+select q.id, asset.slug, 1, asset.source_path, 'KineVault original', true
+from (values
+  ('dumbbell', 'dumbbell-pair', 'procedural:dumbbell-pair-v1'),
+  ('barbell', 'barbell', 'procedural:barbell-v1'),
+  ('cable', 'single-cable', 'procedural:single-cable-v1')
+) as asset(equipment_slug, slug, source_path)
+join public.equipment q on q.slug = asset.equipment_slug
+on conflict (slug, version) do nothing;

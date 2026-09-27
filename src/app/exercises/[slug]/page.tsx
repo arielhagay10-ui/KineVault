@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Dumbbell, Heart, Info } from "lucide-react";
 import { toggleFavorite } from "@/app/favorites/actions";
+import { copyPublicExercise } from "@/app/exercises/actions";
 import { getIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -122,6 +123,11 @@ export default async function ExercisePage({ params }: Props) {
               </Link>}
               <span className="text-sm text-[#788a7c]">{exercise.favorite_count} saved</span>
             </div>
+            {identity && <form action={copyPublicExercise} className="mt-4">
+              <input type="hidden" name="exerciseId" value={exercise.id} />
+              <button type="submit" className="rounded-xl bg-[#174a3e] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#246a53]">Copy to my exercises</button>
+              <p className="mt-2 text-xs leading-5 text-[#748477]">Make an independent private copy of the reviewed classifications and motion.</p>
+            </form>}
 
             <section className="mt-9 space-y-6 rounded-2xl border border-[#dce5de] bg-white p-6">
               <TagSection title="Primary muscles" items={(musclesResult.data ?? []).filter((item) => item.role === "primary" && item.muscles).map((item) => ({ name: item.muscles!.name, href: `/muscles/${item.muscles!.slug}` }))} />

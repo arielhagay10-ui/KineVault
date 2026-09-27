@@ -19,6 +19,18 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   await expect(page).toHaveURL(/\/my-exercises\/[0-9a-f-]+\/edit\?saved=1$/);
   await expect(page.getByText("Saved privately.")).toBeVisible();
 
+  await page.getByRole("link", { name: "Open motion workshop" }).click();
+  await expect(page.getByRole("heading", { name: "Private Cable Raise" })).toBeVisible();
+  await page.getByLabel("Equipment asset").selectOption("single-cable");
+  await page.getByRole("button", { name: /Keyframe 2/ }).click();
+  await page.getByRole("group", { name: "Left shoulder" }).getByLabel("Z").fill("-80");
+  await page.getByRole("button", { name: "Save scene" }).click();
+  await expect(page.getByText("Scene saved privately.")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /Keyframe 2/ }).click();
+  await expect(page.getByRole("group", { name: "Left shoulder" }).getByLabel("Z")).toHaveValue("-80");
+  await page.getByRole("link", { name: "Exercise details" }).click();
+
   await page.getByRole("button", { name: "Create share link" }).click();
   const relativeLink = await page.getByRole("textbox", { name: "Share link" }).inputValue();
   expect(relativeLink).toMatch(/^\/shared\/[A-Za-z0-9_-]{43}$/);
@@ -28,6 +40,7 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   await sharedPage.goto(relativeLink);
   await expect(sharedPage.getByRole("heading", { name: "Private Cable Raise" })).toBeVisible();
   await expect(sharedPage.getByText("My cable raise variation.")).toBeVisible();
+  await expect(sharedPage.getByRole("heading", { name: "Motion study" })).toBeVisible();
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Revoke link" }).click();
