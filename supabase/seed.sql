@@ -79,6 +79,45 @@ from (values
 join public.joints j on j.slug = a.joint_slug
 on conflict (slug) do nothing;
 
+update public.joint_actions ja set description = d.description
+from (values
+  ('shoulder-flexion', 'The upper arm moves forward and upward relative to the torso.'),
+  ('shoulder-extension', 'The upper arm moves backward relative to the torso.'),
+  ('shoulder-abduction', 'The upper arm moves away from the torso to the side.'),
+  ('shoulder-adduction', 'The upper arm moves toward the torso from the side.'),
+  ('shoulder-horizontal-abduction', 'The upper arm moves backward across a horizontal plane from a position in front of the body.'),
+  ('shoulder-horizontal-adduction', 'The upper arm moves across a horizontal plane toward the front of the body.'),
+  ('shoulder-internal-rotation', 'The upper arm rotates inward around its long axis at the shoulder.'),
+  ('shoulder-external-rotation', 'The upper arm rotates outward around its long axis at the shoulder.'),
+  ('elbow-flexion', 'The elbow bends, decreasing the angle between the upper arm and forearm.'),
+  ('elbow-extension', 'The elbow straightens, increasing the angle between the upper arm and forearm.'),
+  ('forearm-pronation', 'The forearm rotates so the palm turns downward or backward, depending on arm position.'),
+  ('forearm-supination', 'The forearm rotates so the palm turns upward or forward, depending on arm position.'),
+  ('wrist-flexion', 'The palm moves toward the inner forearm at the wrist.'),
+  ('wrist-extension', 'The back of the hand moves toward the outer forearm at the wrist.'),
+  ('hip-flexion', 'The thigh moves forward toward the torso at the hip.'),
+  ('hip-extension', 'The thigh moves backward relative to the torso at the hip.'),
+  ('hip-abduction', 'The thigh moves away from the body midline at the hip.'),
+  ('hip-adduction', 'The thigh moves toward the body midline at the hip.'),
+  ('hip-internal-rotation', 'The thigh rotates inward around its long axis at the hip.'),
+  ('hip-external-rotation', 'The thigh rotates outward around its long axis at the hip.'),
+  ('knee-flexion', 'The knee bends, decreasing the angle between the thigh and lower leg.'),
+  ('knee-extension', 'The knee straightens, increasing the angle between the thigh and lower leg.'),
+  ('ankle-plantarflexion', 'The foot points downward relative to the lower leg.'),
+  ('ankle-dorsiflexion', 'The top of the foot moves toward the lower leg.'),
+  ('scapular-elevation', 'The shoulder blade moves upward along the rib cage.'),
+  ('scapular-depression', 'The shoulder blade moves downward along the rib cage.'),
+  ('scapular-protraction', 'The shoulder blade moves forward around the rib cage.'),
+  ('scapular-retraction', 'The shoulder blade moves toward the spine.'),
+  ('scapular-upward-rotation', 'The shoulder blade rotates so its socket faces more upward.'),
+  ('scapular-downward-rotation', 'The shoulder blade rotates so its socket faces more downward.'),
+  ('spinal-flexion', 'The spine bends forward, reducing the angle at the front of the torso.'),
+  ('spinal-extension', 'The spine bends backward, increasing the angle at the front of the torso.'),
+  ('spinal-rotation', 'The spine turns around its vertical axis.'),
+  ('spinal-lateral-flexion', 'The spine bends to one side in the frontal plane.')
+) as d(slug, description)
+where ja.slug = d.slug;
+
 insert into public.equipment_categories (slug, name) values
   ('free-weight', 'Free Weight'), ('cable', 'Cable'),
   ('machine', 'Machine'), ('bodyweight', 'Bodyweight')
@@ -362,6 +401,36 @@ join public.resistance_sources rs on rs.slug = (
        when q.slug = 'cable' then 'cable'
        else 'machine' end
 );
+
+update public.exercise_biomechanics b
+set body_position_id = bp.id, plane_id = p.id
+from public.exercises e,
+  (values
+    ('barbell-bench-press', 'supine', 'transverse'),
+    ('incline-dumbbell-bench-press', 'supine', 'transverse'),
+    ('barbell-back-squat', 'standing', 'sagittal'),
+    ('conventional-deadlift', 'standing', 'sagittal'),
+    ('barbell-romanian-deadlift', 'standing', 'sagittal'),
+    ('pull-up', 'hanging', 'multiplanar'),
+    ('lat-pulldown', 'seated', 'multiplanar'),
+    ('dumbbell-lateral-raise', 'standing', 'frontal'),
+    ('cable-lateral-raise', 'standing', 'frontal'),
+    ('behind-body-cable-lateral-raise', 'standing', 'frontal'),
+    ('cross-body-cable-lateral-raise', 'standing', 'frontal'),
+    ('barbell-curl', 'standing', 'sagittal'),
+    ('dumbbell-curl', 'standing', 'sagittal'),
+    ('cable-triceps-pushdown', 'standing', 'sagittal'),
+    ('overhead-cable-triceps-extension', 'standing', 'sagittal'),
+    ('leg-extension', 'seated', 'sagittal'),
+    ('seated-leg-curl', 'seated', 'sagittal'),
+    ('standing-calf-raise', 'standing', 'sagittal'),
+    ('dumbbell-shoulder-press', 'standing', 'sagittal')
+  ) as classification(exercise_slug, body_slug, plane_slug),
+  public.body_positions bp, public.planes_of_motion p
+where b.content_id = e.current_content_id
+  and e.slug = classification.exercise_slug
+  and bp.slug = classification.body_slug
+  and p.slug = classification.plane_slug;
 
 insert into public.exercise_aliases (content_id, alias, normalized_alias)
 select e.current_content_id, a.alias, a.normalized_alias

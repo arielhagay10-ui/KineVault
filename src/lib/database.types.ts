@@ -431,6 +431,31 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"exercise_search": {
+                  Row: {
+                    "aliases_text": string,"content_id": string,"description_text": string,"exercise_id": string,"name": string,"normalized_name": string,"search_vector": unknown
+                  }
+                  Insert: {
+                    "aliases_text"?: string,"content_id": string,"description_text"?: string,"exercise_id": string,"name": string,"normalized_name": string,"search_vector"?: never
+                  }
+                  Update: {
+                    "aliases_text"?: string,"content_id"?: string,"description_text"?: string,"exercise_id"?: string,"name"?: string,"normalized_name"?: string,"search_vector"?: never
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_search_content_id_fkey"
+      columns: ["content_id"]
+isOneToOne: false
+      referencedRelation: "exercise_content"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "exercise_search_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: true
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"exercise_submissions": {
                   Row: {
                     "created_at": string,"editorial_content_id": string | null,"id": string,"merged_into_exercise_id": string | null,"original_content_id": string,"owner_id": string,"related_exercise_id": string | null,"source_private_exercise_id": string | null,"status": Database["public"]['Enums']["submission_status"],"submitted_at": string | null,"updated_at": string
@@ -967,7 +992,11 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            [_ in never]: never
+            "explore_exercises":
+{ Args: { "attachment_slugs"?: (string)[],"body_position_slugs"?: (string)[],"cursor_favorite_count"?: number,"cursor_id"?: string,"cursor_name"?: string,"cursor_published_at"?: string,"difficulty_values"?: (Database["public"]['Enums']["exercise_difficulty"])[],"equipment_category_slugs"?: (string)[],"equipment_slugs"?: (string)[],"family_slugs"?: (string)[],"force_type_values"?: (Database["public"]['Enums']["force_type"])[],"joint_action_slugs"?: (string)[],"joint_slugs"?: (string)[],"laterality_values"?: (Database["public"]['Enums']["laterality"])[],"mechanic_values"?: (Database["public"]['Enums']["exercise_mechanic"])[],"movement_pattern_slugs"?: (string)[],"muscle_slugs"?: (string)[],"page_size"?: number,"peak_resistance_positions"?: (Database["public"]['Enums']["peak_resistance_position"])[],"plane_slugs"?: (string)[],"primary_muscle_slugs"?: (string)[],"resistance_profiles"?: (Database["public"]['Enums']["resistance_profile"])[],"resistance_source_slugs"?: (string)[],"search_text"?: string,"secondary_muscle_slugs"?: (string)[],"sort_key"?: string,"stabilizer_muscle_slugs"?: (string)[] }; Returns: {
+              "content_id": string,"exercise_id": string,"family_slug": string,"favorite_count": number,"name": string,"normalized_name": string,"published_at": string,"short_description": string,"slug": string
+            }[]
+                           }
           }
           Enums: {
             "app_role": "user"|"reviewer"|"admin","camera_angle": "front"|"side"|"three_quarter"|"custom","classification_confidence": "low"|"medium"|"high","content_kind": "private_draft"|"submission_original"|"submission_editorial"|"catalog_candidate"|"published_version","equipment_role": "required"|"optional","exercise_difficulty": "beginner"|"intermediate"|"advanced","exercise_mechanic": "compound"|"isolation","exercise_relation_type": "variation_of"|"similar_to"|"progression_of"|"regression_of"|"alternative_equipment_for"|"same_movement_pattern_as","exercise_type": "strength"|"mobility"|"plyometric"|"isometric"|"other","force_type": "push"|"pull"|"static"|"mixed","joint_role": "primary"|"secondary"|"stabilization","laterality": "unilateral"|"bilateral"|"alternating","media_kind": "webm"|"mp4"|"poster"|"glb_source"|"gltf_source","moderation_action": "submit"|"begin_review"|"request_changes"|"resubmit"|"approve"|"reject"|"merge"|"withdraw"|"edit","moderation_reason": "duplicate"|"incorrect_name"|"incorrect_exercise_family"|"incorrect_primary_muscle"|"incorrect_secondary_muscle"|"incorrect_joint"|"incorrect_joint_action"|"missing_joint_action"|"incorrect_equipment"|"incorrect_biomechanics"|"incorrect_resistance_profile"|"should_be_alias"|"should_be_variation"|"unsafe_or_unclear_demonstration"|"poor_media"|"insufficient_information"|"other","muscle_role": "primary"|"secondary"|"stabilizer","peak_resistance_position": "beginning"|"middle"|"end"|"multiple"|"unknown","publication_status": "pending_media"|"published"|"withdrawn","render_status": "queued"|"running"|"succeeded"|"failed","resistance_profile": "ascending"|"descending"|"bell_shaped"|"relatively_constant"|"variable_complex"|"unknown","submission_status": "draft"|"submitted"|"in_review"|"changes_requested"|"approved"|"rejected"|"merged"|"withdrawn"

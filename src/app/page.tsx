@@ -1,4 +1,5 @@
 import { ArrowUpRight, Orbit, Search, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { CharacterPreview } from "@/components/character/character-preview";
 
 export default function Home() {
@@ -11,9 +12,7 @@ export default function Home() {
           </div>
           <span className="text-xl font-bold tracking-[-0.05em]">KineVault</span>
         </div>
-        <span className="rounded-full border border-[#cbd9d0] px-3 py-1 text-xs font-medium text-[#526a60]">
-          Foundation preview
-        </span>
+        <Link href="/exercises" className="rounded-full border border-[#cbd9d0] px-4 py-2 text-sm font-medium text-[#355c45] hover:bg-white">Explore exercises</Link>
       </header>
 
       <section className="mx-auto grid max-w-7xl gap-12 px-6 pb-20 pt-12 lg:grid-cols-[0.83fr_1.17fr] lg:items-center lg:gap-16 lg:px-10 lg:pt-20">
@@ -46,10 +45,10 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <p className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-[#33745d]">
-            Public catalog opens as demonstrations are approved
+          <Link href="/exercises" className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-[#33745d] hover:underline">
+            Explore reviewed exercises
             <ArrowUpRight size={16} />
-          </p>
+          </Link>
         </div>
         <CharacterPreview />
       </section>
