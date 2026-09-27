@@ -2,6 +2,7 @@ node_modules/
 .npm-cache/
 kinevault-scaffold/
 .next/
+next-env.d.ts
 out/
 coverage/
 playwright-report/

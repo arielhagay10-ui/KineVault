@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(11);
+select plan(12);
 
 select is((select count(*)::integer from public.exercises), 20, 'twenty original catalog candidates are seeded');
 select is((select count(*)::integer from public.joint_actions), 34, 'joint actions are a normalized taxonomy');
@@ -51,6 +51,8 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000002', true);
 select is((select count(*)::integer from public.exercise_content where name = 'Owner One Submission'), 1,
   'reviewer can read submitted content');
+select is((select count(*)::integer from public.exercise_content where name = 'Cable Lateral Raise'), 1,
+  'reviewer can inspect unpublished catalog candidates');
 select is((select count(*)::integer from public.exercise_content where name = 'Owner One Private Raise'), 0,
   'reviewer cannot read unrelated private drafts');
 
