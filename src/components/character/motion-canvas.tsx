@@ -24,7 +24,7 @@ function Segment({ children, position, size, color = body }: {
 }
 
 function Dumbbell() {
-  return <group position={[0, -0.58, 0]} rotation={[0, 0, Math.PI / 2]}>
+  return <group position={[0, -0.58, 0]} rotation={[Math.PI / 2, 0, 0]}>
     <mesh castShadow><cylinderGeometry args={[0.035, 0.035, 0.4, 12]} /><meshStandardMaterial color={metal} metalness={0.6} roughness={0.3} /></mesh>
     {[-0.15, 0.15].map((offset) => <mesh key={offset} position={[0, offset, 0]} castShadow>
       <cylinderGeometry args={[0.1, 0.1, 0.08, 14]} /><meshStandardMaterial color="#263b3b" metalness={0.3} roughness={0.5} />
