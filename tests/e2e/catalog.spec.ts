@@ -5,7 +5,7 @@ test("Explore preserves combined anatomy and equipment filters in the URL", asyn
   await expect(page.getByRole("heading", { name: "Find the movement you mean." })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "Shoulder Abduction" })).toBeChecked();
   await expect(page.locator('input[name="equipment"][value="cable"]')).toBeChecked();
-  await expect(page.getByText("2 active filters")).toBeVisible();
+  await expect(page.getByText("2 active filters", { exact: true })).toBeVisible();
 });
 
 test("a joint action explains the movement and links to filtered Explore", async ({ page }) => {

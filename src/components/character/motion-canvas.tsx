@@ -2,13 +2,14 @@
 
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import { PCFShadowMap } from "three";
 import type { ReactNode } from "react";
 import type { RigPose, WorkshopScene } from "@/lib/motion/workshop";
 import { sampleWorkshopPose } from "@/lib/motion/workshop";
 
 const body = "#b9c9c3";
 const joint = "#3d5c57";
-const muscle = "#54d6ac";
+const muscle = "#669abe";
 const metal = "#778b8b";
 const rad = Math.PI / 180;
 const rotation = (pose: RigPose, slug: keyof RigPose): [number, number, number] => {
@@ -98,12 +99,12 @@ export function MotionCanvas({ scene, timeMs, className = "h-[430px]" }: {
   const camera = scene.cameraAngle === "front" ? [0, 2.4, 5] as const
     : scene.cameraAngle === "side" ? [5, 2.4, 0] as const : [3.4, 2.8, 5.5] as const;
   const pose = sampleWorkshopPose(scene.keyframes, timeMs);
-  return <div className={`overflow-hidden rounded-2xl bg-[#e9efea] ${className}`}>
-    <Canvas key={scene.cameraAngle} camera={{ position: [...camera], fov: 33 }} shadows dpr={[1, 1.75]}>
-      <color attach="background" args={["#e9efea"]} />
+  return <div className={`overflow-hidden rounded-2xl bg-muted ${className}`}>
+    <Canvas key={scene.cameraAngle} camera={{ position: [...camera], fov: 38 }} shadows={{ type: PCFShadowMap }} frameloop="demand" dpr={[1, 1.75]}>
+      <color attach="background" args={["#e9edf1"]} />
       <ambientLight intensity={1.5} />
       <directionalLight position={[3, 6, 4]} intensity={2.2} castShadow shadow-mapSize={[1024, 1024]} />
-      <mesh position={[0, -1.03, 0]} receiveShadow><cylinderGeometry args={[2.1, 2.1, 0.08, 64]} /><meshStandardMaterial color="#d6e3d9" roughness={1} /></mesh>
+      <mesh position={[0, -0.05, 0]} receiveShadow><cylinderGeometry args={[2.1, 2.1, 0.08, 64]} /><meshStandardMaterial color="#d8dfe5" roughness={1} /></mesh>
       <Figure pose={pose} scene={scene} />
       <OrbitControls target={[0, 1.2, 0]} enablePan={false} minDistance={4} maxDistance={8} maxPolarAngle={Math.PI / 2.05} />
     </Canvas>

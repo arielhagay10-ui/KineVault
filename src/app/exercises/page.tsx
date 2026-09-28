@@ -3,6 +3,7 @@ import { ArrowRight, Dumbbell, RotateCcw, Search, SlidersHorizontal } from "luci
 import { Button } from "@/components/ui/button";
 import { ExerciseCards } from "@/components/catalog/exercise-cards";
 import { FilterSection } from "@/components/catalog/filter-section";
+import { MobileFilters } from "@/components/catalog/mobile-filters";
 import { createClient } from "@/lib/supabase/server";
 import {
   filterParamNames, nextPageUrl, parseExploreParams, type ExploreCursor, type RawSearchParams,
@@ -33,7 +34,7 @@ export default async function ExplorePage({ searchParams }: Props) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-24">
         <h1 className="text-3xl font-semibold">Invalid search filters</h1>
-        <p className="mt-3 text-zinc-600">Check the URL parameters and try again.</p>
+        <p className="mt-3 text-muted-foreground">Check the URL parameters and try again.</p>
         <Link className="mt-6 inline-block underline" href="/exercises">Reset filters</Link>
       </main>
     );
@@ -89,7 +90,7 @@ export default async function ExplorePage({ searchParams }: Props) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-24">
         <h1 className="text-3xl font-semibold">Explore is unavailable</h1>
-        <p className="mt-3 text-zinc-600">The catalog could not be loaded. Please try again shortly.</p>
+        <p className="mt-3 text-muted-foreground">The catalog could not be loaded. Please try again shortly.</p>
       </main>
     );
   }
@@ -110,34 +111,35 @@ export default async function ExplorePage({ searchParams }: Props) {
   const activeFilterCount = filterParamNames.reduce((count, [field]) => count + params[field].length, 0);
 
   return (
-    <main className="min-h-screen bg-[#f7f8f5] text-[#172a27]">
-      <header className="border-b border-[#dce5de] bg-white/80">
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card/80">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
           <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-          <Link href="/dashboard" className="text-sm font-medium text-[#4d745c]">My library</Link>
+          <Link href="/dashboard" className="text-sm font-medium text-muted-foreground">My library</Link>
         </div>
       </header>
 
       <div className="mx-auto max-w-7xl px-6 pb-20 pt-12 lg:px-10">
         <div className="mb-10 max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#26775b]">Explore the database</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Explore the database</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">Find the movement you mean.</h1>
-          <p className="mt-4 text-[#63756c]">Search exercises and combine anatomical, equipment, and resistance filters.</p>
+          <p className="mt-4 text-muted-foreground">Search exercises and combine anatomical, equipment, and resistance filters.</p>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[285px_minmax(0,1fr)]">
           <aside>
-            <form action="/exercises" method="get" className="rounded-2xl border border-[#dce5de] bg-white p-5 lg:sticky lg:top-6">
+            <MobileFilters count={activeFilterCount}>
+            <form action="/exercises" method="get" className="rounded-2xl border border-border bg-card p-5 lg:sticky lg:top-6">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal size={18} /> Filters</h2>
-                {activeFilterCount > 0 && <Link href="/exercises" className="text-xs font-medium text-[#26775b]">Clear all</Link>}
+                {activeFilterCount > 0 && <Link href="/exercises" className="text-xs font-medium text-primary">Clear all</Link>}
               </div>
 
               <label className="mb-2 block text-sm font-semibold" htmlFor="exercise-search">Search</label>
               <div className="relative mb-5">
-                <Search size={17} className="absolute left-3 top-3 text-[#7c8d83]" />
+                <Search size={17} className="absolute left-3 top-3 text-muted-foreground" />
                 <input id="exercise-search" name="q" defaultValue={params.query} placeholder="Name or alias"
-                  className="w-full rounded-xl border border-[#d6e2d9] bg-[#fafcf9] py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#348965] focus:ring-2 focus:ring-[#cee9d8]" />
+                  className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring" />
               </div>
 
               <FilterHeading title="Anatomy" />
@@ -146,13 +148,13 @@ export default async function ExplorePage({ searchParams }: Props) {
               <FilterSection title="Secondary muscles" name="secondaryMuscle" options={muscles.data ?? []} selected={params.secondaryMuscles} />
               <FilterSection title="Stabilizer muscles" name="stabilizerMuscle" options={muscles.data ?? []} selected={params.stabilizerMuscles} />
               <FilterSection title="Joints" name="joint" options={(joints.data ?? []).map(({ slug, name }) => ({ slug, name }))} selected={params.joints} />
-              <details open className="border-t border-[#edf1eb] py-4">
+              <details open className="border-t border-border py-4">
                 <summary className="cursor-pointer font-semibold">Joint actions</summary>
                 <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-2">
                   {(actions.data ?? []).map((action) => (
-                    <label key={action.slug} className="flex cursor-pointer items-start gap-2 text-sm text-[#50645a]">
+                    <label key={action.slug} className="flex cursor-pointer items-start gap-2 text-sm text-muted-foreground">
                       <input type="checkbox" name="jointAction" value={action.slug}
-                        defaultChecked={params.jointActions.includes(action.slug)} className="mt-0.5 accent-[#26775b]" />
+                        defaultChecked={params.jointActions.includes(action.slug)} className="mt-0.5 accent-primary" />
                       <span>{jointNames.get(action.joint_id) ?? "Joint"} {action.name}</span>
                     </label>
                   ))}
@@ -180,32 +182,33 @@ export default async function ExplorePage({ searchParams }: Props) {
 
               <label className="mt-4 block text-sm font-semibold" htmlFor="sort">Sort by</label>
               <select id="sort" name="sort" defaultValue={params.sort}
-                className="mt-2 w-full rounded-xl border border-[#d6e2d9] bg-[#fafcf9] px-3 py-2.5 text-sm">
+                className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm">
                 <option value="alphabetical">Alphabetical</option>
                 <option value="newest">Newest</option>
                 <option value="most_favorited">Most favorited</option>
               </select>
               <Button type="submit" className="mt-5 w-full">Apply filters <ArrowRight size={16} /></Button>
-              <p className="mt-3 text-xs leading-5 text-[#7c8d83]">Every selected value must match.</p>
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">Every selected value must match.</p>
             </form>
+            </MobileFilters>
           </aside>
 
           <section aria-label="Search results">
             <div className="mb-5 flex items-center justify-between gap-4">
-              <p className="text-sm font-medium text-[#5e7165]">{visibleRows.length} {visibleRows.length === 1 ? "exercise" : "exercises"} on this page</p>
-              {activeFilterCount > 0 && <p className="text-xs text-[#667b6e]">{activeFilterCount} active filters</p>}
+              <p className="text-sm font-medium text-muted-foreground">{visibleRows.length} {visibleRows.length === 1 ? "exercise" : "exercises"} on this page</p>
+              {activeFilterCount > 0 && <p className="text-xs text-muted-foreground">{activeFilterCount} active filters</p>}
             </div>
             {visibleRows.length === 0 ? (
-              <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-[#cddbd0] bg-white/70 px-6 text-center">
-                <Dumbbell size={30} className="text-[#6d9980]" />
+              <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-card/70 px-6 text-center">
+                <Dumbbell size={30} className="text-muted-foreground" />
                 <h2 className="mt-4 text-xl font-semibold">{params.query || activeFilterCount ? "No matching exercises" : "Demonstrations are being prepared"}</h2>
-                <p className="mt-2 max-w-sm text-sm leading-6 text-[#6d8073]">
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
                   {params.query || activeFilterCount
                     ? "Try fewer filters or a different exercise name."
                     : "Exercises appear here after their character demonstrations and biomechanics are reviewed."}
                 </p>
                 {(params.query || activeFilterCount > 0) && (
-                  <Link href="/exercises" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#26775b]">
+                  <Link href="/exercises" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary">
                     <RotateCcw size={15} /> Reset search
                   </Link>
                 )}
@@ -215,7 +218,7 @@ export default async function ExplorePage({ searchParams }: Props) {
             )}
             {nextCursor && (
               <Link href={nextPageUrl(params, nextCursor)}
-                className="mt-8 inline-flex items-center gap-2 rounded-xl border border-[#c7d9cc] bg-white px-5 py-3 text-sm font-semibold text-[#285f48] hover:bg-[#eff6ef]">
+                className="mt-8 inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-primary hover:bg-muted">
                 Next page <ArrowRight size={16} />
               </Link>
             )}
@@ -227,5 +230,5 @@ export default async function ExplorePage({ searchParams }: Props) {
 }
 
 function FilterHeading({ title }: { title: string }) {
-  return <h3 className="mt-7 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#71917a]">{title}</h3>;
+  return <h3 className="mt-7 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{title}</h3>;
 }

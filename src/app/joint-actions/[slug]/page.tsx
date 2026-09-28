@@ -58,22 +58,22 @@ export default async function JointActionPage({ params, searchParams }: Props) {
   const fullExploreUrl = `/exercises?${explore.toString()}`;
 
   return (
-    <main className="min-h-screen bg-[#f7f8f5] text-[#172a27]">
+    <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl px-6 pb-20 pt-8 lg:px-10">
-        <header className="flex items-center justify-between border-b border-[#dce5de] pb-6">
+        <header className="flex items-center justify-between border-b border-border pb-6">
           <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-          <Link href="/exercises" className="flex items-center gap-2 text-sm text-[#3f765b]"><ArrowLeft size={16} /> Explore</Link>
+          <Link href="/exercises" className="flex items-center gap-2 text-sm text-primary"><ArrowLeft size={16} /> Explore</Link>
         </header>
         <div className="max-w-3xl pb-10 pt-12">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#28785f]">Joint action</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Joint action</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">{action.joints?.name} {action.name}</h1>
-          <p className="mt-4 text-lg leading-8 text-[#5f7365]">
+          <p className="mt-4 text-lg leading-8 text-muted-foreground">
             {action.description ?? `A movement at the ${action.joints?.name.toLowerCase() ?? "joint"} classified as ${action.name.toLowerCase()}. Exercise classifications depend on the performed technique and are reviewed individually.`}
           </p>
         </div>
         <div className="grid gap-8 lg:grid-cols-[285px_minmax(0,1fr)]">
           <aside>
-            <form action={`/joint-actions/${slug}`} method="get" className="rounded-2xl border border-[#dce5de] bg-white p-5 lg:sticky lg:top-6">
+            <form action={`/joint-actions/${slug}`} method="get" className="rounded-2xl border border-border bg-card p-5 lg:sticky lg:top-6">
               <h2 className="mb-4 font-semibold">Narrow this action</h2>
               <FilterSection title="Equipment" name="equipment" options={equipmentResult.data ?? []} selected={filters.equipment} />
               <FilterSection title="Muscles" name="muscle" options={musclesResult.data ?? []} selected={filters.muscles} />
@@ -86,12 +86,12 @@ export default async function JointActionPage({ params, searchParams }: Props) {
           <section aria-label="Exercises with this joint action">
             <div className="mb-5 flex items-center justify-between gap-4">
               <h2 className="text-xl font-semibold">Exercises</h2>
-              <Link href={fullExploreUrl} className="inline-flex items-center gap-2 text-sm font-semibold text-[#28785f]">Full Explore <ArrowRight size={16} /></Link>
+              <Link href={fullExploreUrl} className="inline-flex items-center gap-2 text-sm font-semibold text-primary">Full Explore <ArrowRight size={16} /></Link>
             </div>
-            {error ? <p className="text-sm text-red-700">Exercises could not be loaded.</p>
+            {error ? <p className="text-sm text-red-700 dark:text-red-300">Exercises could not be loaded.</p>
               : rows?.length ? <ExerciseCards rows={rows.slice(0, 24)} />
-                : <div className="rounded-2xl border border-dashed border-[#cddbd0] bg-white px-6 py-16 text-center text-[#647669]">No reviewed demonstrations match these filters yet.</div>}
-            {(rows?.length ?? 0) > 24 && <Link href={fullExploreUrl} className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#28785f]">View more <ArrowRight size={16} /></Link>}
+                : <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center text-muted-foreground">No reviewed demonstrations match these filters yet.</div>}
+            {(rows?.length ?? 0) > 24 && <Link href={fullExploreUrl} className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary">View more <ArrowRight size={16} /></Link>}
           </section>
         </div>
       </div>

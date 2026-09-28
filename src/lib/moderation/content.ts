@@ -28,7 +28,7 @@ export async function loadReviewOptions(): Promise<ReviewOptions> {
 
 export async function loadReviewContent(contentId: string): Promise<ReviewPatch | null> {
   const supabase = await createClient();
-  const [content, muscles, joints, actions, equipment, attachments, patterns, biomech] = await Promise.all([
+  const [content, muscles, joints, actions, equipment, attachments, patterns, biomech, aliases] = await Promise.all([
     supabase.from("exercise_content").select("*,exercise_families(slug)").eq("id", contentId).maybeSingle(),
     supabase.from("exercise_muscles").select("role,muscles(slug)").eq("content_id", contentId),
     supabase.from("exercise_joints").select("role,joints(slug)").eq("content_id", contentId),
@@ -37,15 +37,16 @@ export async function loadReviewContent(contentId: string): Promise<ReviewPatch 
     supabase.from("exercise_attachments").select("attachments(slug)").eq("content_id", contentId),
     supabase.from("exercise_movement_patterns").select("movement_patterns(slug)").eq("content_id", contentId),
     supabase.from("exercise_biomechanics").select("*,body_positions(slug),grips(slug),stances(slug),planes_of_motion(slug),resistance_sources(slug)").eq("content_id", contentId).maybeSingle(),
+    supabase.from("exercise_aliases").select("alias").eq("content_id", contentId).order("normalized_alias"),
   ]);
-  if ([content, muscles, joints, actions, equipment, attachments, patterns, biomech].some((result) => result.error)) {
+  if ([content, muscles, joints, actions, equipment, attachments, patterns, biomech, aliases].some((result) => result.error)) {
     throw new Error("Review content could not be loaded");
   }
   if (!content.data) return null;
   const c = content.data;
   const b = biomech.data;
   return reviewPatchSchema.parse({
-    ...c, description: c.short_description, family: c.exercise_families?.slug ?? null,
+    ...c, aliases: (aliases.data ?? []).map((item) => item.alias), description: c.short_description, family: c.exercise_families?.slug ?? null,
     muscles: (muscles.data ?? []).map((item) => ({ slug: item.muscles?.slug, role: item.role })).sort(bySlug),
     joints: (joints.data ?? []).map((item) => ({ slug: item.joints?.slug, role: item.role })).sort(bySlug),
     joint_actions: (actions.data ?? []).map((item) => ({ slug: item.joint_actions?.slug, role: item.role })).sort(bySlug),

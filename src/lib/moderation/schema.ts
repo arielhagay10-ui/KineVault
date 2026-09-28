@@ -10,6 +10,8 @@ const enums = Constants.public.Enums;
 
 export const reviewPatchSchema = z.object({
   name: z.string().trim().min(2).max(160),
+  aliases: z.array(z.string().trim().min(2).max(160)).max(20).default([])
+    .refine((items) => new Set(items.map((item) => item.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " "))).size === items.length, "Each alias must be distinct."),
   description: z.string().trim().max(500).nullable(),
   family: nullableSlug,
   muscles: roleEntries(enums.muscle_role),
@@ -42,7 +44,7 @@ export const reviewPatchSchema = z.object({
 export type ReviewPatch = z.infer<typeof reviewPatchSchema>;
 export type ReviewField = keyof ReviewPatch;
 export const reviewFieldLabels: Record<ReviewField, string> = {
-  name: "Name", description: "Description", family: "Exercise family",
+  name: "Name", aliases: "Aliases", description: "Description", family: "Exercise family",
   muscles: "Muscles", joints: "Joints", joint_actions: "Joint actions",
   equipment: "Equipment", attachments: "Attachments", movement_patterns: "Movement patterns",
   body_position: "Body position", grip: "Grip", stance: "Stance", plane: "Plane of motion",
@@ -60,6 +62,8 @@ export function parseReviewForm(data: FormData) {
     if (["muscles", "joints", "joint_actions", "equipment"].includes(field)) {
       result[field] = [...data.entries()].filter(([key, value]) => key.startsWith(`${field}.`) && value !== "")
         .map(([key, role]) => ({ slug: key.slice(field.length + 1), role }));
+    } else if (field === "aliases") {
+      result[field] = parseAliasLines(data.get(field));
     } else if (field === "attachments" || field === "movement_patterns") {
       result[field] = data.getAll(field);
     } else {
@@ -68,6 +72,10 @@ export function parseReviewForm(data: FormData) {
     }
   }
   return reviewPatchSchema.safeParse(result);
+}
+
+export function parseAliasLines(value: FormDataEntryValue | null) {
+  return typeof value === "string" ? value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean) : [];
 }
 
 export function humanLabel(value: string) {
@@ -80,6 +88,11 @@ export function formatReviewValue(value: unknown): string {
     if (typeof item === "string") return humanLabel(item);
     if (item && typeof item === "object" && "slug" in item && "role" in item) {
       return `${humanLabel(String(item.slug))} (${humanLabel(String(item.role))})`;
+    }
+    if (item && typeof item === "object" && "label" in item && "startMs" in item && "endMs" in item) {
+      const note = "note" in item && item.note ? `: ${String(item.note)}` : "";
+      const action = "jointAction" in item && item.jointAction ? ` (${humanLabel(String(item.jointAction))})` : "";
+      return `${String(item.label)} [${Number(item.startMs) / 1000}–${Number(item.endMs) / 1000}s]${action}${note}`;
     }
     return "Unknown classification";
   }).join(", ") || "None";

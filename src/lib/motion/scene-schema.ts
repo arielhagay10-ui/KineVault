@@ -13,6 +13,11 @@ const poses = z.partialRecord(z.enum(jointSlugs), angles).superRefine((value, co
     }
   }
 });
+export const motionAnnotationSchema = z.object({
+  startMs: z.number().int().nonnegative(), endMs: z.number().int().positive(),
+  label: z.string().trim().min(1).max(80), note: z.string().trim().max(500).nullable(),
+  jointAction: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120).nullable(),
+}).strict().refine((value) => value.endMs > value.startMs, "Annotation must end after it starts");
 
 export const workshopSceneSchema = z.object({
   durationMs: z.number().int().min(250).max(60_000),
@@ -25,6 +30,7 @@ export const workshopSceneSchema = z.object({
     scale: finite.min(0.5).max(2),
   }).strict().nullable(),
   keyframes: z.array(z.object({ timeMs: z.number().int(), poses }).strict()).min(2).max(24),
+  annotations: z.array(motionAnnotationSchema).max(24).default([]),
 }).strict().superRefine((scene, context) => {
   let previous = -1;
   scene.keyframes.forEach((frame, index) => {
@@ -35,5 +41,8 @@ export const workshopSceneSchema = z.object({
   });
   if (scene.keyframes[0]?.timeMs !== 0 || previous !== scene.durationMs) {
     context.addIssue({ code: "custom", message: "Timeline must start at 0 and end at its duration" });
+  }
+  if (scene.annotations.some((item) => item.endMs > scene.durationMs)) {
+    context.addIssue({ code: "custom", message: "Annotation extends beyond the scene" });
   }
 });

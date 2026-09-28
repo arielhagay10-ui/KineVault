@@ -1,6 +1,6 @@
 # KineVault
 
-A visual, community-reviewed exercise encyclopedia. The MVP is being built in the milestones in [PLAN.md](PLAN.md); it is not a workout tracker.
+A visual, community-reviewed exercise encyclopedia. The local MVP follows [PLAN.md](PLAN.md); it is not a workout tracker. Start with [Local use](LOCAL_USE.md).
 
 ## Requirements
 
@@ -13,7 +13,7 @@ A visual, community-reviewed exercise encyclopedia. The MVP is being built in th
 ```sh
 npm ci
 npx supabase start
-npx supabase db reset
+npx supabase migration up --local
 ```
 
 Copy `.env.example` to `.env.local`, then fill its public Supabase URL and anon key from `npx supabase status`. Keep the service-role key server-only.
@@ -59,10 +59,10 @@ Approval stages copies in `exercise-public`, a private bucket whose read policy 
 
 ## Administration
 
-Create and confirm your first account. In the Supabase SQL editor, grant its verified user UUID the initial admin role:
+Create your first local account, then run:
 
-```sql
-update public.roles set role = 'admin' where user_id = '<your verified account UUID>';
+```sh
+npm run setup:admin
 ```
 
 After this one-time bootstrap, use `/admin/roles`; role changes require a reason and are audited. `/admin/submissions` provides assignment, snapshot comparisons, corrections, decisions, and failed-render retry. `/admin/taxonomies` manages relational classifications. Saved taxonomy slugs stay fixed. `/admin/assets` enables or retires existing reviewed asset versions; saved scenes retain retired definitions.
@@ -81,4 +81,12 @@ Run `npm run notify:once` or `npm run notify:worker`. The worker freezes each em
 - [Database](DATABASE.md)
 - [Biomechanics](BIOMECHANICS.md)
 - [Moderation](MODERATION.md)
+- [Local use](LOCAL_USE.md)
+- [Performance measurements](PERFORMANCE.md)
 - [Product specification](SPEC.md)
+
+## Local delivery status
+
+Light/dark/system appearance, mobile filters, complete contributor metadata and aliases, audited timed notes, grouped media controls, and catalog candidate preparation are implemented. See [PROGRESS.md](PROGRESS.md) for verified checks and remaining content work.
+
+Hosting is deferred at the owner's request. Docker/Compose files are future deployment scaffolding and have not been built or used for this local delivery. Keep credentials in ignored environment files. A future release needs verified Auth SMTP, transactional email configuration, backup/restore checks, and final content review.

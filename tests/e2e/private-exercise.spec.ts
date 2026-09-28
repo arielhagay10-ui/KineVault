@@ -13,11 +13,18 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   await page.getByLabel("Short description").fill("My cable raise variation.");
   await page.getByLabel("Exercise family").selectOption("lateral-raise");
   await page.getByRole("group", { name: "Primary muscles" }).getByLabel("Lateral Deltoid").check();
-  await page.getByRole("group", { name: "Joint actions" }).getByLabel("Shoulder Abduction").check();
+  await page.getByRole("group", { name: "Joint actions" }).getByLabel("Shoulder Abduction", { exact: true }).check();
   await page.getByRole("group", { name: "Equipment" }).getByLabel("Cable", { exact: true }).check();
+  await page.getByText("Instructions and detailed classifications", { exact: true }).click();
+  await page.getByLabel("Execution", { exact: true }).fill("Raise the upper arm with a controlled motion.");
+  await page.getByLabel("Laterality", { exact: true }).selectOption("unilateral");
+  await page.getByLabel("Aliases", { exact: true }).fill("My cable abduction");
   await page.getByRole("button", { name: "Save privately" }).click();
   await expect(page).toHaveURL(/\/my-exercises\/[0-9a-f-]+\/edit\?saved=1$/);
   await expect(page.getByText("Saved privately.")).toBeVisible();
+  await page.getByText("Instructions and detailed classifications", { exact: true }).click();
+  await expect(page.getByLabel("Execution", { exact: true })).toHaveValue("Raise the upper arm with a controlled motion.");
+  await expect(page.getByLabel("Laterality", { exact: true })).toHaveValue("unilateral");
 
   await page.getByRole("link", { name: "Open motion workshop" }).click();
   await expect(page.getByRole("heading", { name: "Private Cable Raise" })).toBeVisible();
@@ -49,6 +56,8 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   await expect(sharedPage.getByRole("heading", { name: "Private Cable Raise" })).toBeVisible();
   await expect(sharedPage.getByText("My cable raise variation.")).toBeVisible();
   await expect(sharedPage.getByRole("heading", { name: "Motion study" })).toBeVisible();
+  await expect(sharedPage.getByText("Raise the upper arm with a controlled motion.", { exact: true })).toBeVisible();
+  await expect(sharedPage.getByText("My cable abduction", { exact: true })).toBeVisible();
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Revoke link" }).click();

@@ -8,12 +8,12 @@ export default async function AdminPage() {
     .select("id", { count: "exact", head: true }).eq("status", status)));
   if (counts.some((result) => result.error)) throw new Error("The review overview could not be loaded");
   return <>
-    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#28785f]">Community moderation</p>
+    <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Community moderation</p>
     <h1 className="mt-3 text-4xl font-semibold tracking-tight">Review overview</h1>
-    <p className="mt-3 text-sm text-[#617568]">Review motion, compare classifications, and resolve contributions.</p>
+    <p className="mt-3 text-sm text-muted-foreground">Review motion, compare classifications, and resolve contributions.</p>
     <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{statuses.map((status, index) => <Link key={status} href={`/admin/submissions?status=${status}`}
-      className="rounded-2xl border border-[#dce5de] bg-white p-6 hover:border-[#a9cbb6]">
-      <p className="text-sm capitalize text-[#617568]">{status.replaceAll("_", " ")}</p><p className="mt-3 text-4xl font-semibold">{counts[index].count ?? 0}</p>
+      className="rounded-2xl border border-border bg-card p-6 hover:border-border">
+      <p className="text-sm capitalize text-muted-foreground">{status.replaceAll("_", " ")}</p><p className="mt-3 text-4xl font-semibold">{counts[index].count ?? 0}</p>
     </Link>)}</div>
   </>;
 }

@@ -10,6 +10,8 @@ Publication requires a clear character demonstration. Reviewers inspect every mo
 
 Contributors receive account updates and transactional email when reviewers request changes, approve, reject or merge. Enqueue delivery with the saved decision; retry mail independently without blocking moderation.
 
+Visual direction: a neutral anatomy reference with prominent classifications, large demonstrations, and light/dark themes.
+
 ## Application and database architecture
 
 - Next.js App Router, strict TypeScript, Tailwind CSS, shadcn/ui, Zod, Supabase Auth, PostgreSQL and Storage. Use server components for public reads, focused client components for filters and the workshop, and server routes/actions for mutations. Authorize each mutation server-side and with database grants and RLS.
@@ -68,7 +70,7 @@ After **each milestone**, run `npm run lint`, `npm run typecheck`, `npm test` an
 1. Complete original launch assets and demonstrations; optimize playback and workshop performance.
 2. Finish accessible light/dark UI, mobile states and README, ARCHITECTURE, DATABASE, BIOMECHANICS and MODERATION documentation.
 3. Run full unit, database/RLS and Playwright suites, including the specified Explore flow.
-4. Benchmark at least 50,000 generated exercises, tune measured bottlenecks, verify render throughput, deploy app and worker, and run production smoke tests.
+4. Benchmark at least 50,000 generated exercises, tune measured bottlenecks, verify rendering, and run a production-build smoke test locally. Hosting is deferred: the owner wants the first version on this computer.
 
 ## Risks and flexible decisions
 
@@ -81,3 +83,7 @@ Original 3D art quality, joint editing on mobile, render reliability, media righ
 - Separate private-draft and submission state machines. Preserve an independently editable private copy after submission.
 - Define public motion reuse as in-app copying with source lineage and explicit contributor consent.
 - Treat timed biomechanical labels as reviewed annotations, not automatically derived classifications.
+
+## Delivery scope update
+
+The owner selected local-only use for the first version. Hosting and external email setup are deferred. Account updates, private capability links, reviewed publication, and the app/renderer run locally. Friends on other devices will need future hosting to open share links. Original candidates require content/demo curation; no automated test or migration certifies their biomechanical accuracy.

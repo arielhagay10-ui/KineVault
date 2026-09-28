@@ -47,22 +47,22 @@ export default async function SubmitExercisePage({ params }: { params: Promise<{
     !checks[2].ready && "joint_actions",
   ].filter((value): value is string => Boolean(value));
 
-  return <main className="min-h-screen bg-[#f7f8f5] px-6 py-10 text-[#172a27]">
+  return <main className="min-h-screen bg-background px-6 py-10 text-foreground">
     <div className="mx-auto max-w-4xl">
-      <Link href={`/my-exercises/${id}/edit`} className="text-sm font-medium text-[#34735b] hover:underline">← Private exercise</Link>
+      <Link href={`/my-exercises/${id}/edit`} className="text-sm font-medium text-primary hover:underline">← Private exercise</Link>
       <div className="mt-8">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#28785f]">Community contribution</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Community contribution</p>
         <h1 className="mt-2 text-4xl font-semibold tracking-[-0.055em]">Submit {exercise.exercise_content?.name}</h1>
-        <p className="mt-4 text-sm leading-6 text-[#647568]">Review your classifications and motion before sending an immutable copy to the moderation queue.</p>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">Review your classifications and motion before sending an immutable copy to the moderation queue.</p>
       </div>
-      <section className="my-8 rounded-2xl border border-[#dce5de] bg-white p-6">
+      <section className="my-8 rounded-2xl border border-border bg-card p-6">
         <h2 className="text-xl font-semibold">Ready for review</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">{checks.map((item) => <Link key={item.label} href={item.href}
-          className="flex items-center justify-between rounded-xl bg-[#f4f8f3] px-4 py-3 text-sm font-medium hover:bg-[#e9f2e8]">
-          {item.label}<span className={item.ready ? "text-[#28785f]" : "text-[#a66b34]"}>{item.ready ? "Complete ✓" : item.label === "Saved motion demonstration" ? "Add →" : "Add or suggest →"}</span>
+          className="flex items-center justify-between rounded-xl bg-background px-4 py-3 text-sm font-medium hover:bg-muted">
+          {item.label}<span className={item.ready ? "text-primary" : "text-muted-foreground"}>{item.ready ? "Complete ✓" : item.label === "Saved motion demonstration" ? "Add →" : "Add or suggest →"}</span>
         </Link>)}</div>
       </section>
-      {duplicates.error && <p role="alert" className="mb-6 text-sm text-red-700">Duplicate comparison is unavailable. Reload before submitting.</p>}
+      {duplicates.error && <p role="alert" className="mb-6 text-sm text-red-700 dark:text-red-300">Duplicate comparison is unavailable. Reload before submitting.</p>}
       <SubmissionForm privateId={id} revisionOfId={revision.data?.id ?? null}
         candidates={duplicates.data ?? []} motionReady={completeMotion}
         missingRequired={missingRequired} duplicatesReady={!duplicates.error} />

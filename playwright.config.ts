@@ -12,7 +12,7 @@ export default defineConfig({
     ...(process.platform === "win32" ? { channel: "chrome" } : {}),
   },
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1",
+    command: "npm run dev",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

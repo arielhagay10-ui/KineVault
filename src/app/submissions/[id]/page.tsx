@@ -43,51 +43,51 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
   const familyName = family.data?.find((item) => item.id === content.data.family_id)?.name;
   const canWithdraw = submission.status === "submitted" || submission.status === "changes_requested";
 
-  return <main className="min-h-screen bg-[#f7f8f5] px-6 py-10 text-[#172a27]">
+  return <main className="min-h-screen bg-background px-6 py-10 text-foreground">
     <div className="mx-auto max-w-5xl">
-      <Link href="/submissions" className="text-sm font-medium text-[#34735b] hover:underline">← My submissions</Link>
+      <Link href="/submissions" className="text-sm font-medium text-primary hover:underline">← My submissions</Link>
       <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
-        <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#28785f]">Submitted snapshot</p>
+        <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Submitted snapshot</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-[-0.055em]">{content.data.name}</h1>
-          <p className="mt-3 text-sm capitalize text-[#647568]">{submission.status.replaceAll("_", " ")} · {submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : "Draft"}</p></div>
+          <p className="mt-3 text-sm capitalize text-muted-foreground">{submission.status.replaceAll("_", " ")} · {submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : "Draft"}</p></div>
         <div className="flex flex-wrap gap-3">
-          {submission.source_private_exercise_id && <Link href={`/my-exercises/${submission.source_private_exercise_id}/edit`} className="rounded-xl border border-[#b7ceb9] bg-white px-4 py-2.5 text-sm font-semibold text-[#28664e]">Edit my private copy</Link>}
-          {submission.status === "changes_requested" && submission.source_private_exercise_id && <Link href={`/my-exercises/${submission.source_private_exercise_id}/submit`} className="rounded-xl bg-[#174a3e] px-4 py-2.5 text-sm font-semibold text-white">Send a revision</Link>}
-          {canWithdraw && <form action={withdrawSubmission}><input type="hidden" name="submissionId" value={id} /><button type="submit" className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700">Withdraw</button></form>}
+          {submission.source_private_exercise_id && <Link href={`/my-exercises/${submission.source_private_exercise_id}/edit`} className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-primary">Edit my private copy</Link>}
+          {submission.status === "changes_requested" && submission.source_private_exercise_id && <Link href={`/my-exercises/${submission.source_private_exercise_id}/submit`} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">Send a revision</Link>}
+          {canWithdraw && <form action={withdrawSubmission}><input type="hidden" name="submissionId" value={id} /><button type="submit" className="rounded-xl border border-red-200 bg-card px-4 py-2.5 text-sm font-semibold text-red-700 dark:text-red-300">Withdraw</button></form>}
         </div>
       </div>
-      {content.data.short_description && <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5f7365]">{content.data.short_description}</p>}
-      {(renderedMedia?.webm || renderedMedia?.mp4) && <section className="mt-9 rounded-2xl border border-[#dce5de] bg-white p-4 sm:p-5">
-        <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">Rendered demonstration</h2><span className="text-xs text-[#748578]">Private review asset</span></div>
-        <video autoPlay muted loop playsInline controls poster={renderedMedia.poster ?? undefined} className="aspect-square w-full rounded-xl bg-[#e9efea] object-contain">
+      {content.data.short_description && <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">{content.data.short_description}</p>}
+      {(renderedMedia?.webm || renderedMedia?.mp4) && <section className="mt-9 rounded-2xl border border-border bg-card p-4 sm:p-5">
+        <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">Rendered demonstration</h2><span className="text-xs text-muted-foreground">Private review asset</span></div>
+        <video autoPlay muted loop playsInline controls poster={renderedMedia.poster ?? undefined} className="aspect-square w-full rounded-xl bg-muted object-contain">
           {renderedMedia.webm && <source src={renderedMedia.webm} type="video/webm" />}
           {renderedMedia.mp4 && <source src={renderedMedia.mp4} type="video/mp4" />}
         </video>
       </section>}
-      {renderJob && renderJob.status !== "succeeded" && <p role="status" className="mt-6 rounded-xl border border-[#dce5de] bg-white px-4 py-3 text-sm text-[#526b5b]">Demonstration render: {renderJob.status.replaceAll("_", " ")}{renderJob.status === "failed" ? ". A reviewer can request another attempt." : "."}</p>}
+      {renderJob && renderJob.status !== "succeeded" && <p role="status" className="mt-6 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">Demonstration render: {renderJob.status.replaceAll("_", " ")}{renderJob.status === "failed" ? ". A reviewer can request another attempt." : "."}</p>}
       {scene && <SharedMotion scene={scene} />}
       <div className="mt-8 grid gap-5 md:grid-cols-2">
-        <section className="rounded-2xl border border-[#dce5de] bg-white p-6">
+        <section className="rounded-2xl border border-border bg-card p-6">
           <h2 className="text-xl font-semibold">Original classifications</h2>
           <dl className="mt-5 space-y-4 text-sm">
-            <div><dt className="text-[#788a7c]">Family</dt><dd className="mt-1 font-medium">{familyName ?? "Not set"}</dd></div>
-            <div><dt className="text-[#788a7c]">Muscles</dt><dd className="mt-1 font-medium">{(muscles.data ?? []).map((item) => `${item.muscles?.name} (${item.role})`).join(", ") || "Not set"}</dd></div>
-            <div><dt className="text-[#788a7c]">Joint actions</dt><dd className="mt-1 font-medium">{(actions.data ?? []).map((item) => `${item.joint_actions?.joints?.name} ${item.joint_actions?.name} (${item.role})`).join(", ") || "Not set"}</dd></div>
-            <div><dt className="text-[#788a7c]">Equipment</dt><dd className="mt-1 font-medium">{(equipment.data ?? []).map((item) => item.equipment?.name).join(", ") || "None"}</dd></div>
+            <div><dt className="text-muted-foreground">Family</dt><dd className="mt-1 font-medium">{familyName ?? "Not set"}</dd></div>
+            <div><dt className="text-muted-foreground">Muscles</dt><dd className="mt-1 font-medium">{(muscles.data ?? []).map((item) => `${item.muscles?.name} (${item.role})`).join(", ") || "Not set"}</dd></div>
+            <div><dt className="text-muted-foreground">Joint actions</dt><dd className="mt-1 font-medium">{(actions.data ?? []).map((item) => `${item.joint_actions?.joints?.name} ${item.joint_actions?.name} (${item.role})`).join(", ") || "Not set"}</dd></div>
+            <div><dt className="text-muted-foreground">Equipment</dt><dd className="mt-1 font-medium">{(equipment.data ?? []).map((item) => item.equipment?.name).join(", ") || "None"}</dd></div>
           </dl>
-          <p className="mt-5 border-t border-[#edf1eb] pt-4 text-xs text-[#788a7c]">Motion reuse {submission.allow_motion_reuse ? "allowed with attribution" : "not authorized"}.</p>
-          {(suggestions.data?.length ?? 0) > 0 && <div className="mt-5 border-t border-[#edf1eb] pt-4"><h3 className="text-sm font-semibold">Suggested classifications</h3><ul className="mt-2 space-y-2 text-sm text-[#5f7365]">{suggestions.data?.map((item, index) => <li key={index}><span className="capitalize">{item.taxonomy_name.replaceAll("_", " ")}</span>: {item.suggested_name}{item.explanation ? ` — ${item.explanation}` : ""}</li>)}</ul></div>}
+          <p className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">Motion reuse {submission.allow_motion_reuse ? "allowed with attribution" : "not authorized"}.</p>
+          {(suggestions.data?.length ?? 0) > 0 && <div className="mt-5 border-t border-border pt-4"><h3 className="text-sm font-semibold">Suggested classifications</h3><ul className="mt-2 space-y-2 text-sm text-muted-foreground">{suggestions.data?.map((item, index) => <li key={index}><span className="capitalize">{item.taxonomy_name.replaceAll("_", " ")}</span>: {item.suggested_name}{item.explanation ? ` — ${item.explanation}` : ""}</li>)}</ul></div>}
         </section>
-        <section className="rounded-2xl border border-[#dce5de] bg-white p-6">
+        <section className="rounded-2xl border border-border bg-card p-6">
           <h2 className="text-xl font-semibold">Review history</h2>
-          <ol className="mt-5 space-y-4">{(events.data ?? []).map((event, index) => <li key={`${event.created_at}-${index}`} className="border-l-2 border-[#bddac5] pl-4">
+          <ol className="mt-5 space-y-4">{(events.data ?? []).map((event, index) => <li key={`${event.created_at}-${index}`} className="border-l-2 border-border pl-4">
             <p className="text-sm font-semibold capitalize">{event.action.replaceAll("_", " ")}</p>
-            <p className="mt-1 text-xs text-[#788a7c]">{new Date(event.created_at).toLocaleString()}</p>
-            {event.reason && <p className="mt-2 text-sm capitalize text-[#5f7365]">Reason: {event.reason.replaceAll("_", " ")}</p>}
-            {event.comment && <p className="mt-2 text-sm leading-6 text-[#5f7365]">{event.comment}</p>}
+            <p className="mt-1 text-xs text-muted-foreground">{new Date(event.created_at).toLocaleString()}</p>
+            {event.reason && <p className="mt-2 text-sm capitalize text-muted-foreground">Reason: {event.reason.replaceAll("_", " ")}</p>}
+            {event.comment && <p className="mt-2 text-sm leading-6 text-muted-foreground">{event.comment}</p>}
             {event.moderation_field_changes.length > 0 && <dl className="mt-3 space-y-3 text-xs">{event.moderation_field_changes.map((change) => <div key={change.field_name}>
               <dt className="font-semibold">{reviewFieldLabels[change.field_name as ReviewField] ?? humanLabel(change.field_name)}</dt>
-              <dd className="mt-1 whitespace-pre-wrap"><del className="text-red-700">{formatReviewValue(change.before_value)}</del><span className="mx-2">→</span><ins className="text-[#28785f]">{formatReviewValue(change.after_value)}</ins></dd>
+              <dd className="mt-1 whitespace-pre-wrap"><del className="text-red-700 dark:text-red-300">{formatReviewValue(change.before_value)}</del><span className="mx-2">→</span><ins className="text-primary">{formatReviewValue(change.after_value)}</ins></dd>
             </div>)}</dl>}
           </li>)}</ol>
         </section>

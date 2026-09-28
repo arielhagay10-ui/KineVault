@@ -6,11 +6,13 @@ export type JointSlug = typeof jointSlugs[number];
 export type JointAngles = { x: number; y: number; z: number };
 export type RigPose = Partial<Record<JointSlug, JointAngles>>;
 export type WorkshopKeyframe = { timeMs: number; poses: RigPose };
+export type MotionAnnotation = { startMs: number; endMs: number; label: string; note: string | null; jointAction: string | null };
 export type WorkshopScene = {
   durationMs: number;
   cameraAngle: "front" | "side" | "three_quarter";
   equipment: { slug: "dumbbell-pair" | "barbell" | "single-cable"; x: number; y: number; z: number; scale: number } | null;
   keyframes: WorkshopKeyframe[];
+  annotations?: MotionAnnotation[];
 };
 
 export const jointLimits: Record<JointSlug, { x: [number, number]; y: [number, number]; z: [number, number] }> = {

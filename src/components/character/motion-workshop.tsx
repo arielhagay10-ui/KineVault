@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { saveWorkshopScene } from "@/app/my-exercises/[id]/workshop/actions";
 import { jointLimits, jointSlugs, sampleWorkshopPose, type JointSlug, type WorkshopScene } from "@/lib/motion/workshop";
 import { MotionCanvas } from "./motion-canvas";
+import { AnnotationFields } from "./annotation-fields";
 
 const jointNames: Record<JointSlug, string> = {
   torso: "Torso", "left-shoulder": "Left shoulder", "right-shoulder": "Right shoulder",
@@ -12,9 +13,10 @@ const jointNames: Record<JointSlug, string> = {
 };
 const label = (milliseconds: number) => `${(milliseconds / 1000).toFixed(2)}s`;
 
-export function MotionWorkshop({ privateId, initialScene, equipmentOptions }: {
+export function MotionWorkshop({ privateId, initialScene, equipmentOptions, jointActions }: {
   privateId: string; initialScene: WorkshopScene;
   equipmentOptions: { slug: string; label: string; active: boolean }[];
+  jointActions: { slug: string; name: string }[];
 }) {
   const [scene, setScene] = useState(initialScene);
   const [selected, setSelected] = useState(0);
@@ -81,7 +83,8 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions }: {
       ...frame,
       timeMs: index === scene.keyframes.length - 1 ? durationMs : Math.round(frame.timeMs * ratio),
     }));
-    update({ ...scene, durationMs, keyframes });
+    const annotations = scene.annotations?.map((item) => ({ ...item, startMs: Math.round(item.startMs * ratio), endMs: Math.round(item.endMs * ratio) }));
+    update({ ...scene, durationMs, keyframes, annotations });
     setTimeMs(keyframes[selected].timeMs);
   };
   const save = () => {
@@ -97,48 +100,48 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions }: {
     <div className="space-y-5">
       <div className="relative">
         <MotionCanvas scene={scene} timeMs={timeMs} className="h-[440px] sm:h-[560px]" />
-        <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[#315f4c]">Original anatomical rig · v1</span>
-        <span className="pointer-events-none absolute bottom-4 left-4 rounded-xl bg-white/90 px-3 py-2 text-xs text-[#53695b]">Drag to orbit · scroll to zoom</span>
+        <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-card/90 px-3 py-1 text-xs font-semibold text-primary">Original anatomical rig · v1</span>
+        <span className="pointer-events-none absolute bottom-4 left-4 rounded-xl bg-card/90 px-3 py-2 text-xs text-muted-foreground">Drag to orbit · scroll to zoom</span>
       </div>
-      <section className="rounded-2xl border border-[#dce5de] bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Timeline</h2>
           <div className="flex gap-2">
-            <button type="button" onClick={() => setPlaying(!playing)} className="rounded-lg bg-[#174a3e] px-4 py-2 text-sm font-semibold text-white">{playing ? "Pause" : "Play"}</button>
-            <button type="button" onClick={addFrame} disabled={scene.keyframes.length >= 24} className="rounded-lg border border-[#bad0c1] px-3 py-2 text-sm font-semibold disabled:opacity-50">Add keyframe</button>
+            <button type="button" onClick={() => setPlaying(!playing)} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">{playing ? "Pause" : "Play"}</button>
+            <button type="button" onClick={addFrame} disabled={scene.keyframes.length >= 24} className="rounded-lg border border-border px-3 py-2 text-sm font-semibold disabled:opacity-50">Add keyframe</button>
           </div>
         </div>
         <input aria-label="Scrub timeline" type="range" min={0} max={scene.durationMs} step={1} value={Math.round(timeMs)}
           onChange={(event) => { setPlaying(false); setTimeMs(Number(event.target.value)); }}
-          className="mt-5 w-full accent-[#26775b]" />
+          className="mt-5 w-full accent-primary" />
         <div className="mt-3 flex flex-wrap gap-2">
           {scene.keyframes.map((frame, index) => <button key={`${frame.timeMs}-${index}`} type="button" onClick={() => selectFrame(index)}
-            className={`rounded-lg px-3 py-2 text-xs font-semibold ${selected === index ? "bg-[#d8eee0] text-[#1d644b]" : "bg-[#f1f4ef] text-[#64786b]"}`}>
+            className={`rounded-lg px-3 py-2 text-xs font-semibold ${selected === index ? "bg-muted text-foreground" : "bg-muted text-muted-foreground"}`}>
             {index === 0 ? "Start" : index === scene.keyframes.length - 1 ? "End" : `Keyframe ${index + 1}`} · {label(frame.timeMs)}
           </button>)}
         </div>
-        <p className="mt-3 text-xs text-[#748578]">Select a keyframe to edit its pose. Add one at the current playhead position.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Select a keyframe to edit its pose. Add one at the current playhead position.</p>
       </section>
     </div>
 
     <div className="space-y-5">
-      <section className="rounded-2xl border border-[#dce5de] bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="text-lg font-semibold">Scene setup</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
           <label className="text-sm font-semibold">Duration
-            <select value={scene.durationMs} onChange={(event) => changeDuration(Number(event.target.value))} className="mt-2 w-full rounded-lg border border-[#cfdbd2] bg-white p-2.5">
+            <select value={scene.durationMs} onChange={(event) => changeDuration(Number(event.target.value))} className="mt-2 w-full rounded-lg border border-border bg-card p-2.5">
               {[1600, 2400, 3200, 4800, 6400, 8000].map((value) => <option key={value} value={value}>{label(value)}</option>)}
             </select>
           </label>
           <label className="text-sm font-semibold">Camera
-            <select value={scene.cameraAngle} onChange={(event) => update({ ...scene, cameraAngle: event.target.value as WorkshopScene["cameraAngle"] })} className="mt-2 w-full rounded-lg border border-[#cfdbd2] bg-white p-2.5">
+            <select value={scene.cameraAngle} onChange={(event) => update({ ...scene, cameraAngle: event.target.value as WorkshopScene["cameraAngle"] })} className="mt-2 w-full rounded-lg border border-border bg-card p-2.5">
               <option value="three_quarter">Three quarter</option><option value="front">Front</option><option value="side">Side</option>
             </select>
           </label>
           <label className="text-sm font-semibold">Equipment asset
             <select value={scene.equipment?.slug ?? ""} onChange={(event) => update({ ...scene, equipment: event.target.value ? {
               slug: event.target.value as NonNullable<WorkshopScene["equipment"]>["slug"], x: 0, y: 0, z: 0, scale: 1,
-            } : null })} className="mt-2 w-full rounded-lg border border-[#cfdbd2] bg-white p-2.5">
+            } : null })} className="mt-2 w-full rounded-lg border border-border bg-card p-2.5">
               <option value="">None</option>{equipmentOptions.map((item) => <option key={item.slug} value={item.slug}>{item.label}{!item.active ? " (saved, retired asset)" : ""}</option>)}
             </select>
           </label>
@@ -147,32 +150,36 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions }: {
           {(["x", "y", "z"] as const).map((axis) => <label key={axis} className="text-xs font-semibold uppercase">Asset {axis}
             <input type="number" min={-3} max={3} step={0.1} value={scene.equipment?.[axis] ?? 0}
               onChange={(event) => update({ ...scene, equipment: { ...scene.equipment!, [axis]: Number(event.target.value) } })}
-              className="mt-1 w-full rounded-lg border border-[#cfdbd2] p-2" />
+              className="mt-1 w-full rounded-lg border border-border p-2" />
           </label>)}
         </div>}
       </section>
-      <section className="rounded-2xl border border-[#dce5de] bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-3">
-          <div><h2 className="text-lg font-semibold">Pose at {label(current.timeMs)}</h2><p className="mt-1 text-xs text-[#748578]">Angles in degrees</p></div>
+          <div><h2 className="text-lg font-semibold">Pose at {label(current.timeMs)}</h2><p className="mt-1 text-xs text-muted-foreground">Angles in degrees</p></div>
           <button type="button" onClick={removeFrame} disabled={selected === 0 || selected === scene.keyframes.length - 1}
-            className="text-xs font-semibold text-red-700 disabled:opacity-40">Remove keyframe</button>
+            className="text-xs font-semibold text-red-700 dark:text-red-300 disabled:opacity-40">Remove keyframe</button>
         </div>
         <div className="mt-4 max-h-[570px] space-y-3 overflow-y-auto pr-1">
-          {jointSlugs.map((slug) => <fieldset key={slug} className="rounded-xl bg-[#f7faf6] p-3">
+          {jointSlugs.map((slug) => <fieldset key={slug} className="rounded-xl bg-background p-3">
             <legend className="mb-2 text-sm font-semibold">{jointNames[slug]}</legend>
             <div className="grid grid-cols-3 gap-2">
-              {(["x", "y", "z"] as const).map((axis) => <label key={axis} className="text-xs font-semibold uppercase text-[#64786b]">{axis}
+              {(["x", "y", "z"] as const).map((axis) => <label key={axis} className="text-xs font-semibold uppercase text-muted-foreground">{axis}
                 <input type="number" value={current.poses[slug]?.[axis] ?? 0} min={jointLimits[slug][axis][0]} max={jointLimits[slug][axis][1]} step={1}
                   onChange={(event) => setAngle(slug, axis, Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-[#cfdbd2] bg-white p-2 text-sm text-[#172a27]" />
+                  className="mt-1 w-full rounded-lg border border-border bg-card p-2 text-sm text-foreground" />
               </label>)}
             </div>
           </fieldset>)}
         </div>
       </section>
+      <section className="rounded-2xl border bg-card p-5">
+        <AnnotationFields annotations={scene.annotations ?? []} durationMs={scene.durationMs} actions={jointActions}
+          onChange={(annotations) => update({ ...scene, annotations })} />
+      </section>
       <div className="flex items-center gap-4">
-        <button type="button" onClick={save} disabled={pending} className="rounded-xl bg-[#174a3e] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60">{pending ? "Saving…" : "Save scene"}</button>
-        {status && <p role="status" className="text-sm text-[#476c54]">{status}</p>}
+        <button type="button" onClick={save} disabled={pending} className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">{pending ? "Saving…" : "Save scene"}</button>
+        {status && <p role="status" className="text-sm text-muted-foreground">{status}</p>}
       </div>
     </div>
   </div>;

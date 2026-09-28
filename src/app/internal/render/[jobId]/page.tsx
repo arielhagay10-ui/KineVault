@@ -23,7 +23,7 @@ export default async function RenderJobPage({ params }: {
   if (error || !data) notFound();
   const scene = decodeSharedScene(data);
   if (!scene) notFound();
-  return <main className="h-[640px] w-[640px] overflow-hidden bg-[#e9efea]">
+  return <main className="h-[640px] w-[640px] overflow-hidden bg-muted">
     <RenderFrame scene={scene} />
   </main>;
 }

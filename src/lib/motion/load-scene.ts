@@ -13,6 +13,7 @@ const sharedSceneSchema = z.object({
   durationMs: z.number(), cameraAngle: z.string(),
   equipment: z.unknown().nullable(),
   keyframes: z.array(z.object({ timeMs: z.number(), poses: z.array(quaternionPose) })),
+  annotations: z.array(z.unknown()).optional(),
 });
 
 function decodePose(x: number, y: number, z: number, w: number) {
@@ -33,7 +34,7 @@ export function decodeSharedScene(raw: unknown): WorkshopScene | null {
   });
   const validated = workshopSceneSchema.safeParse({
     durationMs: scene.durationMs, cameraAngle: scene.cameraAngle,
-    equipment: scene.equipment, keyframes,
+    equipment: scene.equipment, keyframes, annotations: scene.annotations,
   });
   return validated.success ? validated.data : null;
 }
@@ -46,15 +47,17 @@ export async function loadWorkshopScene(contentId: string): Promise<WorkshopScen
   if (error) throw error;
   if (!scene) return null;
 
-  const [assets, frames] = await Promise.all([
+  const [assets, frames, annotations] = await Promise.all([
     supabase.from("scene_equipment")
       .select("position_x,position_y,position_z,scale,equipment_assets(slug)")
       .eq("scene_id", scene.id).limit(1),
     supabase.from("motion_keyframes")
       .select("id,position_ms,motion_joint_poses(rotation_x,rotation_y,rotation_z,rotation_w,rig_joints(slug))")
       .eq("scene_id", scene.id).order("position_ms"),
+    supabase.from("motion_phase_annotations").select("start_ms,end_ms,label,note,joint_actions(slug)")
+      .eq("scene_id", scene.id).order("start_ms"),
   ]);
-  if (assets.error || frames.error) throw assets.error ?? frames.error;
+  if (assets.error || frames.error || annotations.error) throw assets.error ?? frames.error ?? annotations.error;
   const asset = assets.data?.[0];
   const equipment = asset && asset.equipment_assets ? {
     slug: asset.equipment_assets.slug,
@@ -77,6 +80,8 @@ export async function loadWorkshopScene(contentId: string): Promise<WorkshopScen
     cameraAngle: scene.default_camera_angle,
     equipment,
     keyframes,
+    annotations: (annotations.data ?? []).map((item) => ({ startMs: item.start_ms, endMs: item.end_ms,
+      label: item.label, note: item.note, jointAction: item.joint_actions?.slug ?? null })),
   });
   if (!parsed.success) throw new Error("Saved workshop scene is invalid");
   return parsed.data;

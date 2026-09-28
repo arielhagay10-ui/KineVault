@@ -7,8 +7,22 @@ import { Constants } from "@/lib/database.types";
 import { parseReviewForm } from "@/lib/moderation/schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { motionAnnotationSchema } from "@/lib/motion/scene-schema";
 
 export type ReviewActionState = { error: string | null; message?: string; href?: string };
+
+export async function editAnnotations(submissionId: string, annotations: unknown, comment: string): Promise<ReviewActionState> {
+  await requireRole(["reviewer", "admin"]);
+  const parsed = z.object({ id: z.uuid(), annotations: z.array(motionAnnotationSchema).max(24), comment: z.string().trim().min(5).max(2000) })
+    .safeParse({ id: submissionId, annotations, comment });
+  if (!parsed.success) return { error: "Check note timing and add a useful audit comment." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("edit_submission_annotations", { p_submission_id: parsed.data.id,
+    p_annotations: parsed.data.annotations, p_comment: parsed.data.comment });
+  if (error) return { error: reviewError(error) };
+  refreshReview(parsed.data.id);
+  return { error: null, message: "Movement notes saved in the review history." };
+}
 
 function refreshReview(id: string) {
   revalidatePath("/admin");
@@ -50,6 +64,7 @@ const decisionSchema = z.object({
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120).nullable(),
   relation: z.enum(["new", "variation"]).default("new"),
   relatedId: z.uuid().nullable(),
+  candidateId: z.uuid().nullable(),
 }).superRefine((value, context) => {
   if (["request_changes", "reject", "merge"].includes(value.decision) && value.comment.length < 5) {
     context.addIssue({ code: "custom", path: ["comment"], message: "Add a useful review comment." });
@@ -69,6 +84,7 @@ export async function decideSubmission(_previous: ReviewActionState, data: FormD
     submissionId: data.get("submissionId"), decision: data.get("decision"),
     reason: data.get("reason") || "other", comment: data.get("comment") || "",
     slug: optional("slug"), relation: data.get("relation") || "new", relatedId: optional("relatedId"),
+    candidateId: optional("candidateId"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check your review decision." };
   const value = parsed.data;
@@ -120,6 +136,7 @@ export async function decideSubmission(_previous: ReviewActionState, data: FormD
       ({ error } = await supabase.rpc("approve_submission", {
         p_submission_id: value.submissionId, p_slug: value.slug!, p_relation: value.relation,
         p_related_exercise_id: value.relation === "variation" ? value.relatedId! : undefined, p_comment: value.comment || undefined,
+        p_candidate_exercise_id: value.candidateId ?? undefined,
       }));
       href = `/exercises/${value.slug}`;
       break;

@@ -13,3 +13,9 @@ Approval requires family, a primary muscle, a primary joint action, and complete
 A duplicate merge retains the existing exercise identity, classifications, relationships, and demonstration. It appends the submitted name as an alias in a new immutable version and records the merged submission. Motion provenance remains attached to its original contributor; alias contributors cannot change the original reuse consent. Legitimate variations use approval with a variation relationship.
 
 Decision notifications are queued in the same transaction. Email runs asynchronously and cannot undo moderation. The account inbox remains available when delivery fails. Old decisions are not automatically backfilled into the mail queue.
+
+## Original catalog candidates and aliases
+
+Reviewers prepare seed candidates from `/admin/candidates`, then use the same private-motion and submission workflow. Approval may explicitly publish the original candidate, preserving its canonical identity, slug and relationships. New standalone publication remains available with a distinct slug. Already published or mismatched targets are rejected.
+
+Aliases can be added, corrected or removed in editorial content with an audit reason. Contributor aliases also participate in duplicate comparisons; exact/alias matches remain review aids. Timed-note corrections use a separate audited action so original annotations stay unchanged. Unlink an annotation before removing its classified action.

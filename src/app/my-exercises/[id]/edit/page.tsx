@@ -4,7 +4,7 @@ import { DeletePrivateButton } from "@/components/private-exercises/delete-priva
 import { PrivateExerciseForm } from "@/components/private-exercises/private-exercise-form";
 import { SharePanel } from "@/components/private-exercises/share-panel";
 import { getIdentity } from "@/lib/auth";
-import { loadPrivateExerciseOptions } from "@/lib/private-exercises/options";
+import { loadReviewContent, loadReviewOptions } from "@/lib/moderation/content";
 import type { PrivateExerciseInput } from "@/lib/private-exercises/schema";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,61 +18,49 @@ export default async function EditPrivateExercisePage({ params, searchParams }: 
   const { id } = await params;
   const supabase = await createClient();
   const { data: record } = await supabase.from("private_exercises")
-    .select("id,content_id,copied_from_exercise_id").eq("id", id).eq("owner_id", identity.userId).maybeSingle();
+    .select("id,content_id,copied_from_exercise_id,catalog_candidate_id").eq("id", id).eq("owner_id", identity.userId).maybeSingle();
   if (!record) notFound();
 
   const contentId = record.content_id;
   const { data: sourceExercise } = record.copied_from_exercise_id
     ? await supabase.from("exercises").select("slug").eq("id", record.copied_from_exercise_id).maybeSingle()
     : { data: null };
-  const [content, family, muscles, joints, actions, equipment, biomechanics, shares, options] = await Promise.all([
-    supabase.from("exercise_content").select("name,short_description,family_id").eq("id", contentId).single(),
-    supabase.from("exercise_families").select("id,slug"),
-    supabase.from("exercise_muscles").select("role,muscles(slug)").eq("content_id", contentId),
-    supabase.from("exercise_joints").select("joints(slug)").eq("content_id", contentId),
-    supabase.from("exercise_joint_actions").select("joint_actions(slug)").eq("content_id", contentId),
-    supabase.from("exercise_equipment").select("equipment(slug)").eq("content_id", contentId),
-    supabase.from("exercise_biomechanics").select("resistance_profile,body_positions(slug)").eq("content_id", contentId).maybeSingle(),
+  const [metadata, shares, options] = await Promise.all([
+    loadReviewContent(contentId),
     supabase.from("private_exercise_shares").select("id").eq("private_exercise_id", record.id).is("revoked_at", null),
-    loadPrivateExerciseOptions(),
+    loadReviewOptions(),
   ]);
-  if (!content.data) notFound();
+  if (!metadata) notFound();
   const selected = (role: "primary" | "secondary" | "stabilizer") =>
-    (muscles.data ?? []).filter((item) => item.role === role && item.muscles).map((item) => item.muscles!.slug);
+    metadata.muscles.filter((item) => item.role === role).map((item) => item.slug);
   const initial: PrivateExerciseInput = {
-    privateId: record.id,
-    name: content.data.name,
-    shortDescription: content.data.short_description ?? "",
-    familySlug: family.data?.find((item) => item.id === content.data.family_id)?.slug ?? null,
-    primaryMuscles: selected("primary"),
-    secondaryMuscles: selected("secondary"),
-    stabilizerMuscles: selected("stabilizer"),
-    joints: (joints.data ?? []).filter((item) => item.joints).map((item) => item.joints!.slug),
-    jointActions: (actions.data ?? []).filter((item) => item.joint_actions).map((item) => item.joint_actions!.slug),
-    equipment: (equipment.data ?? []).filter((item) => item.equipment).map((item) => item.equipment!.slug),
-    resistanceProfile: biomechanics.data?.resistance_profile ?? "unknown",
-    bodyPositionSlug: biomechanics.data?.body_positions?.slug ?? null,
+    privateId: record.id, name: metadata.name, shortDescription: metadata.description ?? "",
+    familySlug: metadata.family, primaryMuscles: selected("primary"), secondaryMuscles: selected("secondary"),
+    stabilizerMuscles: selected("stabilizer"), joints: metadata.joints.map((item) => item.slug),
+    jointActions: metadata.joint_actions.map((item) => item.slug), equipment: metadata.equipment.map((item) => item.slug),
+    resistanceProfile: metadata.resistance_profile, bodyPositionSlug: metadata.body_position,
   };
   const saved = (await searchParams).saved === "1";
 
   return (
-    <main className="min-h-screen bg-[#f7f8f5] px-6 py-10 text-[#172a27]">
+    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto max-w-5xl">
-        <Link href="/my-exercises" className="text-sm font-medium text-[#34735b] hover:underline">← My exercises</Link>
+        <Link href="/my-exercises" className="text-sm font-medium text-primary hover:underline">← My exercises</Link>
         <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#28785f]">Private draft</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Private draft</p>
             <h1 className="mt-2 text-4xl font-semibold tracking-[-0.055em]">Edit exercise</h1>
           </div>
           <DeletePrivateButton privateId={record.id} />
         </div>
-        {saved && <p role="status" className="my-6 rounded-xl border border-[#b8dfc3] bg-[#e9f6eb] px-4 py-3 text-sm text-[#276448]">Saved privately.</p>}
-        {sourceExercise && <p className="mt-4 text-sm text-[#647568]">Copied from <Link href={`/exercises/${sourceExercise.slug}`} className="font-semibold text-[#28785f] underline">the public exercise</Link>. Your edits are independent.</p>}
+        {saved && <p role="status" className="my-6 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-primary">Saved privately.</p>}
+        {record.catalog_candidate_id && <p className="mt-4 rounded-xl border bg-muted p-4 text-sm">Preparing an original catalog candidate. Save its classifications, create a clear motion, then submit for review. Approval preserves the candidate’s identity.</p>}
+        {!record.catalog_candidate_id && sourceExercise && <p className="mt-4 text-sm text-muted-foreground">Copied from <Link href={`/exercises/${sourceExercise.slug}`} className="font-semibold text-primary underline">the public exercise</Link>. Your edits are independent.</p>}
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link href={`/my-exercises/${record.id}/workshop`} className="inline-flex rounded-xl bg-[#174a3e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#246a53]">Open motion workshop →</Link>
-          <Link href={`/my-exercises/${record.id}/submit`} className="inline-flex rounded-xl border border-[#a9cbb6] bg-white px-5 py-3 text-sm font-semibold text-[#246a53] hover:bg-[#eef6ef]">Submit for review →</Link>
+          <Link href={`/my-exercises/${record.id}/workshop`} className="inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary">Open motion workshop →</Link>
+          <Link href={`/my-exercises/${record.id}/submit`} className="inline-flex rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-primary hover:bg-muted">Submit for review →</Link>
         </div>
-        <div className="mt-8"><PrivateExerciseForm initial={initial} options={options} /></div>
+        <div className="mt-8"><PrivateExerciseForm initial={initial} options={options} metadata={metadata} /></div>
         <SharePanel privateId={record.id} active={(shares.data?.length ?? 0) > 0} />
       </div>
     </main>
