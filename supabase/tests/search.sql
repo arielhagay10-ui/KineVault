@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(24);
+select plan(29);
 
 update public.exercise_equipment ee set equipment_id = q.id
 from public.exercises e, public.equipment q
@@ -120,6 +120,12 @@ select is((select count(*)::integer from public.explore_exercises(
   joint_action_slugs => array['shoulder-abduction'],
   equipment_slugs => array['cable']
 )), 3, 'anonymous visitors can search approved demonstrations');
+select is((select count(*)::integer from public.explore_exercises(family_slugs => array['curl'])),0,'public-only RPC excludes unreviewed family candidates');
+select is((select count(*)::integer from public.explore_exercises(equipment_slugs => array[$$cable' OR true)--$$])),0,'filter values cannot inject SQL');
+select lives_ok($$select * from public.explore_exercises(search_text => 'quote''; select auth.users; --')$$,'search text remains a literal value');
+select is((select count(*)::integer from public.explore_exercises(page_size => 2)),3,'page query returns only one look-ahead row');
+select throws_ok($$select * from public.explore_exercises(cursor_id => '00000000-0000-4000-8000-000000000001')$$,
+  'P0001','invalid cursor','incomplete cursors are rejected');
 
 select * from finish();
 rollback;

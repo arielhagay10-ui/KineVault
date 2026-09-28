@@ -24,3 +24,9 @@ Editorial content can be changed only through audited review RPCs. Reviewers may
 ## Publication rule
 
 Seed records are `pending_media` and are not public. A public record needs a reviewed original character demonstration, approved content version, provenance, and an atomic search update before `published` status.
+
+## Final local migrations
+
+Migrations 030–037 add relational movement-note validation/audit, measured public search optimization, complete owner metadata commands, capability-limited shared metadata, original candidate preparation/publication, and contributor-alias duplicate comparison. `catalog_candidate_id` is immutable on drafts and submissions. Alias edits are audited for editorial/public versions. `save_private_metadata` accepts JSON as transport but writes normalized tables; it does not store classification payloads as JSON.
+
+`npm run db:test -- --migrations` applies every migration to a new temporary application schema and then runs the SQL assertions. The test runner removes only the UUID-named database it created. No reset of development data is needed.

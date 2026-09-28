@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(11);
+select plan(13);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-4000-8000-000000000061', 'copy-owner@example.test', 'authenticated', 'authenticated'),
@@ -84,6 +84,11 @@ select is((select score from public.find_exercise_duplicates(current_setting('te
 select is((select shared_muscles from public.find_exercise_duplicates(current_setting('test.copy_id')::uuid)
   where exercise_id = '00000000-0000-4000-8000-000000000067'), 1,
   'duplicate comparison counts relational muscle overlap');
+select public.save_private_metadata('{"name":"Entirely distinct label","aliases":["Reviewed Raise"]}',current_setting('test.copy_id')::uuid);
+select is((select alias_match from public.find_exercise_duplicates(current_setting('test.copy_id')::uuid)
+  where exercise_id='00000000-0000-4000-8000-000000000067'),true,'contributor alias matches an existing canonical name');
+select is((select score from public.find_exercise_duplicates(current_setting('test.copy_id')::uuid)
+  where exercise_id='00000000-0000-4000-8000-000000000067'),97,'alias match is a high priority review aid');
 set local role postgres;
 select throws_ok(
   $$update public.motion_keyframes set position_ms = 500

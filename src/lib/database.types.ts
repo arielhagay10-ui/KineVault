@@ -2,7 +2,7 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
-  
+
   "public": {
           Tables: {
             "admin_events": {
@@ -16,7 +16,7 @@ export type Database = {
                     "actor_id"?: string,"after_value"?: Json | null,"before_value"?: Json | null,"comment"?: string | null,"created_at"?: string,"id"?: string,"object_id"?: string,"object_type"?: string,"operation"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"attachments": {
                   Row: {
@@ -29,7 +29,7 @@ export type Database = {
                     "created_at"?: string,"description"?: string | null,"id"?: string,"name"?: string,"slug"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"body_positions": {
                   Row: {
@@ -42,7 +42,7 @@ export type Database = {
                     "id"?: string,"name"?: string,"slug"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"equipment": {
                   Row: {
@@ -477,16 +477,22 @@ isOneToOne: true
                   ]
                 },"exercise_submissions": {
                   Row: {
-                    "allow_motion_reuse": boolean,"assigned_reviewer_id": string | null,"created_at": string,"duplicate_disposition": string,"editorial_content_id": string | null,"id": string,"merged_into_exercise_id": string | null,"original_content_id": string,"owner_id": string,"related_exercise_id": string | null,"revision_of_id": string | null,"source_private_exercise_id": string | null,"status": Database["public"]['Enums']["submission_status"],"submitted_at": string | null,"updated_at": string
+                    "allow_motion_reuse": boolean,"assigned_reviewer_id": string | null,"catalog_candidate_id": string | null,"created_at": string,"duplicate_disposition": string,"editorial_content_id": string | null,"id": string,"merged_into_exercise_id": string | null,"original_content_id": string,"owner_id": string,"related_exercise_id": string | null,"revision_of_id": string | null,"source_private_exercise_id": string | null,"status": Database["public"]['Enums']["submission_status"],"submitted_at": string | null,"updated_at": string
                   }
                   Insert: {
-                    "allow_motion_reuse"?: boolean,"assigned_reviewer_id"?: string | null,"created_at"?: string,"duplicate_disposition"?: string,"editorial_content_id"?: string | null,"id"?: string,"merged_into_exercise_id"?: string | null,"original_content_id": string,"owner_id": string,"related_exercise_id"?: string | null,"revision_of_id"?: string | null,"source_private_exercise_id"?: string | null,"status"?: Database["public"]['Enums']["submission_status"],"submitted_at"?: string | null,"updated_at"?: string
+                    "allow_motion_reuse"?: boolean,"assigned_reviewer_id"?: string | null,"catalog_candidate_id"?: string | null,"created_at"?: string,"duplicate_disposition"?: string,"editorial_content_id"?: string | null,"id"?: string,"merged_into_exercise_id"?: string | null,"original_content_id": string,"owner_id": string,"related_exercise_id"?: string | null,"revision_of_id"?: string | null,"source_private_exercise_id"?: string | null,"status"?: Database["public"]['Enums']["submission_status"],"submitted_at"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "allow_motion_reuse"?: boolean,"assigned_reviewer_id"?: string | null,"created_at"?: string,"duplicate_disposition"?: string,"editorial_content_id"?: string | null,"id"?: string,"merged_into_exercise_id"?: string | null,"original_content_id"?: string,"owner_id"?: string,"related_exercise_id"?: string | null,"revision_of_id"?: string | null,"source_private_exercise_id"?: string | null,"status"?: Database["public"]['Enums']["submission_status"],"submitted_at"?: string | null,"updated_at"?: string
+                    "allow_motion_reuse"?: boolean,"assigned_reviewer_id"?: string | null,"catalog_candidate_id"?: string | null,"created_at"?: string,"duplicate_disposition"?: string,"editorial_content_id"?: string | null,"id"?: string,"merged_into_exercise_id"?: string | null,"original_content_id"?: string,"owner_id"?: string,"related_exercise_id"?: string | null,"revision_of_id"?: string | null,"source_private_exercise_id"?: string | null,"status"?: Database["public"]['Enums']["submission_status"],"submitted_at"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "exercise_submissions_catalog_candidate_id_fkey"
+      columns: ["catalog_candidate_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "exercise_submissions_editorial_content_id_fkey"
       columns: ["editorial_content_id"]
 isOneToOne: true
@@ -604,7 +610,7 @@ isOneToOne: false
                     "id"?: string,"name"?: string,"slug"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"joint_actions": {
                   Row: {
@@ -781,7 +787,7 @@ isOneToOne: false
                     "created_at"?: string,"description"?: string | null,"id"?: string,"name"?: string,"slug"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"muscles": {
                   Row: {
@@ -857,7 +863,7 @@ isOneToOne: false
                     "id"?: string,"name"?: string,"slug"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"private_exercise_shares": {
                   Row: {
@@ -880,16 +886,22 @@ isOneToOne: false
                   ]
                 },"private_exercises": {
                   Row: {
-                    "content_id": string,"copied_from_exercise_id": string | null,"created_at": string,"id": string,"owner_id": string,"updated_at": string
+                    "catalog_candidate_id": string | null,"content_id": string,"copied_from_exercise_id": string | null,"created_at": string,"id": string,"owner_id": string,"updated_at": string
                   }
                   Insert: {
-                    "content_id": string,"copied_from_exercise_id"?: string | null,"created_at"?: string,"id"?: string,"owner_id": string,"updated_at"?: string
+                    "catalog_candidate_id"?: string | null,"content_id": string,"copied_from_exercise_id"?: string | null,"created_at"?: string,"id"?: string,"owner_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "content_id"?: string,"copied_from_exercise_id"?: string | null,"created_at"?: string,"id"?: string,"owner_id"?: string,"updated_at"?: string
+                    "catalog_candidate_id"?: string | null,"content_id"?: string,"copied_from_exercise_id"?: string | null,"created_at"?: string,"id"?: string,"owner_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "private_exercises_catalog_candidate_id_fkey"
+      columns: ["catalog_candidate_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "private_exercises_content_id_fkey"
       columns: ["content_id"]
 isOneToOne: true
@@ -914,7 +926,7 @@ isOneToOne: false
                     "created_at"?: string,"display_name"?: string | null,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"render_jobs": {
                   Row: {
@@ -946,7 +958,7 @@ isOneToOne: false
                     "id"?: string,"name"?: string,"slug"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"rig_joints": {
                   Row: {
@@ -990,7 +1002,7 @@ isOneToOne: false
                     "active"?: boolean,"created_at"?: string,"id"?: string,"license_name"?: string,"name"?: string,"source_storage_path"?: string,"version"?: number
                   }
                   Relationships: [
-                    
+
                   ]
                 },"roles": {
                   Row: {
@@ -1003,7 +1015,7 @@ isOneToOne: false
                     "assigned_at"?: string,"assigned_by"?: string | null,"role"?: Database["public"]['Enums']["app_role"],"user_id"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"scene_equipment": {
                   Row: {
@@ -1047,7 +1059,7 @@ isOneToOne: false
                     "id"?: string,"name"?: string,"slug"?: string
                   }
                   Relationships: [
-                    
+
                   ]
                 },"submission_media": {
                   Row: {
@@ -1100,7 +1112,7 @@ isOneToOne: false
           }
           Functions: {
             "approve_submission":
-{ Args: { "p_comment"?: string,"p_related_exercise_id"?: string,"p_relation"?: string,"p_slug": string,"p_submission_id": string }; Returns: string
+{ Args: { "p_candidate_exercise_id"?: string,"p_comment"?: string,"p_related_exercise_id"?: string,"p_relation"?: string,"p_slug": string,"p_submission_id": string }; Returns: string
                            },
 "assign_application_role":
 { Args: { "p_comment": string,"p_role": Database["public"]['Enums']["app_role"],"p_user_id": string }; Returns: undefined
@@ -1129,6 +1141,9 @@ isOneToOne: false
                            },
 "delete_private_exercise":
 { Args: { "p_private_id": string }; Returns: undefined
+                           },
+"edit_submission_annotations":
+{ Args: { "p_annotations": Json,"p_comment": string,"p_submission_id": string }; Returns: undefined
                            },
 "edit_submission_classifications":
 { Args: { "p_comment": string,"p_patch": Json,"p_submission_id": string }; Returns: undefined
@@ -1160,6 +1175,9 @@ isOneToOne: false
 "merge_submission":
 { Args: { "p_comment": string,"p_exercise_id": string,"p_submission_id": string }; Returns: undefined
                            },
+"prepare_catalog_candidate":
+{ Args: { "p_exercise_id": string }; Returns: string
+                           },
 "prepare_notification_delivery":
 { Args: { "p_delivery_id": string,"p_html": string,"p_sender": string,"p_subject": string,"p_text": string }; Returns: {
               "html_body": string,"recipient_email": string,"sender": string,"subject": string,"text_body": string
@@ -1169,6 +1187,9 @@ isOneToOne: false
 { Args: { "p_job_id": string }; Returns: Json
                            },
 "read_shared_private_exercise":
+{ Args: { "p_token_hash": string }; Returns: Json
+                           },
+"read_shared_private_metadata":
 { Args: { "p_token_hash": string }; Returns: Json
                            },
 "read_shared_private_scene":
@@ -1194,6 +1215,9 @@ isOneToOne: false
                            },
 "save_private_exercise":
 { Args: { "p_body_position_slug"?: string,"p_equipment_slugs"?: (string)[],"p_family_slug"?: string,"p_joint_action_slugs"?: (string)[],"p_joint_slugs"?: (string)[],"p_name"?: string,"p_primary_muscle_slugs"?: (string)[],"p_private_id"?: string,"p_resistance_profile"?: Database["public"]['Enums']["resistance_profile"],"p_secondary_muscle_slugs"?: (string)[],"p_short_description"?: string,"p_stabilizer_muscle_slugs"?: (string)[] }; Returns: string
+                           },
+"save_private_metadata":
+{ Args: { "p_patch": Json,"p_private_id"?: string }; Returns: string
                            },
 "save_private_scene":
 { Args: { "p_private_id": string,"p_scene": Json }; Returns: string

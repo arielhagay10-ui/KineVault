@@ -1,0 +1,463 @@
+CASE alphabetical
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "explore_exercises",
+      "Alias": "explore_exercises",
+      "Startup Cost": 0.25,
+      "Total Cost": 10.25,
+      "Plan Rows": 1000,
+      "Plan Width": 204,
+      "Actual Startup Time": 2.909,
+      "Actual Total Time": 2.911,
+      "Actual Rows": 25,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 771,
+      "Shared Read Blocks": 33,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.073,
+    "Triggers": [
+    ],
+    "Execution Time": 2.964
+  }
+]
+CASE joint_and_cable
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "explore_exercises",
+      "Alias": "explore_exercises",
+      "Startup Cost": 0.25,
+      "Total Cost": 10.25,
+      "Plan Rows": 1000,
+      "Plan Width": 204,
+      "Actual Startup Time": 6.331,
+      "Actual Total Time": 6.333,
+      "Actual Rows": 25,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 2090,
+      "Shared Read Blocks": 204,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.040,
+    "Triggers": [
+    ],
+    "Execution Time": 6.352
+  }
+]
+CASE multiple_actions
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "explore_exercises",
+      "Alias": "explore_exercises",
+      "Startup Cost": 0.25,
+      "Total Cost": 10.25,
+      "Plan Rows": 1000,
+      "Plan Width": 204,
+      "Actual Startup Time": 25.913,
+      "Actual Total Time": 25.915,
+      "Actual Rows": 25,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 45322,
+      "Shared Read Blocks": 163,
+      "Shared Dirtied Blocks": 3,
+      "Shared Written Blocks": 137,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.039,
+    "Triggers": [
+    ],
+    "Execution Time": 25.933
+  }
+]
+CASE combined_anatomy
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "explore_exercises",
+      "Alias": "explore_exercises",
+      "Startup Cost": 0.25,
+      "Total Cost": 10.25,
+      "Plan Rows": 1000,
+      "Plan Width": 204,
+      "Actual Startup Time": 49.944,
+      "Actual Total Time": 49.947,
+      "Actual Rows": 25,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 127843,
+      "Shared Read Blocks": 680,
+      "Shared Dirtied Blocks": 2,
+      "Shared Written Blocks": 678,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.044,
+    "Triggers": [
+    ],
+    "Execution Time": 49.967
+  }
+]
+CASE search_alias
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "explore_exercises",
+      "Alias": "explore_exercises",
+      "Startup Cost": 0.25,
+      "Total Cost": 10.25,
+      "Plan Rows": 1000,
+      "Plan Width": 204,
+      "Actual Startup Time": 65.566,
+      "Actual Total Time": 65.568,
+      "Actual Rows": 25,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 7890,
+      "Shared Read Blocks": 24,
+      "Shared Dirtied Blocks": 2,
+      "Shared Written Blocks": 24,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.076,
+    "Triggers": [
+    ],
+    "Execution Time": 65.595
+  }
+]
+CASE fuzzy_name
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "explore_exercises",
+      "Alias": "explore_exercises",
+      "Startup Cost": 0.25,
+      "Total Cost": 10.25,
+      "Plan Rows": 1000,
+      "Plan Width": 204,
+      "Actual Startup Time": 145.565,
+      "Actual Total Time": 145.567,
+      "Actual Rows": 25,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 8348,
+      "Shared Read Blocks": 16,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.037,
+    "Triggers": [
+    ],
+    "Execution Time": 145.594
+  }
+]
+CASE newest
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "explore_exercises",
+      "Alias": "explore_exercises",
+      "Startup Cost": 0.25,
+      "Total Cost": 10.25,
+      "Plan Rows": 1000,
+      "Plan Width": 204,
+      "Actual Startup Time": 0.973,
+      "Actual Total Time": 0.974,
+      "Actual Rows": 25,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 379,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.042,
+    "Triggers": [
+    ],
+    "Execution Time": 0.991
+  }
+]
+CASE favorites
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "explore_exercises",
+      "Alias": "explore_exercises",
+      "Startup Cost": 0.25,
+      "Total Cost": 10.25,
+      "Plan Rows": 1000,
+      "Plan Width": 204,
+      "Actual Startup Time": 1.497,
+      "Actual Total Time": 1.497,
+      "Actual Rows": 25,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 1255,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.022,
+    "Triggers": [
+    ],
+    "Execution Time": 1.510
+  }
+]
+CASE no_matches
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "explore_exercises",
+      "Alias": "explore_exercises",
+      "Startup Cost": 0.25,
+      "Total Cost": 10.25,
+      "Plan Rows": 1000,
+      "Plan Width": 204,
+      "Actual Startup Time": 344.825,
+      "Actual Total Time": 344.826,
+      "Actual Rows": 0,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 605457,
+      "Shared Read Blocks": 818,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 626,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.024,
+    "Triggers": [
+    ],
+    "Execution Time": 344.848
+  }
+]
+Load Case 12345 Cable Lateral Raise
+00000000-0000-4000-8000-000000000161
+57ce1c86-10f3-4917-94fd-4d2b1e2627a1
+CASE duplicate_with_alias
+[
+  {
+    "Plan": {
+      "Node Type": "Function Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Function Name": "find_exercise_duplicates",
+      "Alias": "find_exercise_duplicates",
+      "Startup Cost": 0.26,
+      "Total Cost": 10.26,
+      "Plan Rows": 1000,
+      "Plan Width": 103,
+      "Actual Startup Time": 294.086,
+      "Actual Total Time": 294.088,
+      "Actual Rows": 12,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 15486,
+      "Shared Read Blocks": 456,
+      "Shared Dirtied Blocks": 1,
+      "Shared Written Blocks": 142,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.031,
+    "Triggers": [
+    ],
+    "Execution Time": 294.120
+  }
+]

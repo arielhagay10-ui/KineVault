@@ -17,3 +17,4 @@ supabase/.branches/
 supabase/.profiles/
 supabase/.temp/
 public/generated/
+PERFORMANCE_PLANS.txt
