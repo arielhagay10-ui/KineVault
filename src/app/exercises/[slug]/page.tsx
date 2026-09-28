@@ -5,6 +5,7 @@ import { toggleFavorite } from "@/app/favorites/actions";
 import { copyPublicExercise } from "@/app/exercises/actions";
 import { getIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { mediaObjectKey, signMediaObjects } from "@/lib/media/signed-media";
 
 export const dynamic = "force-dynamic";
 
@@ -52,8 +53,8 @@ export default async function ExercisePage({ params }: Props) {
   const webm = media.find((item) => item.kind === "webm");
   const mp4 = media.find((item) => item.kind === "mp4");
   const poster = media.find((item) => item.kind === "poster");
-  const urlFor = (item: (typeof media)[number]) =>
-    supabase.storage.from(item.storage_bucket).getPublicUrl(item.storage_path).data.publicUrl;
+  const signedMedia = await signMediaObjects(media);
+  const urlFor = (item: (typeof media)[number]) => signedMedia.get(mediaObjectKey(item));
   const relations = relationsResult.data ?? [];
   const relatedIds = relations.map((relation) => relation.source_exercise_id === exercise.id
     ? relation.target_exercise_id : relation.source_exercise_id);

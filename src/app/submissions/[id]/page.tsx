@@ -6,6 +6,7 @@ import { getIdentity } from "@/lib/auth";
 import { loadPrivateRenderMedia } from "@/lib/media/private-media";
 import { loadWorkshopScene } from "@/lib/motion/load-scene";
 import { createClient } from "@/lib/supabase/server";
+import { formatReviewValue, humanLabel, reviewFieldLabels, type ReviewField } from "@/lib/moderation/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
     supabase.from("exercise_joint_actions").select("role,joint_actions(name,joints(name))").eq("content_id", submission.original_content_id),
     supabase.from("exercise_equipment").select("equipment(name)").eq("content_id", submission.original_content_id),
     supabase.from("exercise_families").select("id,name"),
-    supabase.from("moderation_events").select("action,reason,comment,created_at,from_status,to_status")
+    supabase.from("moderation_events").select("action,reason,comment,created_at,from_status,to_status,moderation_field_changes(field_name,before_value,after_value)")
       .eq("submission_id", id).order("created_at", { ascending: true }),
     supabase.from("taxonomy_suggestions").select("taxonomy_name,suggested_name,explanation").eq("submission_id", id),
     loadWorkshopScene(submission.original_content_id),
@@ -84,6 +85,10 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
             <p className="mt-1 text-xs text-[#788a7c]">{new Date(event.created_at).toLocaleString()}</p>
             {event.reason && <p className="mt-2 text-sm capitalize text-[#5f7365]">Reason: {event.reason.replaceAll("_", " ")}</p>}
             {event.comment && <p className="mt-2 text-sm leading-6 text-[#5f7365]">{event.comment}</p>}
+            {event.moderation_field_changes.length > 0 && <dl className="mt-3 space-y-3 text-xs">{event.moderation_field_changes.map((change) => <div key={change.field_name}>
+              <dt className="font-semibold">{reviewFieldLabels[change.field_name as ReviewField] ?? humanLabel(change.field_name)}</dt>
+              <dd className="mt-1 whitespace-pre-wrap"><del className="text-red-700">{formatReviewValue(change.before_value)}</del><span className="mx-2">→</span><ins className="text-[#28785f]">{formatReviewValue(change.after_value)}</ins></dd>
+            </div>)}</dl>}
           </li>)}</ol>
         </section>
       </div>

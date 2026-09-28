@@ -5,3 +5,11 @@ Private drafts remain private until their owner explicitly submits a fixed copy.
 Reviewers inspect metadata, duplicate candidates and the complete character motion, including angle clarity and equipment alignment. Rendered WebM, MP4 and poster files remain private during review. A public exercise requires at least one clear approved demonstration. Fuzzy duplicate scores are review aids, not automatic rejection rules. A merge may add an alias or relation to an existing canonical exercise and always preserves provenance. Public motion may be copied into a private draft only when the contributor granted reuse consent.
 
 Every transition writes an immutable `moderation_events` row. Approval and merge must update canonical content, versions, media visibility, provenance and search indexing transactionally. Role checks run in server mutations and RLS; hiding controls in the UI is insufficient.
+
+Starting review assigns the current reviewer and creates the editorial copy. Only that reviewer or an admin can resolve or edit it. Direct editorial writes are blocked by RLS. The correction RPC validates controlled taxonomy values, persists normal relational records, preserves relation notes, and records changed fields in `moderation_field_changes`. Contributors see the same before/after audit values in their submission history.
+
+Approval requires family, a primary muscle, a primary joint action, and complete rendered WebM/MP4/poster output. Storage copies are staged privately; the database verifies those objects and freezes a new published content version. Canonical publication, variation relationship, audit history, and search refresh commit together. A slug collision rolls back the decision.
+
+A duplicate merge retains the existing exercise identity, classifications, relationships, and demonstration. It appends the submitted name as an alias in a new immutable version and records the merged submission. Motion provenance remains attached to its original contributor; alias contributors cannot change the original reuse consent. Legitimate variations use approval with a variation relationship.
+
+Decision notifications are queued in the same transaction. Email runs asynchronously and cannot undo moderation. The account inbox remains available when delivery fails. Old decisions are not automatically backfilled into the mail queue.

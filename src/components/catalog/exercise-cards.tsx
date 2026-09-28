@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Dumbbell } from "lucide-react";
 import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { mediaObjectKey, signMediaObjects } from "@/lib/media/signed-media";
 
 type ExerciseRow = Database["public"]["Functions"]["explore_exercises"]["Returns"][number];
 
@@ -12,8 +13,9 @@ export async function ExerciseCards({ rows }: { rows: ExerciseRow[] }) {
     ? await supabase.from("exercise_media").select("content_id,storage_bucket,storage_path")
       .eq("kind", "poster").in("content_id", rows.map((row) => row.content_id))
     : { data: [] };
+  const signed = await signMediaObjects(posterRows ?? []);
   const posters = new Map((posterRows ?? []).map((item) => [item.content_id,
-    supabase.storage.from(item.storage_bucket).getPublicUrl(item.storage_path).data.publicUrl]));
+    signed.get(mediaObjectKey(item))]));
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

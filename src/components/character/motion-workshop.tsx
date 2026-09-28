@@ -12,7 +12,10 @@ const jointNames: Record<JointSlug, string> = {
 };
 const label = (milliseconds: number) => `${(milliseconds / 1000).toFixed(2)}s`;
 
-export function MotionWorkshop({ privateId, initialScene }: { privateId: string; initialScene: WorkshopScene }) {
+export function MotionWorkshop({ privateId, initialScene, equipmentOptions }: {
+  privateId: string; initialScene: WorkshopScene;
+  equipmentOptions: { slug: string; label: string; active: boolean }[];
+}) {
   const [scene, setScene] = useState(initialScene);
   const [selected, setSelected] = useState(0);
   const [timeMs, setTimeMs] = useState(0);
@@ -136,7 +139,7 @@ export function MotionWorkshop({ privateId, initialScene }: { privateId: string;
             <select value={scene.equipment?.slug ?? ""} onChange={(event) => update({ ...scene, equipment: event.target.value ? {
               slug: event.target.value as NonNullable<WorkshopScene["equipment"]>["slug"], x: 0, y: 0, z: 0, scale: 1,
             } : null })} className="mt-2 w-full rounded-lg border border-[#cfdbd2] bg-white p-2.5">
-              <option value="">None</option><option value="dumbbell-pair">Dumbbell pair</option><option value="barbell">Barbell</option><option value="single-cable">Single cable</option>
+              <option value="">None</option>{equipmentOptions.map((item) => <option key={item.slug} value={item.slug}>{item.label}{!item.active ? " (saved, retired asset)" : ""}</option>)}
             </select>
           </label>
         </div>

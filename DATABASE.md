@@ -11,10 +11,15 @@ Migrations live in `supabase/migrations/`; original development data lives in `s
 - `exercise_scenes`, `motion_keyframes` and `motion_joint_poses` describe character movement. Their rig joints are not the anatomical `joint_actions` taxonomy.
 - `moderation_events` records each state transition; `moderation_reviews` stores decisions and reasons. `favorites` updates a maintained count on the canonical exercise.
 - `taxonomy_suggestions` keeps proposed values attached to a submission without changing global taxonomies. `render_jobs`, `exercise_media` and `submission_media` track private outputs before approval.
+- `moderation_field_changes` stores immutable before/after audit snapshots, while current classifications remain relational. `admin_events` records taxonomy, role, and asset availability changes. Hierarchical taxonomies reject cycles and saved slugs cannot change.
+- `exercise_scenes.motion_source_submission_id` identifies the motion contributor separately from alias/version provenance. Media metadata can reference one immutable Storage object from several published versions.
+- `notifications` is an owner-only account inbox. `notification_deliveries` is a restricted transactional outbox with leased claims, frozen provider payloads, backoff, and bounded retries.
 
 ## Security
 
 Every application table has RLS enabled. Public taxonomy and published-catalog reads are allowed to anonymous visitors. Owners control private drafts and see their submissions. Reviewers see submission material. Admins manage taxonomies and roles. Direct public-catalog writes are not granted to ordinary users. Privileged helpers are in the unexposed `private` schema. Storage policies let only the submitter or a reviewer read private render objects; service-only RPCs scope worker reads to a claimed job.
+
+Editorial content can be changed only through audited review RPCs. Reviewers may read historical published versions, but visitors see the current canonical version. Both media buckets are private: the catalog bucket's read policy requires a current published exercise reference before issuing a signed URL. Anonymous visitors cannot sign staged or withdrawn-only objects.
 
 ## Publication rule
 

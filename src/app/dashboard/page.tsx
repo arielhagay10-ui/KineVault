@@ -11,10 +11,11 @@ export default async function DashboardPage() {
   const identity = await getIdentity();
   if (!identity) redirect("/sign-in?next=/dashboard");
   const supabase = await createClient();
-  const [favorites, privateCount] = await Promise.all([
+  const [favorites, privateCount, unread] = await Promise.all([
     supabase.from("favorites").select("exercise_id,exercises(slug,current_content_id)")
       .eq("user_id", identity.userId).order("created_at", { ascending: false }),
     supabase.from("private_exercises").select("id", { count: "exact", head: true }).eq("owner_id", identity.userId),
+    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", identity.userId).is("read_at", null),
   ]);
   const contentIds = (favorites.data ?? []).map((item) => item.exercises?.current_content_id).filter((id): id is string => Boolean(id));
   const { data: names } = contentIds.length
@@ -34,6 +35,8 @@ export default async function DashboardPage() {
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em]">Your exercise library</h1>
           <p className="mt-3 text-[#617568]">Save movements you use, build private variations, and share a view link with friends.</p>
         </div>
+        {identity.role !== "user" && <Link href="/admin" className="mt-5 inline-block rounded-xl border border-[#b7ceb9] bg-white px-4 py-3 text-sm font-semibold text-[#28785f]">Open review dashboard →</Link>}
+        <nav className="mt-5 flex flex-wrap gap-4 text-sm font-semibold text-[#28785f]" aria-label="Community contributions"><Link href="/submissions">My submissions</Link><Link href="/notifications">Review updates{unread.count ? ` (${unread.count} unread)` : ""}</Link></nav>
         <div className="mt-10 grid gap-5 sm:grid-cols-2">
           <Link href="/my-exercises" className="rounded-2xl border border-[#dce5de] bg-white p-6 hover:border-[#a9cbb6]">
             <Plus size={22} className="text-[#28785f]" />

@@ -8,6 +8,8 @@ Signed-in contributors can keep exercises private indefinitely. In the workshop 
 
 Publication requires a clear character demonstration. Reviewers inspect every motion and may correct metadata, request changes, reject, approve or merge. Approved motions may be copied and remixed inside KineVault with visible source lineage. Searchable biomechanics are reviewer-approved metadata, not calculations inferred from the animation. Timed labels and highlights explain setup, joint actions and movement phases alongside the clip.
 
+Contributors receive account updates and transactional email when reviewers request changes, approve, reject or merge. Enqueue delivery with the saved decision; retry mail independently without blocking moderation.
+
 ## Application and database architecture
 
 - Next.js App Router, strict TypeScript, Tailwind CSS, shadcn/ui, Zod, Supabase Auth, PostgreSQL and Storage. Use server components for public reads, focused client components for filters and the workshop, and server routes/actions for mutations. Authorize each mutation server-side and with database grants and RLS.
