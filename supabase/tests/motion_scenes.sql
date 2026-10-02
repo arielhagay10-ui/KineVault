@@ -1,11 +1,11 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(11);
+select plan(19);
 
 select is((select count(*)::integer from public.rig_joints rj
-  join public.rigs r on r.id = rj.rig_id where r.active), 9,
-  'the original workshop rig has nine named controls');
+  join public.rigs r on r.id = rj.rig_id where r.active), 13,
+  'the workshop rig includes both wrist and ankle controls');
 select is((select count(*)::integer from public.equipment_assets where active), 3,
   'three original equipment assets are available');
 
@@ -51,6 +51,35 @@ select throws_ok(
 select is((select duration_ms from public.exercise_scenes
   where id = current_setting('test.scene_id')::uuid), 4000,
   'a rejected save leaves the previous scene intact');
+
+select public.save_private_scene(current_setting('test.private_id')::uuid,
+  '{"motionStyle":"squat","durationMs":3200,"cameraAngle":"front","equipment":null,"keyframes":[{"timeMs":0,"poses":{}},{"timeMs":3200,"poses":{}}]}'::jsonb);
+select is((select motion_style from public.exercise_scenes where id=current_setting('test.scene_id')::uuid),'squat','movement setup survives saving');
+select throws_ok($$select public.save_private_scene(current_setting('test.private_id')::uuid,
+  '{"motionStyle":"invalid","durationMs":3200,"cameraAngle":"front","equipment":null,"keyframes":[{"timeMs":0,"poses":{}},{"timeMs":3200,"poses":{}}]}'::jsonb)$$,
+  '23514', null, 'unknown movement setup is rejected');
+select is((select motion_style from public.exercise_scenes where id=current_setting('test.scene_id')::uuid),'squat','invalid setup leaves the saved setup intact');
+reset role;
+select set_config('test.clone_id',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.private_id')::uuid),'submission_editorial',null)::text,true);
+select is((select motion_style from public.exercise_scenes where content_id=current_setting('test.clone_id')::uuid),'squat','review copies retain movement setup');
+set local role authenticated;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000051', true);
+select public.save_private_scene(current_setting('test.private_id')::uuid,
+  '{"motionStyle":"seated-curl","durationMs":4800,"cameraAngle":"three_quarter","equipment":{"slug":"dumbbell-pair","x":0,"y":0,"z":0,"scale":1},"keyframes":[{"timeMs":0,"poses":{"left-elbow":{"x":10}}},{"timeMs":2400,"poses":{"left-elbow":{"x":115}}},{"timeMs":4800,"poses":{"left-elbow":{"x":10}}}]}'::jsonb);
+select is((select motion_style from public.exercise_scenes where id=current_setting('test.scene_id')::uuid),'seated-curl','seated curl survives saving');
+reset role;
+select set_config('test.seated_clone_id',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.private_id')::uuid),'submission_editorial',null)::text,true);
+select is((select motion_style from public.exercise_scenes where content_id=current_setting('test.seated_clone_id')::uuid),'seated-curl','seated curl survives snapshot cloning');
+set local role authenticated;
+
+select public.save_private_scene(current_setting('test.private_id')::uuid,
+  '{"motionStyle":"incline-curl","durationMs":4800,"cameraAngle":"side","equipment":{"slug":"dumbbell-pair","x":0,"y":0,"z":0,"scale":1},"keyframes":[{"timeMs":0,"poses":{"left-shoulder":{"x":45},"left-elbow":{"x":10}}},{"timeMs":2400,"poses":{"left-shoulder":{"x":45},"left-elbow":{"x":115}}},{"timeMs":4800,"poses":{"left-shoulder":{"x":45},"left-elbow":{"x":10}}}]}'::jsonb);
+select is((select motion_style from public.exercise_scenes where id=current_setting('test.scene_id')::uuid),'incline-curl','incline curl survives saving');
+reset role;
+select set_config('test.incline_clone_id',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.private_id')::uuid),'submission_editorial',null)::text,true);
+select is((select motion_style from public.exercise_scenes where content_id=current_setting('test.incline_clone_id')::uuid),'incline-curl','incline curl survives snapshot cloning');
+set local role authenticated;
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000052', true);
 select throws_ok(

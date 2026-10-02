@@ -1,0 +1,34 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(17);
+insert into auth.users(id,email,aud,role) values
+  ('00000000-0000-4000-8000-000000000081','cable-owner@example.test','authenticated','authenticated'),
+  ('00000000-0000-4000-8000-000000000082','cable-other@example.test','authenticated','authenticated');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000081',true);
+select set_config('test.cable_payload','{"durationMs":3200,"cameraAngle":"front","equipment":null,"keyframes":[{"timeMs":0,"poses":{}},{"timeMs":3200,"poses":{}}],"studio":{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"objects":[{"id":"00000000-0000-4000-8000-000000000083","name":"Cable","slug":"cable-machine","x":1,"y":0,"z":1.2,"rotationX":0,"rotationY":30,"rotationZ":0,"scale":1.5,"attachment":"left","pulleyHeight":1.75,"cableAttachment":"rope"},{"id":"00000000-0000-4000-8000-000000000084","name":"Kettlebell","slug":"kettlebell","x":-0.45,"y":1.3,"z":0.4,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"right","pulleyHeight":1.5}]}}',true);
+select set_config('test.cable_private',public.create_workshop_exercise(current_setting('test.cable_payload')::jsonb)::text,true);
+select is((select studio_layout from public.exercise_scenes where content_id=(select content_id from public.private_exercises where id=current_setting('test.cable_private')::uuid)),current_setting('test.cable_payload')::jsonb->'studio','cable height, attachment and kettlebell save exactly');
+select lives_ok(format('select public.save_private_scene(%L::uuid,%L::jsonb)',current_setting('test.cable_private'),jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,0,cableAttachment}',to_jsonb(kind))::text),kind || ' saves') from unnest(array['d-handle','rope','straight-bar','angled-bar','v-bar']) kind;
+select throws_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,0,cableAttachment}','"unknown"'))$$,'23514',null,'unknown attachment rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,1,cableAttachment}','"rope"'))$$,'23514',null,'weight cannot have a cable attachment');
+select throws_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,0,pulleyHeight}','3.21'))$$,'23514',null,'excessive pulley height rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,1,attachment}','"left"'))$$,'23514',null,'hand cannot hold a cable and kettlebell together');
+select throws_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,jsonb_set(jsonb_set(jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,1,attachment}','"none"'),'{studio,objects,0,attachment}','"both"'),'{studio,objects,0,cableAttachment}','"d-handle"'))$$,'23514',null,'D handle cannot hold both hands');
+select lives_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,jsonb_set(jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,1,attachment}','"none"'),'{studio,objects,0,attachment}','"both"'))$$,'two-hand rope saves');
+select set_config('test.cable_payload',jsonb_set(jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,0,attachment}','"none"'),'{studio,objects,1,attachment}','"both"')::text,true);
+select lives_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,current_setting('test.cable_payload')::jsonb)$$,'two-hand kettlebell saves');
+select public.replace_private_share(current_setting('test.cable_private')::uuid,repeat('b',64));
+reset role;
+select set_config('test.cable_clone',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.cable_private')::uuid),'submission_editorial',null)::text,true);
+select is((select studio_layout from public.exercise_scenes where content_id=current_setting('test.cable_clone')::uuid),current_setting('test.cable_payload')::jsonb->'studio','review snapshots preserve cable settings and kettlebells');
+set local role anon;
+select is(public.read_shared_private_scene(repeat('b',64))->'studio',current_setting('test.cable_payload')::jsonb->'studio','shared reader preserves equipment');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000082',true);
+select throws_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,current_setting('test.cable_payload')::jsonb)$$,'P0001','private exercise not found','other owners cannot alter equipment');
+reset role;
+select ok(pg_get_functiondef('public.read_render_scene(uuid)'::regprocedure) like '%scene.studio_layout%','render reader carries cable attachments');
+select * from finish();
+rollback;

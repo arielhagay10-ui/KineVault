@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(20);
+select plan(30);
 
 insert into auth.users(id,email,aud,role) values
   ('00000000-0000-4000-8000-000000000091','publish-owner@example.test','authenticated','authenticated'),
@@ -84,5 +84,41 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000091'
 select set_config('test.copy_id',public.copy_public_exercise(current_setting('test.exercise_id')::uuid)::text,true);
 select is((select count(*)::integer from public.exercise_scenes scene join public.private_exercises pe on pe.content_id = scene.content_id
   where pe.id = current_setting('test.copy_id')::uuid),0,'alias merge preserves the original motion author consent');
+-- Refreshing a renderer preserves the original media and enforces the same visibility.
+set local role postgres;
+select set_config('test.refresh_group',(select asset_group_id::text from public.exercise_media
+  where content_id = (select original_content_id from public.exercise_submissions where id = current_setting('test.submission_id')::uuid) limit 1),true);
+set local role service_role;
+select throws_ok($$select public.register_render_replacements(current_setting('test.refresh_group')::uuid,'z-anatomy-v2')$$,
+  'P0001','replacement media object missing','refresh waits for every uploaded file');
+set local role authenticated;
+select throws_ok($$select public.register_render_replacements(current_setting('test.refresh_group')::uuid,'z-anatomy-v2')$$,
+  '42501',null,'users cannot register replacement media');
+set local role postgres;
+insert into storage.objects(bucket_id,name)
+select storage_bucket,regexp_replace(storage_path,'/([^/]+)$','/z-anatomy-v2/\1')
+from public.exercise_media where asset_group_id = current_setting('test.refresh_group')::uuid;
+set local role service_role;
+select lives_ok($$select public.register_render_replacements(current_setting('test.refresh_group')::uuid,'z-anatomy-v2')$$,'complete replacements register atomically');
+select lives_ok($$select public.register_render_replacements(current_setting('test.refresh_group')::uuid,'z-anatomy-v2')$$,'refresh registration is idempotent');
+set local role anon;
+select is((select count(*)::integer from public.media_render_replacements),0,'private replacement paths remain hidden from visitors');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000091',true);
+select is((select count(*)::integer from public.media_render_replacements),3,'owners can read their replacements');
+select is((select count(*)::integer from public.exercise_media where asset_group_id = current_setting('test.refresh_group')::uuid),3,'frozen source media records remain intact');
+set local role postgres;
+select set_config('test.public_refresh_group',(select asset_group_id::text from public.exercise_media where content_id =
+  (select current_content_id from public.exercises where id = current_setting('test.exercise_id')::uuid) limit 1),true);
+insert into storage.objects(bucket_id,name)
+select storage_bucket,regexp_replace(storage_path,'/([^/]+)$','/z-anatomy-v2/\1')
+from public.exercise_media where asset_group_id = current_setting('test.public_refresh_group')::uuid;
+set local role service_role;
+select public.register_render_replacements(current_setting('test.public_refresh_group')::uuid,'z-anatomy-v2');
+set local role anon;
+select is((select count(*)::integer from public.media_render_replacements),3,'visitors see only published replacements');
+select is((select count(*)::integer from storage.objects where bucket_id = 'exercise-public' and name like '%/z-anatomy-v2/%'),3,'published replacement files can be signed');
+select throws_ok($$select public.read_render_refresh_scene(current_setting('test.public_refresh_group')::uuid)$$,
+  '42501',null,'private renderer endpoint requires service credentials');
 select * from finish();
 rollback;

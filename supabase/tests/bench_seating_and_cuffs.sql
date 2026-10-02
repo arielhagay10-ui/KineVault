@@ -1,0 +1,35 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(17);
+insert into auth.users(id,email,aud,role) values
+  ('00000000-0000-4000-8000-000000000085','seating-owner@example.test','authenticated','authenticated'),
+  ('00000000-0000-4000-8000-000000000086','seating-other@example.test','authenticated','authenticated');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000085',true);
+select set_config('test.seating_payload','{"durationMs":3200,"cameraAngle":"front","equipment":null,"keyframes":[{"timeMs":0,"poses":{}},{"timeMs":3200,"poses":{}}],"studio":{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"seating":{"benchId":"00000000-0000-4000-8000-000000000087","facing":"front"},"objects":[{"id":"00000000-0000-4000-8000-000000000087","name":"Bench","slug":"bench","x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"none","pulleyHeight":1.5,"benchAngle":45},{"id":"00000000-0000-4000-8000-000000000088","name":"Cuff cable","slug":"cable-machine","x":1.5,"y":0,"z":1,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"left","pulleyHeight":3,"cableAttachment":"cuff","cuffPosition":"upper-arm"}]}}',true);
+select lives_ok($$select public.create_workshop_exercise(current_setting('test.seating_payload')::jsonb)$$,'seating and upper-arm cuff save');
+select set_config('test.seating_private',public.create_workshop_exercise(current_setting('test.seating_payload')::jsonb)::text,true);
+select lives_ok(format('select public.save_private_scene(%L::uuid,%L::jsonb)',current_setting('test.seating_private'),jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,seating,facing}',to_jsonb(facing))::text),facing || ' seat saves') from unnest(array['front','left','right','back']) facing;
+select lives_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,objects,1,cuffPosition}','"wrist"'))$$,'wrist cuff saves');
+select throws_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,objects,1,attachment}','"both"'))$$,'23514',null,'one cuff cannot attach to two arms');
+select throws_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,objects,1,cuffPosition}','"ankle"'))$$,'23514',null,'invalid cuff site rejected');
+select lives_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,objects,1,cableAttachment}','"rope"'))$$,'rope remembers cuff placement');
+select throws_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,seating,benchId}','"00000000-0000-4000-8000-000000000088"'))$$,'23514',null,'cannot sit on cable tower');
+select throws_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,seating,facing}','"up"'))$$,'23514',null,'invalid facing rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,objects,1,pulleyHeight}','3.21'))$$,'23514',null,'height limit enforced');
+select public.save_private_scene(current_setting('test.seating_private')::uuid,current_setting('test.seating_payload')::jsonb);
+select is((select studio_layout from public.exercise_scenes where content_id=(select content_id from public.private_exercises where id=current_setting('test.seating_private')::uuid)),current_setting('test.seating_payload')::jsonb->'studio','owner round trip preserves all settings');
+select public.replace_private_share(current_setting('test.seating_private')::uuid,repeat('c',64));
+reset role;
+select set_config('test.seating_clone',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.seating_private')::uuid),'submission_editorial',null)::text,true);
+select is((select studio_layout from public.exercise_scenes where content_id=current_setting('test.seating_clone')::uuid),current_setting('test.seating_payload')::jsonb->'studio','review clone preserves seating and cuffs');
+set local role anon;
+select is(public.read_shared_private_scene(repeat('c',64))->'studio',current_setting('test.seating_payload')::jsonb->'studio','shared scene preserves seating and cuffs');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000086',true);
+select throws_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,current_setting('test.seating_payload')::jsonb)$$,'P0001','private exercise not found','other owner cannot change cuffs');
+reset role;
+select ok(pg_get_functiondef('public.read_render_scene(uuid)'::regprocedure) like '%scene.studio_layout%','render reader retains scene support');
+select * from finish();
+rollback;

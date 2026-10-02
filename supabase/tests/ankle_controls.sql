@@ -1,0 +1,21 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(6);
+insert into auth.users(id,email,aud,role) values
+  ('00000000-0000-4000-8000-000000000092','ankle-owner@example.test','authenticated','authenticated');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000092',true);
+select set_config('test.leg_payload','{"durationMs":1000,"cameraAngle":"side","equipment":null,"keyframes":[{"timeMs":0,"poses":{"left-ankle":{"x":20,"y":10,"z":-15},"right-ankle":{"x":-35,"y":0,"z":0},"left-knee":{"x":-90,"y":0,"z":0}}},{"timeMs":1000,"poses":{"left-ankle":{"x":-35,"y":-10,"z":15},"right-ankle":{"x":20,"y":0,"z":0},"left-knee":{"x":-150,"y":0,"z":0}}}]}',true);
+select lives_ok($$select set_config('test.leg_private',public.create_workshop_exercise(current_setting('test.leg_payload')::jsonb)::text,true)$$,'workshop accepts knee and ankle poses');
+select throws_ok($$select public.save_private_scene(current_setting('test.leg_private')::uuid,jsonb_set(current_setting('test.leg_payload')::jsonb,'{keyframes,0,poses,left-knee,x}','6'))$$,'P0001','joint angle outside rig limits','excessive knee extension is rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.leg_private')::uuid,jsonb_set(current_setting('test.leg_payload')::jsonb,'{keyframes,0,poses,left-knee,z}','10'))$$,'P0001','joint angle outside rig limits','sideways knee bending is rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.leg_private')::uuid,jsonb_set(current_setting('test.leg_payload')::jsonb,'{keyframes,0,poses,left-ankle,x}','21'))$$,'P0001','joint angle outside rig limits','ankle range is enforced');
+select set_config('test.leg_share',public.replace_private_share(current_setting('test.leg_private')::uuid,repeat('e',64))::text,true);
+reset role;
+select set_config('test.leg_clone',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.leg_private')::uuid),'submission_editorial',null)::text,true);
+select is((select count(*)::integer from public.motion_joint_poses p join public.motion_keyframes k on k.id=p.keyframe_id join public.exercise_scenes s on s.id=k.scene_id where s.content_id=current_setting('test.leg_clone')::uuid),6,'review snapshots retain knee and ankle poses');
+set local role anon;
+select ok((public.read_shared_private_scene(repeat('e',64))#>'{keyframes,0,poses}') @> '[{"slug":"left-ankle"},{"slug":"right-ankle"}]','shared scenes retain both ankles');
+select * from finish();
+rollback;

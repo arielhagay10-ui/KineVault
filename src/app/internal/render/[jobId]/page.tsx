@@ -9,8 +9,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-export default async function RenderJobPage({ params }: {
-  params: Promise<{ jobId: string }>;
+export default async function RenderJobPage({ params, searchParams }: {
+  params: Promise<{ jobId: string }>; searchParams: Promise<{ refresh?: string }>;
 }) {
   const { jobId } = await params;
   const expected = process.env.RENDER_WORKER_TOKEN;
@@ -19,7 +19,10 @@ export default async function RenderJobPage({ params }: {
     || !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))) notFound();
   if (!/^[0-9a-f-]{36}$/.test(jobId)) notFound();
   const supabase = createAdminClient();
-  const { data, error } = await supabase.rpc("read_render_scene", { p_job_id: jobId });
+  const refresh = (await searchParams).refresh === "1";
+  const { data, error } = refresh
+    ? await supabase.rpc("read_render_refresh_scene", { p_asset_group_id: jobId })
+    : await supabase.rpc("read_render_scene", { p_job_id: jobId });
   if (error || !data) notFound();
   const scene = decodeSharedScene(data);
   if (!scene) notFound();

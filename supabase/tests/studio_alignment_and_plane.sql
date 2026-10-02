@@ -1,0 +1,32 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select no_plan();
+insert into auth.users(id,email,aud,role) values
+  ('00000000-0000-4000-8000-000000000095','alignment-owner@example.test','authenticated','authenticated'),
+  ('00000000-0000-4000-8000-000000000096','alignment-other@example.test','authenticated','authenticated');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000095',true);
+select set_config('test.alignment_scene','{"durationMs":3200,"cameraAngle":"front","equipment":null,"keyframes":[{"timeMs":0,"poses":{}},{"timeMs":3200,"poses":{}}],"studio":{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"frontalPlane":true,"objects":[{"id":"00000000-0000-4000-8000-000000000097","name":"Aligned cable","slug":"cable-machine","x":1,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"left","pulleyHeight":1.5,"cableAttachment":"rope","cuffPosition":"upper-arm","shoulderAlignment":"right"}]}}',true);
+select lives_ok($$select public.create_workshop_exercise(current_setting('test.alignment_scene')::jsonb)$$,'alignment, lock and remembered cuff save');
+select set_config('test.alignment_private',public.create_workshop_exercise(current_setting('test.alignment_scene')::jsonb)::text,true);
+select is((select studio_layout from public.exercise_scenes where content_id=(select content_id from public.private_exercises where id=current_setting('test.alignment_private')::uuid)),current_setting('test.alignment_scene')::jsonb->'studio','owner round trip preserves controls');
+select lives_ok($$select public.save_private_scene(current_setting('test.alignment_private')::uuid,jsonb_set(current_setting('test.alignment_scene')::jsonb,'{studio,frontalPlane}','false'))$$,'unlocked state saves');
+select throws_ok($$select public.save_private_scene(current_setting('test.alignment_private')::uuid,jsonb_set(current_setting('test.alignment_scene')::jsonb,'{studio,frontalPlane}','"yes"'))$$,'23514',null,'invalid lock rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.alignment_private')::uuid,jsonb_set(current_setting('test.alignment_scene')::jsonb,'{studio,frontalPlane}','null'))$$,'23514',null,'null lock rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.alignment_private')::uuid,jsonb_set(current_setting('test.alignment_scene')::jsonb,'{studio,objects,0,shoulderAlignment}','"up"'))$$,'23514',null,'invalid alignment rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.alignment_private')::uuid,jsonb_set(current_setting('test.alignment_scene')::jsonb,'{studio,objects,0,shoulderAlignment}','null'))$$,'23514',null,'null alignment rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.alignment_private')::uuid,jsonb_set((current_setting('test.alignment_scene')::jsonb #- '{studio,objects,0,cuffPosition}' #- '{studio,objects,0,cableAttachment}')::jsonb,'{studio,objects,0,slug}','"bench"'))$$,'23514',null,'alignment on bench rejected');
+select public.save_private_scene(current_setting('test.alignment_private')::uuid,current_setting('test.alignment_scene')::jsonb);
+select public.replace_private_share(current_setting('test.alignment_private')::uuid,repeat('d',64));
+reset role;
+select set_config('test.alignment_clone',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.alignment_private')::uuid),'submission_editorial',null)::text,true);
+select is((select studio_layout from public.exercise_scenes where content_id=current_setting('test.alignment_clone')::uuid),current_setting('test.alignment_scene')::jsonb->'studio','review clone preserves controls');
+set local role anon;
+select is(public.read_shared_private_scene(repeat('d',64))->'studio',current_setting('test.alignment_scene')::jsonb->'studio','shared scene preserves controls');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000096',true);
+select throws_ok($$select public.save_private_scene(current_setting('test.alignment_private')::uuid,current_setting('test.alignment_scene')::jsonb)$$,'P0001','private exercise not found','other owner cannot change controls');
+reset role;
+select * from finish();
+rollback;

@@ -21,7 +21,7 @@ export function SharedMotion({ scene }: { scene: WorkshopScene }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, scene.durationMs]);
   return <section className="mt-9 rounded-2xl border border-border bg-card p-4 sm:p-5">
-    <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">Motion study</h2><span className="text-xs text-muted-foreground">Drag to change angle</span></div>
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">Motion study</h2><span className="text-xs text-muted-foreground">Drag to change angle</span></div>
     <MotionCanvas scene={scene} timeMs={timeMs} className="h-[400px] sm:h-[500px]" />
     <div className="mt-4 flex items-center gap-4">
       <button type="button" onClick={() => setPlaying(!playing)} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">{playing ? "Pause" : "Play"}</button>

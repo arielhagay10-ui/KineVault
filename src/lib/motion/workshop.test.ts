@@ -16,6 +16,17 @@ describe("workshop timeline", () => {
     invalid.keyframes[1].poses["left-shoulder"] = { x: 0, y: 0, z: -200 };
     expect(workshopSceneSchema.safeParse(invalid).success).toBe(false);
   });
+  it("interpolates wrist turns and preserves automatic grips in older scenes", () => {
+    expect(sampleWorkshopPose(defaultScene.keyframes, 800)["left-wrist"]).toBeUndefined();
+    const frames = [
+      { timeMs: 0, poses: { "left-wrist": { x: -90, y: 20, z: -10 } } },
+      { timeMs: 1000, poses: { "left-wrist": { x: 90, y: -20, z: 10 } } },
+    ];
+    expect(sampleWorkshopPose(frames, 500)["left-wrist"]).toEqual({ x: 0, y: 0, z: 0 });
+    expect(workshopSceneSchema.safeParse({ ...defaultScene, durationMs: 1000, keyframes: frames }).success).toBe(true);
+    frames[1].poses["left-wrist"].y = 71;
+    expect(workshopSceneSchema.safeParse({ ...defaultScene, durationMs: 1000, keyframes: frames }).success).toBe(false);
+  });
   it("validates timed annotations against scene bounds", () => {
     const annotation = { startMs: 0, endMs: 1000, label: "Raise", note: null, jointAction: "shoulder-abduction" };
     expect(workshopSceneSchema.safeParse({ ...defaultScene, annotations: [annotation] }).success).toBe(true);

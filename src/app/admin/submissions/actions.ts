@@ -8,6 +8,7 @@ import { parseReviewForm } from "@/lib/moderation/schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { motionAnnotationSchema } from "@/lib/motion/scene-schema";
+import { resolveRenderReplacements } from "@/lib/media/render-replacements";
 
 export type ReviewActionState = { error: string | null; message?: string; href?: string };
 
@@ -117,13 +118,13 @@ export async function decideSubmission(_previous: ReviewActionState, data: FormD
     case "approve": {
       if (submission.status !== "in_review") return { error: "Begin reviewing this submission before approving it." };
       const { data: assets, error: mediaError } = await supabase.from("exercise_media")
-        .select("kind,storage_path").eq("content_id", submission.original_content_id)
+        .select("kind,storage_bucket,storage_path").eq("content_id", submission.original_content_id)
         .eq("storage_bucket", "exercise-private").in("kind", ["webm", "mp4", "poster"]);
       if (mediaError || new Set(assets?.map((item) => item.kind)).size !== 3) {
         return { error: "Wait for the complete demonstration render before approving." };
       }
       const admin = createAdminClient();
-      for (const asset of assets ?? []) {
+      for (const asset of await resolveRenderReplacements(assets ?? [])) {
         const extension = asset.kind === "poster" ? "webp" : asset.kind;
         const path = `submissions/${value.submissionId}/demo.${extension}`;
         const { error: copyError } = await admin.storage.from("exercise-private").copy(asset.storage_path, path, { destinationBucket: "exercise-public" });

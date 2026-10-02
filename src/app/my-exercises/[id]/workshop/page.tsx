@@ -33,15 +33,14 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
   if (initial.equipment && !equipmentOptions.some((item) => item.slug === initial.equipment?.slug)) initial.equipment = null;
 
   return (
-    <main className="min-h-screen bg-background px-5 py-8 text-foreground sm:px-8">
-      <div className="mx-auto max-w-7xl">
+    <main className="min-h-screen bg-background px-4 py-5 text-foreground sm:px-6">
+      <div className="mx-auto max-w-[1700px]">
         <Link href={`/my-exercises/${id}/edit`} className="text-sm font-medium text-primary hover:underline">← Exercise details</Link>
-        <div className="mb-8 mt-7">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Motion workshop · private</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-[-0.055em]">{exercise.exercise_content?.name}</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Pose the anatomical figure at key moments, then preview the movement. These controls describe the demo; your anatomy classifications stay in exercise details.</p>
+        <div className="mb-5 mt-5">
+          <h1 className="text-2xl font-semibold">{exercise.exercise_content?.name}</h1>
+          <p className="mt-1 text-base text-muted-foreground">Choose equipment, adjust the movement, and save privately.</p>
         </div>
-        <MotionWorkshop privateId={id} initialScene={initial} equipmentOptions={equipmentOptions} jointActions={jointActions} />
+        <MotionWorkshop privateId={id} ownerId={identity.userId} initialName={exercise.exercise_content?.name ?? "Untitled exercise"} initialScene={initial} equipmentOptions={equipmentOptions} jointActions={jointActions} />
       </div>
     </main>
   );

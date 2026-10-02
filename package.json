@@ -14,6 +14,7 @@
     "test:media": "playwright test --config playwright.media.config.ts",
     "render:once": "node scripts/render-worker.mjs --once",
     "render:worker": "node scripts/render-worker.mjs --loop",
+    "render:refresh": "node scripts/refresh-renders.mjs",
     "notify:once": "node scripts/notification-worker.mjs --once",
     "notify:worker": "node scripts/notification-worker.mjs --loop",
     "db:start": "supabase start",

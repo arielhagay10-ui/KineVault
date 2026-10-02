@@ -421,13 +421,13 @@ isOneToOne: false
                   ]
                 },"exercise_scenes": {
                   Row: {
-                    "camera_position_x": number,"camera_position_y": number,"camera_position_z": number,"camera_target_x": number,"camera_target_y": number,"camera_target_z": number,"content_id": string,"created_at": string,"default_camera_angle": Database["public"]['Enums']["camera_angle"],"duration_ms": number,"id": string,"motion_source_submission_id": string | null,"rig_id": string,"updated_at": string
+                    "camera_position_x": number,"camera_position_y": number,"camera_position_z": number,"camera_target_x": number,"camera_target_y": number,"camera_target_z": number,"content_id": string,"created_at": string,"default_camera_angle": Database["public"]['Enums']["camera_angle"],"duration_ms": number,"id": string,"motion_source_submission_id": string | null,"motion_style": string,"studio_layout": Json | null,"rig_id": string,"updated_at": string
                   }
                   Insert: {
-                    "camera_position_x"?: number,"camera_position_y"?: number,"camera_position_z"?: number,"camera_target_x"?: number,"camera_target_y"?: number,"camera_target_z"?: number,"content_id": string,"created_at"?: string,"default_camera_angle"?: Database["public"]['Enums']["camera_angle"],"duration_ms": number,"id"?: string,"motion_source_submission_id"?: string | null,"rig_id": string,"updated_at"?: string
+                    "camera_position_x"?: number,"camera_position_y"?: number,"camera_position_z"?: number,"camera_target_x"?: number,"camera_target_y"?: number,"camera_target_z"?: number,"content_id": string,"created_at"?: string,"default_camera_angle"?: Database["public"]['Enums']["camera_angle"],"duration_ms": number,"id"?: string,"motion_source_submission_id"?: string | null,"motion_style"?: string,"studio_layout"?: Json | null,"rig_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "camera_position_x"?: number,"camera_position_y"?: number,"camera_position_z"?: number,"camera_target_x"?: number,"camera_target_y"?: number,"camera_target_z"?: number,"content_id"?: string,"created_at"?: string,"default_camera_angle"?: Database["public"]['Enums']["camera_angle"],"duration_ms"?: number,"id"?: string,"motion_source_submission_id"?: string | null,"rig_id"?: string,"updated_at"?: string
+                    "camera_position_x"?: number,"camera_position_y"?: number,"camera_position_z"?: number,"camera_target_x"?: number,"camera_target_y"?: number,"camera_target_z"?: number,"content_id"?: string,"created_at"?: string,"default_camera_angle"?: Database["public"]['Enums']["camera_angle"],"duration_ms"?: number,"id"?: string,"motion_source_submission_id"?: string | null,"motion_style"?: string,"studio_layout"?: Json | null,"rig_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -649,6 +649,19 @@ isOneToOne: false
       referencedRelation: "joints"
       referencedColumns: ["id"]
     }
+                  ]
+                },"media_render_replacements": {
+                  Row: {
+                    "created_at": string,"license_name": string,"original_path": string,"renderer_version": string,"replacement_path": string,"source_credit": string,"storage_bucket": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"license_name"?: string,"original_path": string,"renderer_version": string,"replacement_path": string,"source_credit"?: string,"storage_bucket": string
+                  }
+                  Update: {
+                    "created_at"?: string,"license_name"?: string,"original_path"?: string,"renderer_version"?: string,"replacement_path"?: string,"source_credit"?: string,"storage_bucket"?: string
+                  }
+                  Relationships: [
+
                   ]
                 },"moderation_events": {
                   Row: {
@@ -1142,6 +1155,12 @@ isOneToOne: false
 "delete_private_exercise":
 { Args: { "p_private_id": string }; Returns: undefined
                            },
+"duplicate_private_exercise":
+{ Args: { "p_private_id": string }; Returns: string
+                           },
+"save_workshop_draft":
+{ Args: { "p_scene": Json,"p_name": string,"p_private_id"?: string,"p_create_if_missing"?: boolean }; Returns: string
+                           },
 "edit_submission_annotations":
 { Args: { "p_annotations": Json,"p_comment": string,"p_submission_id": string }; Returns: undefined
                            },
@@ -1169,6 +1188,11 @@ isOneToOne: false
               "alias_match": boolean,"exact_name": boolean,"exercise_id": string,"name": string,"same_family": boolean,"score": number,"shared_equipment": number,"shared_joint_actions": number,"shared_muscles": number,"shared_patterns": number,"slug": string
             }[]
                            },
+"list_render_refresh_targets":
+{ Args: { "p_renderer_version": string }; Returns: {
+              "asset_group_id": string,"assets": Json,"scene_id": string
+            }[]
+                           },
 "mark_notification_read":
 { Args: { "p_notification_id": string }; Returns: undefined
                            },
@@ -1183,6 +1207,9 @@ isOneToOne: false
               "html_body": string,"recipient_email": string,"sender": string,"subject": string,"text_body": string
             }[]
                            },
+"read_render_refresh_scene":
+{ Args: { "p_asset_group_id": string }; Returns: Json
+                           },
 "read_render_scene":
 { Args: { "p_job_id": string }; Returns: Json
                            },
@@ -1194,6 +1221,9 @@ isOneToOne: false
                            },
 "read_shared_private_scene":
 { Args: { "p_token_hash": string }; Returns: Json
+                           },
+"register_render_replacements":
+{ Args: { "p_asset_group_id": string,"p_renderer_version": string }; Returns: undefined
                            },
 "reject_submission":
 { Args: { "p_comment": string,"p_reason": Database["public"]['Enums']["moderation_reason"],"p_submission_id": string }; Returns: undefined
@@ -1213,6 +1243,8 @@ isOneToOne: false
 "revoke_private_share":
 { Args: { "p_private_id": string }; Returns: undefined
                            },
+"create_workshop_exercise":
+{ Args: { "p_scene": Json }; Returns: string },
 "save_private_exercise":
 { Args: { "p_body_position_slug"?: string,"p_equipment_slugs"?: (string)[],"p_family_slug"?: string,"p_joint_action_slugs"?: (string)[],"p_joint_slugs"?: (string)[],"p_name"?: string,"p_primary_muscle_slugs"?: (string)[],"p_private_id"?: string,"p_resistance_profile"?: Database["public"]['Enums']["resistance_profile"],"p_secondary_muscle_slugs"?: (string)[],"p_short_description"?: string,"p_stabilizer_muscle_slugs"?: (string)[] }; Returns: string
                            },
@@ -1350,4 +1382,3 @@ export const Constants = {
           }
         }
 } as const
-

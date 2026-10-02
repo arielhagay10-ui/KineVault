@@ -20,6 +20,7 @@ test("real motion renders stay private until approval and play publicly afterwar
   const { data: account, error: accountError } = await service.auth.admin.createUser({ email, password, email_confirm: true });
   if (accountError) throw accountError;
   const userId = z.uuid().parse(account.user!.id);
+  try {
   execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-c",
     `update public.roles set role = 'reviewer' where user_id = '${userId}';`], { stdio: "pipe" });
   await owner.auth.signInWithPassword({ email, password });
@@ -29,7 +30,7 @@ test("real motion renders stay private until approval and play publicly afterwar
   });
   if (saveError) throw saveError;
   const { error: sceneError } = await owner.rpc("save_private_scene", { p_private_id: privateId, p_scene: {
-    durationMs: 500, cameraAngle: "front", equipment: null,
+    durationMs: 500, cameraAngle: "front", equipment: { slug: "single-cable", x: 0, y: 0, z: 0, scale: 1 },
     keyframes: [{ timeMs: 0, poses: { "left-shoulder": { z: 0 } } }, { timeMs: 500, poses: { "left-shoulder": { z: -70 } } }],
     annotations: [{ startMs: 0, endMs: 500, label: "Raise", note: "Move the upper arm away from the torso.", jointAction: "shoulder-abduction" }],
   } });
@@ -96,7 +97,7 @@ test("real motion renders stay private until approval and play publicly afterwar
   });
   if (curlError) throw curlError;
   const { error: curlSceneError } = await owner.rpc("save_private_scene", { p_private_id: curlId, p_scene: {
-    durationMs: 500, cameraAngle: "side", equipment: null,
+    durationMs: 500, cameraAngle: "side", equipment: { slug: "dumbbell-pair", x: 0, y: 0, z: 0, scale: 1 },
     keyframes: [{ timeMs: 0, poses: { "left-elbow": { x: 0 } } }, { timeMs: 500, poses: { "left-elbow": { x: 90 } } }],
   } });
   if (curlSceneError) throw curlSceneError;
@@ -133,4 +134,12 @@ test("real motion renders stay private until approval and play publicly afterwar
   await expect.poll(() => page.locator("video").evaluate((video: HTMLVideoElement) => video.readyState)).toBeGreaterThanOrEqual(2);
   await expect.poll(() => page.locator("video").evaluate((video: HTMLVideoElement) => video.currentSrc.includes("demo.mp4"))).toBeTruthy();
   await page.locator("video").screenshot({ path: "test-results/published-demo.png" });
+  } finally {
+    // Keep immutable review history, but never leave test fixtures in Explore.
+    execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
+      `update public.exercises set status = 'withdrawn' where created_by = '${userId}' and status = 'published';`], { stdio: "pipe" });
+    const { data: leftovers, error: cleanupError } = await visitor.from("exercises").select("id").eq("created_by", userId);
+    expect(cleanupError).toBeNull();
+    expect(leftovers).toEqual([]);
+  }
 });

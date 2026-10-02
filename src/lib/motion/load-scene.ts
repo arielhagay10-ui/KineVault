@@ -4,20 +4,25 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { defaultScene, type JointSlug, type RigPose, type WorkshopScene } from "./workshop";
 import { workshopSceneSchema } from "./scene-schema";
+import { correctEquipmentMotion } from "./equipment-motion";
 
 const degrees = (radians: number) => Math.round((radians * 180 / Math.PI) * 100) / 100;
 const quaternionPose = z.object({
   slug: z.string(), x: z.number(), y: z.number(), z: z.number(), w: z.number(),
 });
 const sharedSceneSchema = z.object({
+  studio: z.unknown().optional(),
+  motionStyle: z.string().optional(),
   durationMs: z.number(), cameraAngle: z.string(),
   equipment: z.unknown().nullable(),
   keyframes: z.array(z.object({ timeMs: z.number(), poses: z.array(quaternionPose) })),
   annotations: z.array(z.unknown()).optional(),
 });
 
-function decodePose(x: number, y: number, z: number, w: number) {
+function decodePose(slug: string, x: number, y: number, z: number, w: number) {
   const euler = new Euler().setFromQuaternion(new Quaternion(x, y, z, w), "XYZ");
+  // Older scenes permitted excessive extension and sideways knee rotations.
+  if (slug.endsWith("knee")) return { x: Math.max(-150, Math.min(5, degrees(euler.x))), y: 0, z: 0 };
   return { x: degrees(euler.x), y: degrees(euler.y), z: degrees(euler.z) };
 }
 
@@ -28,21 +33,23 @@ export function decodeSharedScene(raw: unknown): WorkshopScene | null {
   const keyframes = scene.keyframes.map((frame) => {
     const poses: RigPose = {};
     for (const pose of frame.poses) {
-      poses[pose.slug as JointSlug] = decodePose(pose.x, pose.y, pose.z, pose.w);
+      poses[pose.slug as JointSlug] = decodePose(pose.slug, pose.x, pose.y, pose.z, pose.w);
     }
     return { timeMs: frame.timeMs, poses };
   });
   const validated = workshopSceneSchema.safeParse({
+    studio: scene.studio ?? undefined,
+    motionStyle: scene.motionStyle,
     durationMs: scene.durationMs, cameraAngle: scene.cameraAngle,
     equipment: scene.equipment, keyframes, annotations: scene.annotations,
   });
-  return validated.success ? validated.data : null;
+  return validated.success ? correctEquipmentMotion(validated.data) : null;
 }
 
 export async function loadWorkshopScene(contentId: string): Promise<WorkshopScene | null> {
   const supabase = await createClient();
   const { data: scene, error } = await supabase.from("exercise_scenes")
-    .select("id,duration_ms,default_camera_angle")
+    .select("id,duration_ms,default_camera_angle,motion_style,studio_layout")
     .eq("content_id", contentId).maybeSingle();
   if (error) throw error;
   if (!scene) return null;
@@ -69,6 +76,7 @@ export async function loadWorkshopScene(contentId: string): Promise<WorkshopScen
     for (const pose of frame.motion_joint_poses) {
       if (!pose.rig_joints) continue;
       poses[pose.rig_joints.slug as JointSlug] = decodePose(
+        pose.rig_joints.slug,
         Number(pose.rotation_x), Number(pose.rotation_y),
         Number(pose.rotation_z), Number(pose.rotation_w),
       );
@@ -76,6 +84,8 @@ export async function loadWorkshopScene(contentId: string): Promise<WorkshopScen
     return { timeMs: frame.position_ms, poses };
   });
   const parsed = workshopSceneSchema.safeParse({
+    studio: scene.studio_layout ?? undefined,
+    motionStyle: scene.motion_style,
     durationMs: scene.duration_ms,
     cameraAngle: scene.default_camera_angle,
     equipment,
@@ -84,7 +94,7 @@ export async function loadWorkshopScene(contentId: string): Promise<WorkshopScen
       label: item.label, note: item.note, jointAction: item.joint_actions?.slug ?? null })),
   });
   if (!parsed.success) throw new Error("Saved workshop scene is invalid");
-  return parsed.data;
+  return correctEquipmentMotion(parsed.data);
 }
 
 export function initialWorkshopScene(equipmentSlugs: string[], saved: WorkshopScene | null): WorkshopScene {

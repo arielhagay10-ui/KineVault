@@ -5,8 +5,25 @@ import { redirect } from "next/navigation";
 import { getIdentity } from "@/lib/auth";
 import { parsePrivateExerciseForm, parsePrivateMetadata } from "@/lib/private-exercises/schema";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
 
 export type SaveState = { error: string | null };
+
+export async function duplicatePrivateExercise(_previous: SaveState, formData: FormData): Promise<SaveState> {
+  const identity = await getIdentity();
+  if (!identity) return { error: "Sign in to use your private template." };
+  const parsed = z.uuid().safeParse(formData.get("privateId"));
+  if (!parsed.success) return { error: "Choose a valid private exercise." };
+  const supabase = await createClient();
+  // Check ownership here as well as inside the atomic database command.
+  const { data: source, error: readError } = await supabase.from("private_exercises")
+    .select("id").eq("id", parsed.data).eq("owner_id", identity.userId).maybeSingle();
+  if (readError || !source) return { error: "This private exercise is unavailable for your account." };
+  const { data: privateId, error } = await supabase.rpc("duplicate_private_exercise", { p_private_id: source.id });
+  if (error || !privateId) return { error: "The template could not be copied. Try again." };
+  revalidatePath("/my-exercises");
+  redirect(`/my-exercises/${privateId}/workshop`);
+}
 
 export async function savePrivateExercise(_previous: SaveState, formData: FormData): Promise<SaveState> {
   const identity = await getIdentity();

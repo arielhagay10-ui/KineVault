@@ -1,0 +1,21 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(6);
+insert into auth.users(id,email,aud,role) values
+  ('00000000-0000-4000-8000-000000000091','wrist-owner@example.test','authenticated','authenticated');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000091',true);
+select set_config('test.wrist_payload','{"durationMs":1000,"cameraAngle":"front","equipment":null,"keyframes":[{"timeMs":0,"poses":{"left-wrist":{"x":-90,"y":20,"z":-10},"right-wrist":{"x":90,"y":-30,"z":15}}},{"timeMs":1000,"poses":{"left-wrist":{"x":90,"y":-20,"z":10},"right-wrist":{"x":-90,"y":30,"z":-15}}}]}',true);
+select lives_ok($$select set_config('test.wrist_private',public.create_workshop_exercise(current_setting('test.wrist_payload')::jsonb)::text,true)$$,'workshop accepts bilateral wrist poses');
+select is((select count(*)::integer from public.motion_joint_poses p join public.motion_keyframes k on k.id=p.keyframe_id join public.exercise_scenes s on s.id=k.scene_id join public.private_exercises e on e.content_id=s.content_id where e.id=current_setting('test.wrist_private')::uuid),4,'both wrists are stored at both keyframes');
+select throws_ok($$select public.save_private_scene(current_setting('test.wrist_private')::uuid,jsonb_set(current_setting('test.wrist_payload')::jsonb,'{keyframes,0,poses,left-wrist,y}','71'))$$,'P0001','joint angle outside rig limits','server enforces wrist limits');
+select set_config('test.wrist_share',public.replace_private_share(current_setting('test.wrist_private')::uuid,repeat('d',64))::text,true);
+reset role;
+select set_config('test.wrist_clone',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.wrist_private')::uuid),'submission_editorial',null)::text,true);
+select is((select count(*)::integer from public.motion_joint_poses p join public.motion_keyframes k on k.id=p.keyframe_id join public.exercise_scenes s on s.id=k.scene_id where s.content_id=current_setting('test.wrist_clone')::uuid),4,'review snapshots retain wrist poses');
+set local role anon;
+select is(jsonb_array_length(public.read_shared_private_scene(repeat('d',64))#>'{keyframes,0,poses}'),2,'shared scenes expose both wrist poses');
+select ok((public.read_shared_private_scene(repeat('d',64))#>'{keyframes,0,poses}') @> '[{"slug":"left-wrist"}]','shared reader retains wrist joint names');
+select * from finish();
+rollback;

@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { signMediaObjects, mediaObjectKey } from "./signed-media";
 
 export async function loadPrivateRenderMedia(contentId: string) {
   const supabase = await createClient();
@@ -7,12 +8,8 @@ export async function loadPrivateRenderMedia(contentId: string) {
     .select("kind,storage_bucket,storage_path,asset_group_id")
     .eq("content_id", contentId).eq("storage_bucket", "exercise-private");
   if (error || !media?.length) return null;
-  const signed = await Promise.all(media.map(async (item) => {
-    const { data } = await supabase.storage.from(item.storage_bucket)
-      .createSignedUrl(item.storage_path, 3600);
-    return data?.signedUrl ? { kind: item.kind, url: data.signedUrl } : null;
-  }));
-  const urls = signed.filter((item) => item !== null);
+  const signed = await signMediaObjects(media);
+  const urls = media.map(item => ({ kind: item.kind, url: signed.get(mediaObjectKey(item)) }));
   return {
     webm: urls.find((item) => item.kind === "webm")?.url ?? null,
     mp4: urls.find((item) => item.kind === "mp4")?.url ?? null,

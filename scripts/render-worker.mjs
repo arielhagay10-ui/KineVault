@@ -1,12 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
-import { chromium } from "@playwright/test";
 import ffmpegStatic from "ffmpeg-static";
-import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
+import { captureMotion } from "./lib/capture-motion.mjs";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
@@ -22,18 +21,6 @@ const supabase = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-function runFfmpeg(args) {
-  return new Promise((resolveRun, rejectRun) => {
-    const child = spawn(ffmpegPath, ["-hide_banner", "-loglevel", "error", "-y", ...args], {
-      stdio: ["ignore", "ignore", "pipe"],
-    });
-    let stderr = "";
-    child.stderr.on("data", (chunk) => { stderr = (stderr + chunk.toString()).slice(-2000); });
-    child.on("error", rejectRun);
-    child.on("close", (code) => code === 0 ? resolveRun() : rejectRun(new Error(`FFmpeg failed (${code}): ${stderr}`)));
-  });
-}
-
 async function upload(path, filePath, contentType) {
   const bytes = await readFile(filePath);
   const { error } = await supabase.storage.from("exercise-private").upload(path, bytes, {
@@ -48,7 +35,6 @@ async function renderOne() {
   const job = claimed?.[0];
   if (!job) return false;
 
-  let browser;
   let temporaryDirectory;
   let stage = "load scene";
   const uploaded = [];
@@ -59,49 +45,9 @@ async function renderOne() {
       throw new Error("Claimed scene is unavailable or invalid");
     }
     temporaryDirectory = await mkdtemp(join(tmpdir(), "kinevault-render-"));
-    stage = "launch browser";
-    browser = await chromium.launch({
-      headless: true,
-      ...(process.platform === "win32" ? { channel: "chrome" } : {}),
-      args: ["--use-gl=angle", "--use-angle=swiftshader"],
-    });
-    const page = await browser.newPage({ viewport: { width: 640, height: 640 }, deviceScaleFactor: 1 });
-    await page.setExtraHTTPHeaders({ "x-kinevault-render-token": renderToken });
-    const response = await page.goto(`${appUrl}/internal/render/${job.job_id}`, { waitUntil: "networkidle" });
-    if (response?.status() !== 200) throw new Error(`Render page returned ${response?.status() ?? "no response"}`);
-    await page.waitForFunction(() => typeof window.kinevaultRenderFrame === "function");
-    await page.locator("#render-frame canvas").waitFor();
-
-    const frameCount = Math.ceil(scene.durationMs * 24 / 1000) + 1;
-    stage = "capture frames";
-    for (let index = 0; index < frameCount; index++) {
-      const timeMs = Math.round(index * scene.durationMs / (frameCount - 1));
-      await page.evaluate(async (time) => {
-        window.kinevaultRenderFrame(time);
-        await new Promise(requestAnimationFrame);
-        await new Promise(requestAnimationFrame);
-      }, timeMs);
-      await page.locator("#render-frame").screenshot({
-        path: join(temporaryDirectory, `frame-${String(index).padStart(4, "0")}.png`),
-      });
-    }
-    await browser.close();
-    browser = undefined;
-
-    const frames = join(temporaryDirectory, "frame-%04d.png");
-    const webm = join(temporaryDirectory, "demo.webm");
-    const mp4 = join(temporaryDirectory, "demo.mp4");
-    const poster = join(temporaryDirectory, "poster.webp");
-    stage = "encode WebM";
-    await runFfmpeg(["-framerate", "24", "-i", frames, "-an", "-c:v", "libvpx-vp9",
-      "-b:v", "0", "-crf", "34", "-pix_fmt", "yuv420p", webm]);
-    stage = "encode MP4";
-    await runFfmpeg(["-framerate", "24", "-i", frames, "-an", "-c:v", "libx264",
-      "-preset", "medium", "-crf", "25", "-pix_fmt", "yuv420p", "-movflags", "+faststart", mp4]);
-    const posterIndex = Math.floor((frameCount - 1) * 0.4);
-    stage = "encode poster";
-    await runFfmpeg(["-i", join(temporaryDirectory, `frame-${String(posterIndex).padStart(4, "0")}.png`),
-      "-frames:v", "1", "-c:v", "libwebp", "-quality", "82", poster]);
+    stage = "capture and encode";
+    const { webm, mp4, poster } = await captureMotion({ scene,
+      pageUrl: `${appUrl}/internal/render/${job.job_id}`, token: renderToken, directory: temporaryDirectory });
 
     const prefix = `${job.submission_id}/${job.job_id}`;
     const outputs = [
@@ -129,7 +75,6 @@ async function renderOne() {
     await supabase.rpc("fail_render_job", { p_job_id: job.job_id, p_error_code: "render_error" });
     throw error;
   } finally {
-    if (browser) await browser.close();
     if (temporaryDirectory) {
       const absolute = resolve(temporaryDirectory);
       const temporaryRoot = resolve(tmpdir()) + sep;

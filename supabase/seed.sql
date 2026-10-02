@@ -134,6 +134,8 @@ from (values
   ('cable', 'single-cable', 'Single Cable'),
   ('cable', 'dual-cable', 'Dual Cable'),
   ('machine', 'lat-pulldown-machine', 'Lat Pulldown Machine'),
+  ('machine', 'cable-row-machine', 'Cable Row'),
+  ('machine', 'pec-deck', 'Pec Deck'),
   ('machine', 'lateral-raise-machine', 'Lateral Raise Machine'),
   ('machine', 'leg-extension-machine', 'Leg Extension Machine'),
   ('machine', 'leg-curl-machine', 'Leg Curl Machine'),
@@ -151,7 +153,7 @@ where parent.slug = 'cable' and child.slug in ('single-cable', 'dual-cable');
 insert into public.attachments (slug, name) values
   ('rope', 'Rope'), ('d-handle', 'D-Handle'),
   ('straight-bar', 'Straight Bar'), ('ez-attachment', 'EZ Attachment'),
-  ('lat-bar', 'Lat Bar'), ('ankle-cuff', 'Ankle Cuff'),
+  ('lat-bar', 'Lat Bar'), ('ankle-cuff', 'Ankle Cuff'), ('arm-cuff', 'Arm Cuff'),
   ('v-handle', 'V-Handle')
 on conflict (slug) do nothing;
 
@@ -169,6 +171,8 @@ insert into public.movement_patterns (slug, name) values
 on conflict (slug) do nothing;
 
 insert into public.exercise_families (slug, name) values
+  ('chest-fly', 'Chest Fly'),
+  ('reverse-fly', 'Reverse Fly'),
   ('bench-press', 'Bench Press'),
   ('squat', 'Squat'),
   ('deadlift', 'Deadlift'),
@@ -463,10 +467,14 @@ from (values
   ('right-shoulder', 'shoulder', 'Right Shoulder', -160, 160, -90, 90, -170, 170),
   ('left-elbow', 'elbow', 'Left Elbow', -15, 155, -20, 20, -150, 150),
   ('right-elbow', 'elbow', 'Right Elbow', -15, 155, -20, 20, -150, 150),
+  ('left-wrist', 'wrist', 'Left Wrist', -90, 90, -70, 70, -30, 30),
+  ('right-wrist', 'wrist', 'Right Wrist', -90, 90, -70, 70, -30, 30),
   ('left-hip', 'hip', 'Left Hip', -120, 120, -60, 60, -75, 75),
   ('right-hip', 'hip', 'Right Hip', -120, 120, -60, 60, -75, 75),
-  ('left-knee', 'knee', 'Left Knee', -150, 15, -15, 15, -30, 30),
-  ('right-knee', 'knee', 'Right Knee', -150, 15, -15, 15, -30, 30)
+  ('left-knee', 'knee', 'Left Knee', -150, 5, 0, 0, 0, 0),
+  ('right-knee', 'knee', 'Right Knee', -150, 5, 0, 0, 0, 0),
+  ('left-ankle', 'ankle', 'Left Ankle', -45, 20, -20, 20, -20, 30),
+  ('right-ankle', 'ankle', 'Right Ankle', -45, 20, -20, 20, -20, 30)
 ) as control(slug, joint_slug, name, min_x, max_x, min_y, max_y, min_z, max_z)
 join public.rigs r on r.name = 'KineVault Anatomical Figure' and r.version = 1
 join public.joints j on j.slug = control.joint_slug
@@ -480,8 +488,12 @@ where child.rig_id = r.id and parent.rig_id = r.id
     (child.slug in ('left-shoulder', 'right-shoulder', 'left-hip', 'right-hip') and parent.slug = 'torso')
     or (child.slug = 'left-elbow' and parent.slug = 'left-shoulder')
     or (child.slug = 'right-elbow' and parent.slug = 'right-shoulder')
+    or (child.slug = 'left-wrist' and parent.slug = 'left-elbow')
+    or (child.slug = 'right-wrist' and parent.slug = 'right-elbow')
     or (child.slug = 'left-knee' and parent.slug = 'left-hip')
     or (child.slug = 'right-knee' and parent.slug = 'right-hip')
+    or (child.slug = 'left-ankle' and parent.slug = 'left-knee')
+    or (child.slug = 'right-ankle' and parent.slug = 'right-knee')
   );
 
 insert into public.equipment_assets (

@@ -43,7 +43,7 @@ select throws_ok($$select public.save_private_scene(current_setting('test.new_pr
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000102',true);
 update public.rigs set active = false;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000101',true);
-select is((select count(*)::integer from public.rig_joints),9,'saved scenes retain retired rig joint definitions');
+select is((select count(*)::integer from public.rig_joints),13,'saved scenes retain retired rig joint definitions including wrists and ankles');
 select lives_ok($$select public.save_private_scene(current_setting('test.private_id')::uuid,current_setting('test.scene')::jsonb)$$,'an existing scene can retain its retired rig');
 select throws_ok($$select public.save_private_scene(current_setting('test.new_private_id')::uuid,jsonb_set(current_setting('test.scene')::jsonb,'{equipment}','null'::jsonb))$$,
   'P0001','workshop rig unavailable','retired rigs are unavailable for new scenes');

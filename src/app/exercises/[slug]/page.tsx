@@ -9,6 +9,7 @@ import { copyPublicExercise } from "@/app/exercises/actions";
 import { getIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { mediaObjectKey, signMediaObjects } from "@/lib/media/signed-media";
+import { resolveRenderReplacements } from "@/lib/media/render-replacements";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export default async function ExercisePage({ params }: Props) {
   const content = contentResult.data;
   if (!content) notFound();
   const biomech = biomechanicsResult.data;
-  const media = mediaResult.data ?? [];
+  const media = await resolveRenderReplacements(mediaResult.data ?? []);
   const signedMedia = await signMediaObjects(media);
   const urlFor = (item: (typeof media)[number]) => signedMedia.get(mediaObjectKey(item));
   const groups = new Map<string, MediaGroup>();

@@ -17,6 +17,6 @@ export function RenderFrame({ scene }: { scene: WorkshopScene }) {
     return () => { delete window.kinevaultRenderFrame; };
   }, []);
   return <div id="render-frame" className="h-[640px] w-[640px]">
-    <MotionCanvas scene={scene} timeMs={timeMs} className="h-[640px] w-[640px] !rounded-none" />
+    <MotionCanvas scene={scene} timeMs={timeMs} className="h-[640px] w-[640px] !rounded-none" showMuscleControls={false} />
   </div>;
 }

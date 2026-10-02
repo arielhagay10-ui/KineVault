@@ -1,0 +1,31 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(11);
+insert into auth.users(id,email,aud,role) values
+  ('00000000-0000-4000-8000-000000000091','support-owner@example.test','authenticated','authenticated'),
+  ('00000000-0000-4000-8000-000000000092','support-other@example.test','authenticated','authenticated');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000091',true);
+select set_config('test.support_payload','{"durationMs":3200,"cameraAngle":"front","equipment":null,"keyframes":[{"timeMs":0,"poses":{}},{"timeMs":3200,"poses":{}}],"studio":{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"presentation":{"highlight":"group:biceps","isolate":true,"view":"back"},"objects":[{"id":"00000000-0000-4000-8000-000000000093","name":"Bench","slug":"bench","x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"none","pulleyHeight":1.5,"benchAngle":30},{"id":"00000000-0000-4000-8000-000000000094","name":"Weight","slug":"dumbbell","x":-0.3,"y":1.5,"z":0.3,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"right","pulleyHeight":1.5,"elbowLocks":{"right":{"x":-0.3,"y":1.5,"z":0.2}}}]}}',true);
+select set_config('test.support_private',public.create_workshop_exercise(current_setting('test.support_payload')::jsonb)::text,true);
+select is((select studio_layout from public.exercise_scenes where content_id=(select content_id from public.private_exercises where id=current_setting('test.support_private')::uuid)),current_setting('test.support_payload')::jsonb->'studio','new support settings save exactly');
+select throws_ok($$select public.save_private_scene(current_setting('test.support_private')::uuid,jsonb_set(current_setting('test.support_payload')::jsonb,'{studio,objects,0,benchAngle}','90'))$$,'23514',null,'unsupported bench angle rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.support_private')::uuid,jsonb_set(current_setting('test.support_payload')::jsonb,'{studio,objects,1,benchAngle}','30'))$$,'23514',null,'non-bench angle rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.support_private')::uuid,jsonb_set(current_setting('test.support_payload')::jsonb,'{studio,objects,1,attachment}','"left"'))$$,'23514',null,'lock on an unheld arm rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.support_private')::uuid,jsonb_set(current_setting('test.support_payload')::jsonb,'{studio,objects,1,elbowLocks,right,x}','100'))$$,'23514',null,'invalid lock location rejected');
+select throws_ok($$select public.save_private_scene(current_setting('test.support_private')::uuid,jsonb_set(current_setting('test.support_payload')::jsonb,'{studio,presentation,isolate}','"true"'))$$,'23514',null,'invalid presentation rejected');
+select is((select studio_layout from public.exercise_scenes where content_id=(select content_id from public.private_exercises where id=current_setting('test.support_private')::uuid)),current_setting('test.support_payload')::jsonb->'studio','invalid saves preserve the original');
+select public.replace_private_share(current_setting('test.support_private')::uuid,repeat('d',64));
+reset role;
+select set_config('test.support_clone',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.support_private')::uuid),'submission_editorial',null)::text,true);
+select is((select studio_layout from public.exercise_scenes where content_id=current_setting('test.support_clone')::uuid),current_setting('test.support_payload')::jsonb->'studio','review snapshots preserve support and highlights');
+set local role anon;
+select is(public.read_shared_private_scene(repeat('d',64))->'studio',current_setting('test.support_payload')::jsonb->'studio','shared reader preserves support and highlights');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000092',true);
+select throws_ok($$select public.save_private_scene(current_setting('test.support_private')::uuid,current_setting('test.support_payload')::jsonb)$$,'P0001','private exercise not found','other accounts cannot change supports');
+reset role;
+select ok(pg_get_functiondef('public.read_render_scene(uuid)'::regprocedure) like '%scene.studio_layout%','render reader carries the settings');
+select * from finish();
+rollback;
