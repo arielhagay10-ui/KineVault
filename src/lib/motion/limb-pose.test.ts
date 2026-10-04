@@ -16,6 +16,13 @@ async function loadRig() {
 }
 
 describe("direct hand and foot posing", () => {
+  it.each(["d-handle", "straight-bar", "rope", "cuff"] as const)("lets held %s cables follow freely posed hands and feet", attachment => {
+    const scene = createQuickScene("cable-machine");
+    scene.studio!.objects[0].cableAttachment = attachment;
+    for (const limb of ["left-hand", "right-hand", "left-foot", "right-foot"] as const) {
+      expect(limbPoseBlock(scene, limb)).toBeUndefined();
+    }
+  });
   it("does not turn either palm automatically as a custom hand drag crosses curl angles", () => {
     const scene = structuredClone(blankWorkshopScene);
     scene.keyframes[1].poses["left-elbow"] = { x: 95, y: 0, z: 0 };

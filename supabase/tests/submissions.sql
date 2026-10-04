@@ -46,7 +46,8 @@ select is((select count(*)::integer from public.render_jobs job
   where submission.id = current_setting('test.submission_id')::uuid), 1,
   'submission queues a render job');
 set local role service_role;
-select set_config('test.job_id', (select job_id from public.claim_render_job())::text, true);
+select set_config('test.job_id',job_id::text,true), set_config('test.claim_id',claim_id::text,true)
+from public.claim_render_job();
 select set_config('test.render_scene', public.read_render_scene(current_setting('test.job_id')::uuid)::text, true);
 set local role postgres;
 select is(jsonb_array_length(current_setting('test.render_scene')::jsonb->'keyframes'), 2,
@@ -60,24 +61,24 @@ select is((select attempt_count from public.render_jobs
 set local role service_role;
 select throws_ok(
   $$select public.complete_render_job(
-    current_setting('test.job_id')::uuid, gen_random_uuid(),
-    current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.webm',
-    current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.mp4',
-    current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/poster.webp')$$,
+    current_setting('test.job_id')::uuid, current_setting('test.claim_id')::uuid, gen_random_uuid(),
+    current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.webm',
+    current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.mp4',
+    current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/poster.webp')$$,
   'P0001', 'render outputs are missing from private storage',
   'a job cannot complete before its files exist'
 );
 set local role postgres;
 insert into storage.objects (bucket_id, name) values
-  ('exercise-private', current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.webm'),
-  ('exercise-private', current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.mp4'),
-  ('exercise-private', current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/poster.webp');
+  ('exercise-private', current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.webm'),
+  ('exercise-private', current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.mp4'),
+  ('exercise-private', current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/poster.webp');
 set local role service_role;
 select public.complete_render_job(
-  current_setting('test.job_id')::uuid, gen_random_uuid(),
-  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.webm',
-  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.mp4',
-  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/poster.webp'
+  current_setting('test.job_id')::uuid, current_setting('test.claim_id')::uuid, gen_random_uuid(),
+  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.webm',
+  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.mp4',
+  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/poster.webp'
 );
 set local role postgres;
 select is((select status::text from public.render_jobs

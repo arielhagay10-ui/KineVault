@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       ],
     }, {
+      source: "/models/z-anatomy/model.meshopt.32c5dfc3.glb",
+      headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+    }, {
       source: "/shared/:path*",
       headers: [
         { key: "Cache-Control", value: "private, no-store" },

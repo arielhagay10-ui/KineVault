@@ -421,13 +421,13 @@ isOneToOne: false
                   ]
                 },"exercise_scenes": {
                   Row: {
-                    "camera_position_x": number,"camera_position_y": number,"camera_position_z": number,"camera_target_x": number,"camera_target_y": number,"camera_target_z": number,"content_id": string,"created_at": string,"default_camera_angle": Database["public"]['Enums']["camera_angle"],"duration_ms": number,"id": string,"motion_source_submission_id": string | null,"motion_style": string,"studio_layout": Json | null,"rig_id": string,"updated_at": string
+                    "camera_position_x": number,"camera_position_y": number,"camera_position_z": number,"camera_target_x": number,"camera_target_y": number,"camera_target_z": number,"content_id": string,"created_at": string,"default_camera_angle": Database["public"]['Enums']["camera_angle"],"duration_ms": number,"id": string,"motion_source_submission_id": string | null,"motion_style": string,"rig_id": string,"studio_layout": Json | null,"updated_at": string
                   }
                   Insert: {
-                    "camera_position_x"?: number,"camera_position_y"?: number,"camera_position_z"?: number,"camera_target_x"?: number,"camera_target_y"?: number,"camera_target_z"?: number,"content_id": string,"created_at"?: string,"default_camera_angle"?: Database["public"]['Enums']["camera_angle"],"duration_ms": number,"id"?: string,"motion_source_submission_id"?: string | null,"motion_style"?: string,"studio_layout"?: Json | null,"rig_id": string,"updated_at"?: string
+                    "camera_position_x"?: number,"camera_position_y"?: number,"camera_position_z"?: number,"camera_target_x"?: number,"camera_target_y"?: number,"camera_target_z"?: number,"content_id": string,"created_at"?: string,"default_camera_angle"?: Database["public"]['Enums']["camera_angle"],"duration_ms": number,"id"?: string,"motion_source_submission_id"?: string | null,"motion_style"?: string,"rig_id": string,"studio_layout"?: Json | null,"updated_at"?: string
                   }
                   Update: {
-                    "camera_position_x"?: number,"camera_position_y"?: number,"camera_position_z"?: number,"camera_target_x"?: number,"camera_target_y"?: number,"camera_target_z"?: number,"content_id"?: string,"created_at"?: string,"default_camera_angle"?: Database["public"]['Enums']["camera_angle"],"duration_ms"?: number,"id"?: string,"motion_source_submission_id"?: string | null,"motion_style"?: string,"studio_layout"?: Json | null,"rig_id"?: string,"updated_at"?: string
+                    "camera_position_x"?: number,"camera_position_y"?: number,"camera_position_z"?: number,"camera_target_x"?: number,"camera_target_y"?: number,"camera_target_z"?: number,"content_id"?: string,"created_at"?: string,"default_camera_angle"?: Database["public"]['Enums']["camera_angle"],"duration_ms"?: number,"id"?: string,"motion_source_submission_id"?: string | null,"motion_style"?: string,"rig_id"?: string,"studio_layout"?: Json | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -943,13 +943,13 @@ isOneToOne: false
                   ]
                 },"render_jobs": {
                   Row: {
-                    "attempt_count": number,"completed_at": string | null,"error_code": string | null,"id": string,"queued_at": string,"requested_by": string | null,"scene_id": string,"started_at": string | null,"status": Database["public"]['Enums']["render_status"]
+                    "attempt_count": number,"claim_id": string | null,"completed_at": string | null,"error_code": string | null,"id": string,"queued_at": string,"requested_by": string | null,"scene_id": string,"started_at": string | null,"status": Database["public"]['Enums']["render_status"]
                   }
                   Insert: {
-                    "attempt_count"?: number,"completed_at"?: string | null,"error_code"?: string | null,"id"?: string,"queued_at"?: string,"requested_by"?: string | null,"scene_id": string,"started_at"?: string | null,"status"?: Database["public"]['Enums']["render_status"]
+                    "attempt_count"?: number,"claim_id"?: string | null,"completed_at"?: string | null,"error_code"?: string | null,"id"?: string,"queued_at"?: string,"requested_by"?: string | null,"scene_id": string,"started_at"?: string | null,"status"?: Database["public"]['Enums']["render_status"]
                   }
                   Update: {
-                    "attempt_count"?: number,"completed_at"?: string | null,"error_code"?: string | null,"id"?: string,"queued_at"?: string,"requested_by"?: string | null,"scene_id"?: string,"started_at"?: string | null,"status"?: Database["public"]['Enums']["render_status"]
+                    "attempt_count"?: number,"claim_id"?: string | null,"completed_at"?: string | null,"error_code"?: string | null,"id"?: string,"queued_at"?: string,"requested_by"?: string | null,"scene_id"?: string,"started_at"?: string | null,"status"?: Database["public"]['Enums']["render_status"]
                   }
                   Relationships: [
                     {
@@ -1140,26 +1140,26 @@ isOneToOne: false
                            },
 "claim_render_job":
 { Args: Record<PropertyKey, never>; Returns: {
-              "camera_angle": Database["public"]['Enums']["camera_angle"],"content_id": string,"duration_ms": number,"job_id": string,"scene_id": string,"submission_id": string
+              "camera_angle": Database["public"]['Enums']["camera_angle"],"claim_id": string,"content_id": string,"duration_ms": number,"job_id": string,"scene_id": string,"submission_id": string
             }[]
                            },
 "complete_notification_delivery":
 { Args: { "p_delivery_id": string,"p_provider_id": string }; Returns: undefined
                            },
 "complete_render_job":
-{ Args: { "p_asset_group_id": string,"p_job_id": string,"p_mp4_path": string,"p_poster_path": string,"p_webm_path": string }; Returns: undefined
+{ Args: { "p_asset_group_id": string,"p_claim_id": string,"p_job_id": string,"p_mp4_path": string,"p_poster_path": string,"p_webm_path": string }; Returns: undefined
                            },
 "copy_public_exercise":
 { Args: { "p_exercise_id": string }; Returns: string
+                           },
+"create_workshop_exercise":
+{ Args: { "p_scene": Json }; Returns: string
                            },
 "delete_private_exercise":
 { Args: { "p_private_id": string }; Returns: undefined
                            },
 "duplicate_private_exercise":
 { Args: { "p_private_id": string }; Returns: string
-                           },
-"save_workshop_draft":
-{ Args: { "p_scene": Json,"p_name": string,"p_private_id"?: string,"p_create_if_missing"?: boolean }; Returns: string
                            },
 "edit_submission_annotations":
 { Args: { "p_annotations": Json,"p_comment": string,"p_submission_id": string }; Returns: undefined
@@ -1176,7 +1176,7 @@ isOneToOne: false
 { Args: { "p_delivery_id": string,"p_error_code": string,"p_retry"?: boolean }; Returns: undefined
                            },
 "fail_render_job":
-{ Args: { "p_error_code": string,"p_job_id": string }; Returns: undefined
+{ Args: { "p_claim_id": string,"p_error_code": string,"p_job_id": string }; Returns: undefined
                            },
 "find_exercise_duplicates":
 { Args: { "p_private_id": string }; Returns: {
@@ -1243,8 +1243,6 @@ isOneToOne: false
 "revoke_private_share":
 { Args: { "p_private_id": string }; Returns: undefined
                            },
-"create_workshop_exercise":
-{ Args: { "p_scene": Json }; Returns: string },
 "save_private_exercise":
 { Args: { "p_body_position_slug"?: string,"p_equipment_slugs"?: (string)[],"p_family_slug"?: string,"p_joint_action_slugs"?: (string)[],"p_joint_slugs"?: (string)[],"p_name"?: string,"p_primary_muscle_slugs"?: (string)[],"p_private_id"?: string,"p_resistance_profile"?: Database["public"]['Enums']["resistance_profile"],"p_secondary_muscle_slugs"?: (string)[],"p_short_description"?: string,"p_stabilizer_muscle_slugs"?: (string)[] }; Returns: string
                            },
@@ -1253,6 +1251,9 @@ isOneToOne: false
                            },
 "save_private_scene":
 { Args: { "p_private_id": string,"p_scene": Json }; Returns: string
+                           },
+"save_workshop_draft":
+{ Args: { "p_create_if_missing"?: boolean,"p_name": string,"p_private_id"?: string,"p_scene": Json }; Returns: string
                            },
 "submit_private_exercise":
 { Args: { "p_allow_motion_reuse"?: boolean,"p_duplicate_disposition": string,"p_private_id": string,"p_related_exercise_id"?: string,"p_revision_of_id"?: string,"p_suggestions"?: Json }; Returns: string

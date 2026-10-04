@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MotionWorkshop } from "@/components/character/motion-workshop";
 import { getIdentity } from "@/lib/auth";
@@ -33,15 +32,9 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
   if (initial.equipment && !equipmentOptions.some((item) => item.slug === initial.equipment?.slug)) initial.equipment = null;
 
   return (
-    <main className="min-h-screen bg-background px-4 py-5 text-foreground sm:px-6">
-      <div className="mx-auto max-w-[1700px]">
-        <Link href={`/my-exercises/${id}/edit`} className="text-sm font-medium text-primary hover:underline">← Exercise details</Link>
-        <div className="mb-5 mt-5">
-          <h1 className="text-2xl font-semibold">{exercise.exercise_content?.name}</h1>
-          <p className="mt-1 text-base text-muted-foreground">Choose equipment, adjust the movement, and save privately.</p>
-        </div>
+    <main className="min-h-screen bg-background text-foreground">
+        <h1 className="sr-only">{exercise.exercise_content?.name}</h1>
         <MotionWorkshop privateId={id} ownerId={identity.userId} initialName={exercise.exercise_content?.name ?? "Untitled exercise"} initialScene={initial} equipmentOptions={equipmentOptions} jointActions={jointActions} />
-      </div>
     </main>
   );
 }

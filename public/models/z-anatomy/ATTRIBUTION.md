@@ -2,6 +2,18 @@
 
 Derived model: `model.glb`
 
+Interactive preview: `model.meshopt.32c5dfc3.glb`, prepared October 3, 2026.
+This preview uses lossless `EXT_meshopt_compression`. All 784 named meshes,
+vertex attributes, index order, transforms and copyright metadata are preserved.
+Only binary storage and zero alignment padding change; no additional geometry
+reduction, quantization or mesh merging is applied. The preview uses the same
+CC BY-SA 4.0 license and upstream notices as the original export.
+
+Reproduce with `node scripts/prepare-anatomy.mjs`; verify with `--check`.
+The script decodes and compares all 2,352 buffer views before writing the preview.
+Source SHA-256: `ee6e35fb694d29af4f790eb97e141999c2c29c02ada33de0d1a3dc90fb9a61ed`.
+Preview SHA-256: `32c5dfc35e3c0baef93c88b350b5ea8228bbf4d38f903f54230f6d0fa420f8b1`.
+
 Z-Anatomy — The open source atlas of anatomy, by Gauthier Kervyn and contributors, licensed under Creative Commons Attribution-ShareAlike 4.0 International.
 
 BodyParts3D © The Database Center for Life Science, licensed under Creative Commons Attribution-ShareAlike 2.1 Japan.

@@ -1,11 +1,14 @@
+import { openWorkshopTool, selectWorkshopObject, selectWorkshopJoint, jointField } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
-import { machineDemoScene, machineSlugs } from "../../src/lib/motion/studio-machines";
+import { machineDemoScene, machineSlugs, machineTravelLabels } from "../../src/lib/motion/studio-machines";
 import { studioAssetNames } from "../../src/lib/motion/studio";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+
 test("machine carriages animate, save, reload and remain editable with supported contact", async ({ page }) => {
   test.setTimeout(300_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -29,18 +32,21 @@ test("machine carriages animate, save, reload and remain editable with supported
       await page.goto(`/my-exercises/${created.data}/workshop`);
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60000 });
       await expect(page.locator("[data-highlight-count]")).not.toHaveAttribute("data-highlight-count", "0");
-      await page.getByLabel("Scene objects").getByRole("button", { name: studioAssetNames[slug], exact: true }).click();
+      await selectWorkshopObject(page, studioAssetNames[slug]);
+      await openWorkshopTool(page, "Contacts");
       await expect(page.getByRole("button", { name: "Stop using machine", exact: true })).toHaveAttribute("aria-pressed", "true");
-      await page.getByLabel("Scene objects").getByRole("button", { name: "Anatomical figure", exact: true }).click();
+      await selectWorkshopObject(page, "Anatomical figure");
+      await openWorkshopTool(page, "Position");
       await expect(page.getByText(`The figure follows ${studioAssetNames[slug]}. Select the machine to move it or change travel.`, { exact: true })).toBeVisible();
-      await page.getByRole("button", { name: "Pose body", exact: true }).click();
-      await page.getByRole("button", { name: "Torso", exact: true }).click();
-      await expect(page.getByLabel("Joint X", { exact: true })).toBeDisabled();
+      await openWorkshopTool(page, "Pose");
+      await selectWorkshopJoint(page, "Torso");
+      await expect(jointField(page, "x")).toBeDisabled();
       await page.getByRole("button", { name: "Stop using machine to pose freely", exact: true }).click();
-      await expect(page.getByLabel("Joint X", { exact: true })).toBeEnabled();
-      await page.getByLabel("Scene objects").getByRole("button", { name: studioAssetNames[slug], exact: true }).click();
+      await expect(jointField(page, "x")).toBeEnabled();
+      await selectWorkshopObject(page, studioAssetNames[slug]);
+      await openWorkshopTool(page, "Contacts");
       await page.getByRole("button", { name: "Use this machine", exact: true }).click();
-      await page.getByText("Animate movement", { exact: false }).click();
+      await openWorkshopTool(page, "Timeline");
       if (slug === "lat-pulldown-machine") await expect(page.getByLabel("Pulldown grip", { exact: true })).toHaveValue(grip);
       const artifacts = `.local-artifacts/machines/review/${slug}${slug === "lat-pulldown-machine" ? `-${grip}` : ""}`; mkdirSync(artifacts, { recursive: true });
       for (const view of grip === "pronated" ? ["Front", "Three-quarter", "Side"] : ["Three-quarter", "Side"]) {
@@ -57,32 +63,36 @@ test("machine carriages animate, save, reload and remain editable with supported
       await expect.poll(async () => Number(await page.getByLabel("Scrub timeline", { exact: true }).inputValue())).not.toBe(first);
       await page.getByRole("button", { name: "Pause", exact: true }).click();
       await page.getByRole("button", { name: /^Start ·/ }).click();
-      await page.getByLabel("Machine travel percent", { exact: true }).fill("42");
-      await page.getByRole("button", { name: "Save scene", exact: true }).click();
-      await expect(page.getByText("Scene saved privately.", { exact: true })).toBeVisible();
+      await page.getByLabel(`${machineTravelLabels[slug]} percent`, { exact: true }).fill("42");
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
-      await page.getByLabel("Scene objects").getByRole("button", { name: studioAssetNames[slug], exact: true }).click();
-      await expect(page.getByLabel("Machine travel percent", { exact: true })).toHaveValue("42");
+      await selectWorkshopObject(page, studioAssetNames[slug]);
+      await openWorkshopTool(page, "Timeline");
+      await expect(page.getByLabel(`${machineTravelLabels[slug]} percent`, { exact: true })).toHaveValue("42");
       if (slug === "lat-pulldown-machine") {
         await expect(page.getByLabel("Pulldown grip", { exact: true })).toHaveValue(grip);
+        await openWorkshopTool(page, "Contacts");
         await page.getByLabel("Pulldown grip", { exact: true }).selectOption(grip === "supinated" ? "pronated" : "supinated");
-        await page.getByRole("button", { name: "Save scene", exact: true }).click();
-        await expect(page.getByText("Scene saved privately.", { exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "Save", exact: true }).click();
+        await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
         await page.reload();
-        await page.getByLabel("Scene objects").getByRole("button", { name: studioAssetNames[slug], exact: true }).click();
+        await selectWorkshopObject(page, studioAssetNames[slug]);
         await expect(page.getByLabel("Pulldown grip", { exact: true })).toHaveValue(grip === "supinated" ? "pronated" : "supinated");
         await page.getByLabel("Pulldown grip", { exact: true }).selectOption(grip);
       }
+      await openWorkshopTool(page, "Contacts");
       await expect(page.getByRole("button", { name: "Stop using machine", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Stop using machine", exact: true }).click();
       await expect(page.getByRole("button", { name: "Use this machine", exact: true })).toBeVisible();
+      await openWorkshopTool(page, "Contacts");
       await page.getByRole("button", { name: "Use this machine", exact: true }).click();
       await page.screenshot({ path: `${artifacts}/workshop.png`, fullPage: true });
       await page.setViewportSize({ width: 390, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.setViewportSize({ width: 1600, height: 1100 });
-      await page.getByRole("button", { name: "Save scene", exact: true }).click();
-      await expect(page.getByText("Scene saved privately.", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       const metadata = await owner.rpc("save_private_metadata", { p_private_id: created.data, p_patch: {
         name: `Machine fixture ${slug} ${grip}`, family: slug === "lat-pulldown-machine" ? "lat-pulldown" : "squat",
         muscles: [{ slug: slug === "lat-pulldown-machine" ? "latissimus-dorsi" : "quadriceps", role: "primary" }],

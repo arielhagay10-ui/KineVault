@@ -27,7 +27,7 @@ export function suggestSceneDetails(scene: WorkshopScene, equipmentOptions: read
   const sceneSlugs = [...(scene.studio?.objects ?? []).map(object => object.slug), ...(scene.equipment ? [scene.equipment.slug] : [])];
   const equipment = [...new Set(sceneSlugs.map(slug => mapping[slug] ?? slug))]
     .filter(slug => equipmentOptions.some(option => option.slug === slug));
-  const seated = Boolean(scene.studio?.seating && scene.studio.seating.facing !== "back") || scene.studio?.objects.some(object =>
+  const seated = Boolean(scene.studio?.seating && ["front", "left", "right"].includes(scene.studio.seating.facing)) || scene.studio?.objects.some(object =>
     object.machineUse && ["lat-pulldown-machine", "cable-row-machine", "pec-deck", "leg-press"].includes(object.slug));
   const bodyPosition = seated && positions.some(option => option.slug === "seated") ? "seated" : null;
   return { equipment, bodyPosition };

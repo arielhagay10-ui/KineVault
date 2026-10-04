@@ -17,6 +17,7 @@ describe("workshop keyboard commands", () => {
     [key("e"), "edit"],
     [key("c"), "camera"],
     [key("Delete"), "remove"],
+    [key("Backspace"), "remove"],
     [key("?", { shiftKey: true }), "help"],
     [key("Escape"), "escape"],
   ])("maps a supported key to its command", (event, command) => {
@@ -38,7 +39,7 @@ describe("workshop keyboard commands", () => {
 
   it("preserves button activation, sliders and handle keys", () => {
     const control = { ...canvas, interactive: true };
-    for (const event of [key(" "), key("ArrowRight"), key("["), key("e"), key("Delete")]) {
+    for (const event of [key(" "), key("ArrowRight"), key("["), key("e"), key("Delete"), key("Backspace")]) {
       expect(workshopShortcut(event, control)).toBeNull();
     }
     expect(workshopShortcut(key("z", { ctrlKey: true }), control)).toBe("undo");
@@ -46,6 +47,9 @@ describe("workshop keyboard commands", () => {
   });
 
   it("ignores dialogs, active drags, composition, repeats and consumed events", () => {
+    for (const event of [key("Delete"), key("Backspace")]) {
+      expect(workshopShortcut(event, { ...canvas, blocked: true })).toBeNull();
+    }
     expect(workshopShortcut(key("z", { ctrlKey: true }), { ...canvas, blocked: true })).toBeNull();
     for (const flag of ["repeat", "isComposing", "defaultPrevented", "altKey"]) {
       expect(workshopShortcut(key("z", { ctrlKey: true, [flag]: true }), canvas)).toBeNull();

@@ -1,5 +1,5 @@
-import { Box3, BoxGeometry, Group, Mesh, MeshBasicMaterial, Vector3 } from "three";
-import { expect, it } from "vitest";
+import { Bone, Box3, BoxGeometry, Group, Mesh, MeshBasicMaterial, SkinnedMesh, Vector3 } from "three";
+import { expect, it, vi } from "vitest";
 import { createStudioObject } from "./studio";
 import { equipmentBoundsOverlap, isWorkshopPlacementLocked, needsPlacementAdvisory, placementBodyBounds } from "./workshop-placement";
 
@@ -54,4 +54,19 @@ it("refreshes overlap after solved child motion even with unchanged body placeme
     expect(equipmentBoundsOverlap(equipment, bounds)).toBe(index <= 1);
   }
   limb.geometry.dispose(); equipment.geometry.dispose();
+});
+
+it("uses posed bone/body proxies without reading skinned vertices and reuses unchanged body bounds", () => {
+  const root = new Group(), torso = new Bone(), hand = new Bone();
+  torso.name = "torso"; torso.position.set(0, 1.7, 0); hand.position.set(.5, 1.4, 0);
+  const mesh = new SkinnedMesh(new BoxGeometry(100, 100, 100));
+  const readVertex = vi.spyOn(mesh, "getVertexPosition");
+  root.add(torso, hand, mesh);
+  const bounds = placementBodyBounds(root, "body-pose");
+  expect(bounds.max.x).toBeLessThan(1); expect(bounds.max.y).toBeGreaterThan(3);
+  expect(placementBodyBounds(root, "body-pose")).toBe(bounds);
+  expect(readVertex).not.toHaveBeenCalled();
+  hand.position.x = 2;
+  expect(placementBodyBounds(root, "changed-pose").max.x).toBeGreaterThan(2);
+  mesh.geometry.dispose();
 });

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js, React, TypeScript, Three.js, Supabase, Vitest, Playwright.
 
-**Spec:** C:/KineVault/WORKSHOP_SIMPLIFICATION_REVIEW.md
+**Spec:** C:/KineVault/docs/archive/workshop/WORKSHOP_SIMPLIFICATION_REVIEW.md
 
 ## Global Constraints
 
@@ -77,4 +77,4 @@
 - [x] Document unperformed human participant/screen-reader speech checks separately from software completion.
 
 
-Software implementation and review completed 2 October 2026. Item 71 human trials and portions of item 72 remain unperformed; see WORKSHOP_SIMPLIFICATION_IMPLEMENTATION.md for numbered coverage and exact verification limits.
+Software implementation and review completed 2 October 2026. Item 71 human trials and portions of item 72 remain unperformed; see docs/archive/workshop/WORKSHOP_SIMPLIFICATION_IMPLEMENTATION.md for numbered coverage and exact verification limits.

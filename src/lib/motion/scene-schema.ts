@@ -12,7 +12,7 @@ const transformFields = {
 export const studioLayoutSchema = z.object({
   body: z.object(transformFields).strict(),
   frontalPlane: z.boolean().optional(),
-  seating: z.object({ benchId: z.uuid(), facing: z.enum(["front", "left", "right", "back"]) }).strict().optional(),
+  seating: z.object({ benchId: z.uuid(), facing: z.enum(["front", "left", "right", "back", "supine", "prone"]) }).strict().optional(),
   presentation: z.object({
     highlight: z.string().min(1).max(200).regex(/^(none|group:[a-z]+|mesh:[^\r\n]+)$/),
     isolate: z.boolean(), view: z.enum(["front", "side", "three_quarter", "back"]),

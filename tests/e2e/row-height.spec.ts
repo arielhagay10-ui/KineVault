@@ -1,9 +1,12 @@
+import { selectWorkshopObject, openWorkshopTool, setWorkshopLanguage } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { createQuickScene } from "../../src/lib/motion/quick-create";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+
 test("row start and finish heights move independently and survive private save/reload", async ({ page }) => {
   test.setTimeout(180_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -38,7 +41,7 @@ test("row start and finish heights move independently and survive private save/r
     await start.fill("1.1"); await start.press("Enter");
     await finish.fill("1.45"); await finish.press("Enter");
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
-    await page.getByRole("button", { name: "Save privately", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();
     await page.reload();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
@@ -75,10 +78,11 @@ test("row start and finish heights move independently and survive private save/r
     await page.getByRole("button", { name: "Small range", exact: true }).click();
     await expect(start).toHaveValue("1.1"); await expect(finish).toHaveValue("1.45");
     await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
-    await page.getByRole("button", { name: "Select machine", exact: true }).click();
+    await selectWorkshopObject(page, "Cable row");
+    await openWorkshopTool(page, "Timeline");
     await expect(page.getByRole("textbox", { name: "Handle height meters", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Quick create", exact: true }).click();
-    await page.getByLabel("Workshop language", { exact: true }).selectOption("he");
+    await setWorkshopLanguage(page, "he");
     await expect(page.getByRole("textbox", { name: "גובה הידית בהתחלה במטרים", exact: true })).toBeVisible();
     await page.setViewportSize({ width: 320, height: 800 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

@@ -1,0 +1,85 @@
+import { randomUUID } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
+import { expect, test } from "@playwright/test";
+import { selectWorkshopObject } from "./workshop-menu.helpers";
+
+test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+
+test("adding a cable exposes attachments and grips; precise placement stays closed", async ({ page }) => {
+  test.setTimeout(120_000);
+  page.setDefaultTimeout(15_000);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
+  const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const email = `cable-controls-${randomUUID()}@example.test`, password = "CableControls2026!";
+  const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (account.error) throw account.error;
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/sign-in");
+    await page.getByLabel("Email", { exact: true }).fill(email);
+    await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await page.goto("/my-exercises/new");
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Add equipment", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Cable machine", exact: true }).click();
+    const cable = page.getByRole("region", { name: "Cable attachment and grip", exact: true });
+    await expect(cable).toBeVisible();
+    for (const name of ["D handle", "Rope", "Straight bar", "Angled bar", "V bar", "Cuff"]) {
+      await expect(cable.getByRole("button", { name, exact: true })).toBeInViewport();
+    }
+    await expect(cable.getByRole("button", { name: "Hold with both hands", exact: true })).toHaveCount(0);
+    await cable.getByRole("button", { name: "Rope", exact: true }).click();
+    await cable.getByRole("button", { name: "Hold with both hands", exact: true }).click();
+    await cable.getByRole("group", { name: "Left wrist", exact: true }).getByRole("button", { name: "Palm up", exact: true }).click();
+    await expect(cable.getByRole("group", { name: "Left wrist", exact: true }).getByRole("button", { name: "Palm up", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
+    await expect(cable.getByRole("button", { name: "Rope", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await cable.getByRole("button", { name: "Cuff", exact: true }).click();
+    await expect(cable.getByRole("button", { name: "Cuff left arm", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(cable.getByRole("button", { name: "Hold with both hands", exact: true })).toHaveCount(0);
+    await cable.getByLabel("Cuff placement", { exact: true }).selectOption("upper-arm");
+    await page.getByRole("tab", { name: "Position", exact: true }).click();
+    await expect(page.getByLabel("Position X meters", { exact: true })).not.toBeVisible();
+    await expect(page.getByLabel("Rotation X degrees", { exact: true })).not.toBeVisible();
+    await expect(page.getByLabel("Movement sensitivity", { exact: true })).not.toBeVisible();
+    const precise = page.getByRole("button", { name: "Precise placement", exact: true });
+    await expect(precise).toHaveAttribute("aria-expanded", "false");
+    await precise.click();
+    await page.getByLabel("Position X meters", { exact: true }).fill("1.75");
+    await page.getByLabel("Position X meters", { exact: true }).press("Enter");
+    await precise.click();
+    await expect(page.getByLabel("Position X meters", { exact: true })).not.toBeVisible();
+    await page.getByRole("textbox", { name: "Exercise name", exact: true }).fill("Visible cable options");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    const signedIn = await owner.auth.signInWithPassword({ email, password });
+    if (signedIn.error) throw signedIn.error;
+    const saved = await owner.from("private_exercises").select("id").eq("owner_id", account.data.user.id).single();
+    if (saved.error) throw saved.error;
+    await page.goto(`/my-exercises/${saved.data.id}/workshop`);
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+    await selectWorkshopObject(page, "Cable machine");
+    await expect(cable.getByRole("button", { name: "Cuff", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(cable.getByLabel("Cuff placement", { exact: true })).toHaveValue("upper-arm");
+    await cable.getByRole("button", { name: "Rope", exact: true }).click();
+    await expect(cable.getByRole("group", { name: "Left wrist", exact: true }).getByRole("button", { name: "Palm up", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await cable.getByRole("button", { name: "Cuff", exact: true }).click();
+    await expect(cable.getByLabel("Cuff placement", { exact: true })).toHaveValue("upper-arm");
+    mkdirSync(".local-artifacts/workshop/cable-controls", { recursive: true });
+    await page.screenshot({ path: ".local-artifacts/workshop/cable-controls/desktop.png" });
+    await page.getByRole("tab", { name: "Position", exact: true }).click();
+    await expect(precise).toHaveAttribute("aria-expanded", "false");
+    await precise.click();
+    await expect(page.getByLabel("Position X meters", { exact: true })).toHaveValue("1.75");
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(errors).toEqual([]);
+  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+});

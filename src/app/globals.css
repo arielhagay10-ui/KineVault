@@ -48,23 +48,23 @@
 }
 
 :root {
-    --background: #f6f7f9;
-    --foreground: #192026;
+    --background: #f5f6f8;
+    --foreground: #1c2730;
     --card: #ffffff;
-    --card-foreground: #192026;
+    --card-foreground: #1c2730;
     --popover: #ffffff;
-    --popover-foreground: #192026;
+    --popover-foreground: #1c2730;
     --primary: #314e65;
     --primary-foreground: #ffffff;
     --secondary: #e9edf1;
     --secondary-foreground: #314e65;
     --muted: #e9edf1;
-    --muted-foreground: #52606d;
+    --muted-foreground: #4e5d6a;
     --accent: #e3ebf1;
     --accent-foreground: #243f55;
     --destructive: oklch(0.577 0.245 27.325);
-    --border: #ced6de;
-    --input: #ced6de;
+    --border: #d5dde4;
+    --input: #c5ced8;
     --ring: #638ba6;
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
@@ -84,22 +84,22 @@
 
 .dark {
     --background: #12171d;
-    --foreground: #e5eaf0;
+    --foreground: #edf1f5;
     --card: #1a222b;
-    --card-foreground: #e5eaf0;
+    --card-foreground: #edf1f5;
     --popover: #1a222b;
-    --popover-foreground: #e5eaf0;
+    --popover-foreground: #edf1f5;
     --primary: #94bdd7;
     --primary-foreground: #10181f;
     --secondary: #25313d;
     --secondary-foreground: #d7e6f2;
     --muted: #25313d;
-    --muted-foreground: #b0bdca;
+    --muted-foreground: #b7c3ce;
     --accent: #253747;
     --accent-foreground: #d7e6f2;
     --destructive: oklch(0.704 0.191 22.216);
     --border: #3b4a59;
-    --input: #3b4a59;
+    --input: #617181;
     --ring: #94bdd7;
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
@@ -130,6 +130,8 @@
 @layer base {
   :root { color-scheme: light; }
   .dark { color-scheme: dark; }
+  ::selection { background: var(--accent); color: var(--accent-foreground); }
+  input, textarea { caret-color: var(--primary); }
   :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }

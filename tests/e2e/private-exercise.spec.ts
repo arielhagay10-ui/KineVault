@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { jointField, openWorkshopMenu, selectWorkshopJoint } from "./workshop-menu.helpers";
 
 test("an owner can save, share, and revoke a private exercise", async ({ page, browser }) => {
+  test.setTimeout(90_000);
+  page.setDefaultTimeout(15_000);
   const email = `kinevault-e2e-${Date.now()}@example.test`;
   await page.goto("/sign-up");
   await page.getByLabel("Email").fill(email);
@@ -9,6 +12,9 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   await expect(page).toHaveURL(/\/dashboard$/);
 
   await page.goto("/my-exercises/new");
+  await page.getByRole("button", { name: "Name and save", exact: true }).click();
+  await page.getByLabel("Exercise name", { exact: true }).fill("Private Cable Raise");
+  await openWorkshopMenu(page);
   await page.getByRole("button", { name: "Save & add details", exact: false }).click();
   await expect(page).toHaveURL(/\/my-exercises\/[0-9a-f-]+\/edit\?sceneSaved=1$/);
   await page.getByLabel("Name").fill("Private Cable Raise");
@@ -32,28 +38,34 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
 
   await page.getByRole("link", { name: "Open motion workshop" }).click();
   await expect(page.getByRole("heading", { name: "Private Cable Raise" })).toBeVisible();
+  await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
+  await page.getByRole("tab", { name: "Settings", exact: true }).click();
   await page.getByText("Advanced settings", { exact: true }).click();
   await page.getByLabel("Legacy demo equipment").selectOption("single-cable");
-  await page.getByText("Animate movement", { exact: false }).first().click();
-  await page.getByRole("button", { name: /Keyframe 2/ }).click();
-  await page.getByRole("button", { name: "Pose body", exact: true }).click();
-  await page.getByRole("button", { name: "Left shoulder", exact: true }).click();
-  await page.getByLabel("Joint Z", { exact: true }).fill("-80");
-  await page.getByRole("button", { name: "Save scene" }).click();
-  await expect(page.getByText("Scene saved privately.")).toBeVisible();
+  await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+  await page.getByRole("button", { name: /^Finish ·/ }).click();
+  await page.getByRole("tab", { name: "Pose", exact: true }).click();
+  await selectWorkshopJoint(page, "Left shoulder");
+  await jointField(page, "z").fill("-80");
+  await jointField(page, "z").blur();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
   await page.reload();
-  await page.getByText("Animate movement", { exact: false }).first().click();
-  await page.getByRole("button", { name: /Keyframe 2/ }).click();
-  await page.getByRole("button", { name: "Pose body", exact: true }).click();
-  await page.getByRole("button", { name: "Left shoulder", exact: true }).click();
-  await expect(page.getByLabel("Joint Z", { exact: true })).toHaveValue("-80");
-  await page.getByRole("link", { name: "Exercise details" }).click();
+  await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
+  await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+  await page.getByRole("button", { name: /^Finish ·/ }).click();
+  await page.getByRole("tab", { name: "Pose", exact: true }).click();
+  await selectWorkshopJoint(page, "Left shoulder");
+  await expect(jointField(page, "z")).toHaveValue("-80");
+  await openWorkshopMenu(page);
+  await page.getByRole("button", { name: "Save & add details", exact: false }).click();
 
   await page.getByRole("link", { name: "Submit for review" }).click();
   await expect(page.getByRole("heading", { name: "Ready for review" })).toBeVisible();
   await page.getByRole("button", { name: "Submit for review" }).click();
   await expect(page).toHaveURL(/\/submissions\/[0-9a-f-]+$/);
   await expect(page.getByText(/submitted ·/)).toBeVisible();
+  await page.getByRole("button", { name: "Inspect motion in 3D", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Motion study" })).toBeVisible();
   await page.getByRole("link", { name: "Edit my private copy" }).click();
 

@@ -1,4 +1,5 @@
 import { mkdirSync } from "node:fs";
+import { setWorkshopMode, setWorkshopLanguage, selectWorkshopObject, expandWorkshopControls } from "./workshop-menu.helpers";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page, type Locator } from "@playwright/test";
 import { PerspectiveCamera, Vector3 } from "three";
@@ -18,6 +19,8 @@ async function drag(page: Page, handle: Locator, dx: number, dy: number, cancel 
   if (cancel) await page.keyboard.press("Escape");
   await page.mouse.up();
 }
+
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
 
 test("mouse handles edit row and pec deck endpoints with Undo, cancellation and saved motion", async ({ page }) => {
   test.setTimeout(180_000);
@@ -57,6 +60,8 @@ test("mouse handles edit row and pec deck endpoints with Undo, cancellation and 
     await page.getByRole("button", { name: "Drag finish", exact: true }).click();
     await drag(page, handle, 20, -20, true);
     await expect(height).toHaveValue(movedHeight); await expect(travel).toHaveValue(movedTravel);
+    await page.getByRole("button", { name: "Drag finish", exact: true }).click();
+    await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
     await handle.press("ArrowUp");
     await expect.poll(async () => Number(await height.inputValue())).toBeGreaterThan(Number(movedHeight));
     await page.getByRole("button", { name: "Undo", exact: true }).first().click();
@@ -64,7 +69,7 @@ test("mouse handles edit row and pec deck endpoints with Undo, cancellation and 
     await page.getByRole("button", { name: "Drag finish", exact: true }).click();
     await page.screenshot({ path: `${folder}/mouse-controls.png`, fullPage: true });
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
-    await page.getByRole("button", { name: "Save privately", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();
     await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
     await expect(height).toHaveValue(movedHeight); await expect(travel).toHaveValue(movedTravel);
@@ -100,9 +105,16 @@ test("mouse handles edit row and pec deck endpoints with Undo, cancellation and 
       await page.getByRole("button", { name: "Undo", exact: true }).first().click(); await expect(field).toHaveValue("100");
       await page.getByRole("button", { name: "Redo", exact: true }).first().click(); await expect(field).toHaveValue(changed);
       await page.getByRole("button", { name: "Drag finish", exact: true }).click();
+      await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
+      await grips.first().press("ArrowLeft");
+      await expect.poll(async () => Number(changed) - Number(await field.inputValue())).toBeGreaterThan(1.5);
+      await expect.poll(async () => Number(changed) - Number(await field.inputValue())).toBeLessThan(3.5);
+      await page.getByRole("button", { name: "Undo", exact: true }).first().click();
+      await expect(field).toHaveValue(changed);
+      await page.getByRole("button", { name: "Drag finish", exact: true }).click();
       await page.locator('[data-workshop-preview]').screenshot({ path: `${folder}/pec-${mode}.png` });
     }
-    await page.getByLabel("Workshop language", { exact: true }).selectOption("he");
+    await setWorkshopLanguage(page, "he");
     await expect(page.getByRole("button", { name: "הזזה עם העכבר", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "גרירת ידית פרפר", exact: true })).toHaveCount(2);
     await page.setViewportSize({ width: 320, height: 800 });
@@ -129,11 +141,12 @@ test("equipment can be lifted with the mouse or moved along the floor", async ({
     await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-    await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
+    await setWorkshopMode(page, "advanced");
     await page.getByRole("button", { name: "Move with mouse", exact: true }).click();
     await page.getByRole("button", { name: "Front", exact: true }).click();
-    await page.getByLabel("Scene objects").getByRole("button", { name: "Dumbbell", exact: true }).click();
-    await page.getByText("Advanced settings", { exact: true }).click();
+    await selectWorkshopObject(page, "Dumbbell");
+    await page.getByRole("tab", { name: "Position", exact: true }).click();
+    await expandWorkshopControls(page, "Precise placement");
     const height = page.getByRole("textbox", { name: "Position Y meters", exact: true });
     const canvas = page.locator("canvas");
     const moveWeight = async () => {
@@ -147,6 +160,7 @@ test("equipment can be lifted with the mouse or moved along the floor", async ({
     };
     await moveWeight(); await expect.poll(async () => Number(await height.inputValue())).toBeGreaterThan(1.1);
     await page.getByRole("button", { name: "Undo", exact: true }).first().click(); await expect(height).toHaveValue("1.1");
+    await expandWorkshopControls(page, "Drag options");
     await page.getByRole("button", { name: "Along floor", exact: true }).click();
     await moveWeight(); await expect(height).toHaveValue("1.1");
     await expect.poll(async () => Number(await page.getByRole("textbox", { name: "Position X meters", exact: true }).inputValue())).toBeGreaterThan(1.4);

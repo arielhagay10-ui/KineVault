@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 
 // Test a fresh seed in a separate local database, leaving development records intact.
 const container = "supabase_db_kinevault";
+const databasePort = Number(readFileSync("supabase/config.toml", "utf8").match(/\[db\][\s\S]*?\nport\s*=\s*(\d+)/)?.[1]);
+if (!Number.isInteger(databasePort) || databasePort < 1 || databasePort > 65535) throw new Error("Invalid configured database port");
 const suffix = randomUUID().replaceAll("-", "");
 const database = `kinevault_checks_${suffix}`;
 const docker = (args, options = {}) => execFileSync("docker", args, { maxBuffer: 32 * 1024 * 1024, ...options });
@@ -34,7 +36,7 @@ try {
     process.stdout.write("50,000-record plans saved to PERFORMANCE_RESULTS.txt\n");
   } else {
     execFileSync(process.execPath, ["node_modules/supabase/dist/supabase.js", "test", "db", "--db-url",
-      `postgresql://postgres:postgres@127.0.0.1:54322/${database}`], { stdio: "inherit" });
+      `postgresql://postgres:postgres@127.0.0.1:${databasePort}/${database}`], { stdio: "inherit" });
   }
 } finally {
   if (created && /^kinevault_checks_[a-f0-9]{32}$/.test(database)) {

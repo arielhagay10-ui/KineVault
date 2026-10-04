@@ -7,6 +7,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "@playwright/test";
 import { captureMotion } from "./lib/capture-motion.mjs";
+import { requireCurrentCurationClaim } from "./lib/curation-claim.mjs";
 
 process.loadEnvFile(".env.local");
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -78,9 +79,10 @@ if (mode === "prepare") {
   }
   for (let index = 0; index < items.length; index++) {
     const [job] = await rpc("claim_render_job");
-    const target = items.find(candidate => candidate.submission === job.submission_id);
-    if (!target) throw new Error("Unrelated queued job; run the regular worker first");
+    const target = items.find(candidate => candidate.submission === job?.submission_id);
+    if (!target || !job.claim_id) throw new Error("Unrelated queued job or missing claim identifier; run the regular worker first");
     target.job = job.job_id;
+    target.claimId = job.claim_id;
   }
   await writeFile(manifestPath, JSON.stringify({ userId, items }, null, 2));
   console.log(`Prepared ${items.length} distinct scenes.`);
@@ -89,16 +91,19 @@ if (mode === "prepare") {
   if (mode === "revise") {
     const item = manifest.items.find(item => item.slug === process.argv[3]);
     if (!item || item.rendered) throw new Error("An unrendered candidate slug is required");
+    await requireCurrentCurationClaim(service, item);
     const status = sql(`select status from public.exercise_submissions where id=${literal(item.submission)};`);
     if (status === "submitted") rpcAs(manifest.userId, "begin_submission_review", { p_submission_id: item.submission });
     if (status !== "rejected") rpcAs(manifest.userId, "reject_submission", { p_submission_id: item.submission, p_reason: "other", p_comment: "Preview needs corrected equipment placement before publication." });
-    sql(`update public.render_jobs set status='failed',error_code='preview_revised' where id=${literal(item.job)} and status='running';`);
+    const cancelled = sql(`update public.render_jobs set status='failed',error_code='preview_revised',claim_id=null where id=${literal(item.job)} and status='running' and claim_id=${literal(item.claimId)} and started_at > clock_timestamp() - interval '10 minutes' returning id;`);
+    if (cancelled !== item.job) throw new Error("Saved render claim is expired or no longer current");
     const draft = item.draft ?? rpcAs(manifest.userId, "prepare_catalog_candidate", { p_exercise_id: item.id });
     rpcAs(manifest.userId, "save_private_scene", { p_private_id: draft, p_scene: scenes[item.slug] });
     item.submission = rpcAs(manifest.userId, "submit_private_exercise", { p_private_id: draft, p_duplicate_disposition: "new" });
     const [job] = await rpc("claim_render_job");
-    if (job.submission_id !== item.submission) throw new Error("Unexpected job");
+    if (job?.submission_id !== item.submission || !job.claim_id) throw new Error("Unexpected job or missing claim identifier");
     item.job = job.job_id;
+    item.claimId = job.claim_id;
     await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
   } else if (mode === "preview") {
     const browser = await chromium.launch({ headless: true, channel: "chrome", args: ["--use-gl=angle", "--use-angle=swiftshader"] });
@@ -117,20 +122,21 @@ if (mode === "prepare") {
   } else if (mode === "render") {
     for (const item of manifest.items) {
       if (item.rendered) continue;
+      await requireCurrentCurationClaim(service, item);
       const motion = await rpc("read_render_scene", { p_job_id: item.job });
       const output = resolve(directory, item.slug);
       await mkdir(output, { recursive: true });
       const files = await captureMotion({ scene: motion, pageUrl: `${app}/internal/render/${item.job}`, token: process.env.RENDER_WORKER_TOKEN, directory: output });
       const paths = {};
       for (const [kind, file] of Object.entries(files)) {
-        paths[kind] = `${item.submission}/${item.job}/${kind === "poster" ? "poster.webp" : `demo.${kind}`}`;
+        paths[kind] = `${item.submission}/${item.job}/${item.claimId}/${kind === "poster" ? "poster.webp" : `demo.${kind}`}`;
         const { data: exists } = await service.storage.from("exercise-private").exists(paths[kind]);
         if (!exists) {
           const { error } = await service.storage.from("exercise-private").upload(paths[kind], await readFile(file), { contentType: kind === "poster" ? "image/webp" : `video/${kind}` });
           if (error) throw error;
         }
       }
-      await rpc("complete_render_job", { p_job_id: item.job, p_asset_group_id: randomUUID(), p_webm_path: paths.webm, p_mp4_path: paths.mp4, p_poster_path: paths.poster });
+      await rpc("complete_render_job", { p_job_id: item.job, p_claim_id: item.claimId, p_asset_group_id: randomUUID(), p_webm_path: paths.webm, p_mp4_path: paths.mp4, p_poster_path: paths.poster });
       item.rendered = true; item.paths = paths;
       await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
       console.log(`Rendered ${item.slug}`);

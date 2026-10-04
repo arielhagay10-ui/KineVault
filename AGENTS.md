@@ -1,45 +1,27 @@
-# Repository Guidelines
+# KineVault repository guidelines
 
-## Project Structure & Module Organization
+Keep communication concise. KineVault is a community exercise encyclopedia.
 
-KineVault is a community exercise encyclopedia, not a workout tracker. Currently, only `SPEC.md` defines the product; application code, tests, assets, and tooling have not been created. Treat it as the implementation reference.
+## References and structure
 
-When scaffolding the specified Next.js App Router application, use this proposed layout:
+`SPEC.md` defines the product; `ARCHITECTURE.md` describes the implementation; `DESIGN.md` defines the visual system; `docs/workshop.md` describes the current editor. Historical workshop proposals are in `docs/archive/workshop/`.
 
-- `src/app/`: routes, layouts, and server endpoints.
-- `src/components/`: shared React components and shadcn/ui primitives.
-- `src/lib/`: validation, search, authorization, and Supabase clients.
-- `supabase/migrations/`: schema, indexes, and RLS policies.
-- `supabase/seed.sql`: original demo data.
-- `public/`: static assets; `tests/`: integration and Playwright tests.
+Next.js App Router routes/actions live in `src/app/`, shared React components in `src/components/`, validation/authorization/Supabase/motion in `src/lib/`, migrations/pgTAP in `supabase/`, workers in `scripts/`, and browser/media tests in `tests/`. Keep licensed assets in `public/`.
 
-## Build, Test, and Development Commands
+## Implementation and checks
 
-No package manifest or runnable commands exist yet. When scaffolding, define and document these proposed npm scripts:
+Use strict TypeScript, two-space indentation, PascalCase components, camelCase functions, snake_case SQL, UUID records and readable URL slugs. Validate with Zod. Keep muscles, joints, actions and movement patterns normalized. Filter/paginate in PostgreSQL; encode catalog filters in URLs.
 
-- `npm run dev`: start local development.
-- `npm run build`: build the production application.
-- `npm run lint`: check lint rules.
-- `npm run typecheck`: check strict TypeScript without emitting files.
-- `npm test`: run Vitest unit/integration tests.
-- `npm run test:e2e`: run Playwright flows.
+Use `package.json` scripts. After each implementation phase run lint, typecheck and relevant tests. Before delivery run all unit tests, database checks, affected browser/media flows and a production build. Keep screenshots/measurements in ignored `.local-artifacts/`. Coordinate builds with any active development server.
 
-Run lint, type checking, and relevant tests after each implementation phase; fix failures before proceeding.
+`npm run db:test` uses an isolated temporary database. Preserve development records; apply reviewed migrations without resetting the database. Regenerate `src/lib/database.types.ts` after schema changes. Cover ownership, authorization, moderation, duplicates and combined filters. Preserve Shoulder Abduction + Cable -> matching results -> exercise detail coverage.
 
-## Coding Style & Naming Conventions
+## Boundaries
 
-Use strict TypeScript, two-space indentation, PascalCase React components, and camelCase functions and variables. Use snake_case SQL identifiers, UUID record IDs, and readable URL slugs. Validate inputs with Zod. No formatter or linter is configured yet; establish shared configuration during scaffolding.
+Enforce authorization in actions and RLS. Cache only public taxonomy data; scope identity memoization to one request. Keep secrets server-only and out of logs/commits. Publish submissions after approval and retain audit history. Use original/licensed content with attribution.
 
-Keep muscles, joints, joint actions, and movement patterns as separate normalized taxonomies. Execute filtering and pagination in PostgreSQL; encode filters in URL parameters.
+The workshop has one scene owner. Keep frame updates outside React state, solve poses before equipment/contact consumers, preserve recovery, release GPU resources. Verify saved/reloaded movement and rendered media after motion changes.
 
-## Testing Guidelines
+## Changes
 
-Use Vitest (`*.test.ts`) and Playwright (`*.spec.ts`). No numeric coverage threshold is specified. Cover ownership, role authorization, moderation transitions, duplicates, and combined filters. Include the specified Explore flow: Shoulder Abduction + Cable, matching results, then exercise details.
-
-## Commit & Pull Request Guidelines
-
-No Git history exists to establish conventions. Use concise imperative commit subjects, such as `Add joint-action filtering`. Keep changes scoped. PRs should describe behavior, reference relevant specification sections or issues, report checks, and include screenshots for UI changes and migration notes for schema changes.
-
-## Security & Content
-
-Enforce authorization server-side and through Supabase RLS. Keep secrets out of commits. Publish submissions only after approval and preserve audit history. Use original or properly licensed descriptions and media.
+Preserve unrelated work. Use concise imperative commit subjects. PRs explain behavior, checks, specification references, UI screenshots and migration/deployment notes.

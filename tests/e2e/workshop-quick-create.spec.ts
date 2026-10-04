@@ -1,3 +1,4 @@
+import { setWorkshopMode, setWorkshopLanguage, openWorkshopTool, expandWorkshopControls } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
@@ -7,6 +8,8 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+
 test("guided private creation, recovery, picker, RTL and mobile controls", async ({ page, context }) => {
   test.setTimeout(240_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -28,8 +31,8 @@ test("guided private creation, recovery, picker, RTL and mobile controls", async
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
-    await expect(page.getByRole("button", { name: "Quick create", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("button", { name: /Cable row.*Pull to the torso/ }).click();
+    await expect(page.getByRole("button", { name: "Quick create", exact: true, includeHidden: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: /^Cable row start to finish/ }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60000 });
     await expect(page.locator('[data-highlight-count]')).toHaveAttribute("data-highlight-count", "0");
     await expect(page.getByLabel("Start Row pull percent", { exact: true })).toHaveValue("0");
@@ -86,13 +89,14 @@ test("guided private creation, recovery, picker, RTL and mobile controls", async
     await page.getByRole("dialog").getByRole("searchbox").press("Escape");
     await expect(page.getByRole("dialog")).not.toBeVisible();
     await expect(opener).toBeFocused();
-    await page.getByLabel("Workshop language", { exact: true }).selectOption("he");
+    await setWorkshopLanguage(page, "he");
     await expect(page.locator('[data-workshop="studio"]')).toHaveAttribute("dir", "rtl");
     await expect(page.getByRole("button", { name: "הבא", exact: true })).toBeVisible();
     await page.setViewportSize({ width: 320, height: 780 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: ".local-artifacts/workshop/simplification/browser/mobile-rtl.png", fullPage: true });
-    await page.locator('select').filter({ has: page.locator('option[value="en"]') }).selectOption("en");
+    await setWorkshopLanguage(page, "en");
+    await openWorkshopTool(page, "View");
     await page.getByRole("button", { name: "Collapse preview", exact: true }).click();
     await expect(page.getByRole("button", { name: "Show preview", exact: true })).toBeVisible();
     expect(errors).toEqual([]);
@@ -125,16 +129,25 @@ test("finish inspection keeps the editing pose and animated placement locked", a
     await page.goto(`/my-exercises/${created.data}/workshop`);
     await page.getByRole("button", { name: "Check both hands at finish", exact: true }).press("Enter");
     await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue(String(scene.durationMs / 2));
-    await expect(page.getByText(/Editing pose 1.*0\.00s/)).toBeVisible();
-    await page.getByRole("button", { name: "Advanced editing", exact: true }).press("Enter");
+    await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("0");
+    await setWorkshopMode(page, "advanced");
+    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
     await page.getByLabel("Scene objects", { exact: true }).getByRole("button", { name: "Cable row", exact: true }).press("Enter");
+    await page.getByRole("tab", { name: "Position", exact: true }).click();
+    await expandWorkshopControls(page, "Precise placement");
     await expect(page.getByLabel("Position X meters", { exact: true })).toBeDisabled();
+    await page.getByRole("tab", { name: "Timeline", exact: true }).click();
     await expect(page.getByLabel("Row pull percent", { exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "Stop animation and edit placement", exact: true }).press("Enter");
+    await page.getByRole("tab", { name: "Position", exact: true }).click();
+    await expandWorkshopControls(page, "Precise placement");
     await expect(page.getByLabel("Position X meters", { exact: true })).toBeEnabled();
+    await page.getByRole("tab", { name: "Timeline", exact: true }).click();
     await page.getByRole("button", { name: "Animate selected item", exact: true }).press("Enter");
+    await page.getByRole("tab", { name: "Position", exact: true }).click();
+    await expandWorkshopControls(page, "Precise placement");
     await expect(page.getByLabel("Position X meters", { exact: true })).toBeDisabled();
-    await expect(page.getByText("Advanced timeline", { exact: false })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Timeline", exact: true })).toBeVisible();
   } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
 });
 
@@ -155,7 +168,7 @@ test("a committed first save survives a lost response and reload without duplica
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
-    await page.getByRole("button", { name: /Pec deck.*Close both arms in front/ }).press("Enter");
+    await page.getByRole("button", { name: /^Pec deck start to finish/ }).press("Enter");
     await page.getByRole("button", { name: "Name and save", exact: true }).press("Enter");
     let lost = false;
     await page.route("**/my-exercises/new", async route => {
@@ -206,7 +219,7 @@ test.describe("touch and enlarged text", () => {
       await page.getByRole("button", { name: "Sign in", exact: true }).tap();
       await expect(page).toHaveURL(/\/dashboard$/);
       await page.goto("/my-exercises/new");
-      await page.getByRole("button", { name: /Reverse pec deck.*Open both arms/ }).tap();
+      await page.getByRole("button", { name: /^Reverse pec deck start to finish/ }).tap();
       await expect(page.getByRole("button", { name: "Palms outward", exact: true })).toHaveAttribute("aria-pressed", "true");
       await page.getByRole("button", { name: "Check both hands at finish", exact: true }).tap();
       await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("1600");
@@ -215,7 +228,7 @@ test.describe("touch and enlarged text", () => {
       await page.getByLabel("Exercise name", { exact: true }).fill("Touch reverse pec deck");
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20000 });
       await page.getByRole("button", { name: "Start and finish", exact: true }).tap();
-      await page.getByLabel("Workshop language", { exact: true }).selectOption("he");
+      await setWorkshopLanguage(page, "he");
       await expect(page.getByRole("button", { name: "כפות ידיים החוצה", exact: true })).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: ".local-artifacts/workshop/simplification/browser/touch-rtl.png", fullPage: true });
@@ -355,6 +368,7 @@ test("opposite-side and zoom inspection survive playback rerenders", async ({ pa
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60000 });
+    await openWorkshopTool(page, "View");
     await page.getByRole("button", { name: "Fit scene", exact: true }).click();
     const original = await page.locator("canvas").screenshot();
     await page.getByRole("button", { name: "Opposite side", exact: true }).click();

@@ -4,7 +4,10 @@ import { workshopSceneSchema } from "./scene-schema";
 
 describe("workshop timeline", () => {
   it("interpolates keyframes without dropping joint controls", () => {
-    const pose = sampleWorkshopPose(defaultScene.keyframes, 800);
+    const pose = sampleWorkshopPose([
+      { timeMs: 0, poses: { "left-shoulder": { x: 0, y: 0, z: 5 }, "right-shoulder": { x: 0, y: 0, z: -5 } } },
+      { timeMs: 1600, poses: { "left-shoulder": { x: 0, y: 0, z: -75 }, "right-shoulder": { x: 0, y: 0, z: 75 } } },
+    ], 800);
     expect(pose["left-shoulder"]?.z).toBe(-35);
     expect(pose["right-shoulder"]?.z).toBe(35);
     expect(pose.torso).toEqual({ x: 0, y: 0, z: 0 });

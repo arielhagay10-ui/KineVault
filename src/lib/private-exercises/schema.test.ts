@@ -23,6 +23,17 @@ describe("private exercise form", () => {
     form.append("secondaryMuscle", "lateral-deltoid");
     expect(parsePrivateExerciseForm(form).success).toBe(false);
   });
+  it("keeps strict save limits separate from recoverable draft limits", () => {
+    const form = new FormData(); form.set("name", "Recovery boundaries");
+    for (let index = 0; index < 21; index++) form.append("jointAction", `action-${index}`);
+    expect(parsePrivateExerciseForm(form).success).toBe(false);
+    const recovered = parsePrivateExerciseForm(form, true);
+    expect(recovered.success).toBe(true);
+    if (!recovered.success) return;
+    form.set("aliases", "a".repeat(161));
+    expect(parsePrivateMetadata(form, recovered.data).success).toBe(false);
+    expect(parsePrivateMetadata(form, recovered.data, true).success).toBe(true);
+  });
 
   it("preserves action roles and validates detailed fields", () => {
     const form = new FormData();

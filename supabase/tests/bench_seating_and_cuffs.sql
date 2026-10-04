@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(17);
+select plan(19);
 insert into auth.users(id,email,aud,role) values
   ('00000000-0000-4000-8000-000000000085','seating-owner@example.test','authenticated','authenticated'),
   ('00000000-0000-4000-8000-000000000086','seating-other@example.test','authenticated','authenticated');
@@ -10,7 +10,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000085'
 select set_config('test.seating_payload','{"durationMs":3200,"cameraAngle":"front","equipment":null,"keyframes":[{"timeMs":0,"poses":{}},{"timeMs":3200,"poses":{}}],"studio":{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"seating":{"benchId":"00000000-0000-4000-8000-000000000087","facing":"front"},"objects":[{"id":"00000000-0000-4000-8000-000000000087","name":"Bench","slug":"bench","x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"none","pulleyHeight":1.5,"benchAngle":45},{"id":"00000000-0000-4000-8000-000000000088","name":"Cuff cable","slug":"cable-machine","x":1.5,"y":0,"z":1,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"left","pulleyHeight":3,"cableAttachment":"cuff","cuffPosition":"upper-arm"}]}}',true);
 select lives_ok($$select public.create_workshop_exercise(current_setting('test.seating_payload')::jsonb)$$,'seating and upper-arm cuff save');
 select set_config('test.seating_private',public.create_workshop_exercise(current_setting('test.seating_payload')::jsonb)::text,true);
-select lives_ok(format('select public.save_private_scene(%L::uuid,%L::jsonb)',current_setting('test.seating_private'),jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,seating,facing}',to_jsonb(facing))::text),facing || ' seat saves') from unnest(array['front','left','right','back']) facing;
+select lives_ok(format('select public.save_private_scene(%L::uuid,%L::jsonb)',current_setting('test.seating_private'),jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,seating,facing}',to_jsonb(facing))::text),facing || ' seat saves') from unnest(array['front','left','right','back','supine','prone']) facing;
 select lives_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,objects,1,cuffPosition}','"wrist"'))$$,'wrist cuff saves');
 select throws_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,objects,1,attachment}','"both"'))$$,'23514',null,'one cuff cannot attach to two arms');
 select throws_ok($$select public.save_private_scene(current_setting('test.seating_private')::uuid,jsonb_set(current_setting('test.seating_payload')::jsonb,'{studio,objects,1,cuffPosition}','"ankle"'))$$,'23514',null,'invalid cuff site rejected');

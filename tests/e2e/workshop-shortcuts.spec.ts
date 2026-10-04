@@ -1,3 +1,4 @@
+import { setWorkshopMode, setWorkshopLanguage, selectWorkshopObject } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -5,6 +6,8 @@ import { expect, test } from "@playwright/test";
 import { createQuickScene } from "../../src/lib/motion/quick-create";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+
 test("workshop shortcuts edit scenes, respect controls and save pending field edits", async ({ page }) => {
   test.setTimeout(120_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -30,7 +33,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     const workshop = page.locator('[data-workshop="studio"]');
     const finish = page.getByLabel("Finish Row pull percent", { exact: true });
     await finish.fill("65"); await finish.press("Enter");
-    await page.locator("canvas").click({ position: { x: 20, y: 20 } });
+    await page.locator("canvas").click({ position: { x: 20, y: 200 } });
     await page.keyboard.press("Control+z");
     await expect(finish).toHaveValue("100");
     await page.keyboard.press("Control+Shift+z"); await expect(finish).toHaveValue("65");
@@ -46,8 +49,8 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await page.keyboard.press("Space"); await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
     await workshop.focus(); await page.keyboard.press("Space");
     await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
-    await page.keyboard.press("]"); await expect(workshop).toContainText("Editing pose 2");
-    await page.keyboard.press("["); await expect(workshop).toContainText("Editing pose 1");
+    await page.keyboard.press("]"); await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("1600");
+    await page.keyboard.press("["); await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("0");
     await page.keyboard.press("e");
     await expect(page.getByRole("button", { name: "Move with mouse", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("c");
@@ -56,31 +59,42 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).not.toBeVisible();
-    await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
+    await setWorkshopMode(page, "advanced");
     const name = page.getByLabel("Exercise name", { exact: true });
     await name.focus(); await page.keyboard.press("End"); await page.keyboard.type(" revised");
     await page.keyboard.press("Control+z");
     await expect(name).toHaveValue("Keyboard fixture");
-    await page.getByRole("button", { name: "Quick create", exact: true }).click();
+    await setWorkshopMode(page, "quick");
     await expect(finish).toHaveValue("72");
-    await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
+    await setWorkshopMode(page, "advanced");
     await name.fill("Keyboard fixture saved");
     // Save commits a numeric field's blur first and persists that committed scene.
-    await page.getByLabel("Scene objects").getByRole("button", { name: "Cable row", exact: true }).click();
+    await selectWorkshopObject(page, "Cable row");
+    await page.getByRole("tab", { name: "Timeline", exact: true }).click();
     const travel = page.getByLabel("Row pull percent", { exact: true });
+    const committed = page.waitForResponse(response => {
+      const request = response.request();
+      const body = request.postData() ?? "";
+      return request.method() === "POST" && !!request.headers()["next-action"]
+        && body.includes("Keyboard fixture saved") && body.includes('"machinePosition":0.31') && response.ok();
+    });
     await travel.fill("31"); await travel.press("Control+s");
+    await committed;
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
-    await page.reload(); await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
+    await page.reload(); await setWorkshopMode(page, "advanced");
     await expect(name).toHaveValue("Keyboard fixture saved");
-    await page.getByLabel("Scene objects").getByRole("button", { name: "Cable row", exact: true }).click();
+    await selectWorkshopObject(page, "Cable row");
+    await page.getByRole("tab", { name: "Timeline", exact: true }).click();
     await expect(travel).toHaveValue("31");
+    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
     await workshop.focus(); await page.keyboard.press("Control+d");
     await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toBeVisible();
     await page.keyboard.press("Control+z");
     await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toHaveCount(0);
     await page.keyboard.press("Control+Shift+z");
     await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toBeVisible();
-    await page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true }).click();
+    await selectWorkshopObject(page, "Cable row copy");
+    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
     await workshop.focus(); await page.keyboard.press("Delete");
     await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toHaveCount(0);
     await page.keyboard.press("Control+z");
@@ -94,7 +108,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
     mkdirSync(".local-artifacts/workshop/shortcuts", { recursive: true });
     await page.screenshot({ path: ".local-artifacts/workshop/shortcuts/desktop.png", fullPage: true });
-    await page.getByLabel("Workshop language").selectOption("he");
+    await setWorkshopLanguage(page, "he");
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: ".local-artifacts/workshop/shortcuts/mobile-hebrew.png", fullPage: true });

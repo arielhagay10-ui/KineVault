@@ -42,7 +42,8 @@ try {
     if (!files) {
       const directory = join(temporaryDirectory, hash); await mkdir(directory);
       process.stdout.write(`Rendering ${scene.durationMs}ms ${scene.cameraAngle} scene…\n`);
-      files = await captureMotion({ scene, pageUrl: `${appUrl}/internal/render/${target.asset_group_id}?refresh=1`, token, directory });
+      files = await captureMotion({ scene, pageUrl: `${appUrl}/internal/render/${target.asset_group_id}?refresh=1`, token, directory,
+        onMetrics: metrics => process.stdout.write(`Render phases ${JSON.stringify({ assetGroupId: target.asset_group_id, ...metrics })}\n`) });
       cache.set(hash, files);
     }
     for (const asset of target.assets) {

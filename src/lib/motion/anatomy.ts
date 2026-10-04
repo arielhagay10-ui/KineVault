@@ -1,7 +1,7 @@
-import { Bone, Box3, Float32BufferAttribute, Group, Line3, Matrix4, Mesh, MeshStandardMaterial, Quaternion, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from "three";
+import { Bone, Box3, type BufferGeometry, Float32BufferAttribute, Group, Line3, Matrix4, Mesh, MeshStandardMaterial, Quaternion, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from "three";
 import type { JointSlug, RigPose } from "./workshop";
 
-export const anatomyModelUrl = "/models/z-anatomy/model.glb";
+export const anatomyModelUrl = "/models/z-anatomy/model.meshopt.32c5dfc3.glb";
 export const muscleGroups = [
   { id: "deltoid", label: "Shoulders (deltoids)", pattern: /deltoid/ },
   { id: "reardelts", label: "Rear shoulders (posterior deltoids)", pattern: /scapular_spinal_part_of_deltoid/ },
@@ -43,7 +43,18 @@ const smooth = (low: number, high: number, value: number) => {
   return t * t * (3 - 2 * t);
 };
 
+// Geometry data belongs to the loaded atlas, while GPU residency belongs to its viewers.
+// Keep the immutable CPU buffers reusable; release GPU buffers when the final rig closes.
+const preparedAtlases = new WeakMap<Group, { geometries: Map<Mesh, BufferGeometry>; viewers: number }>();
+
 export function createAnatomyRig(source: Group) {
+  let prepared = preparedAtlases.get(source);
+  if (!prepared) { prepared = { geometries: new Map(), viewers: 0 }; preparedAtlases.set(source, prepared); }
+  const materials = {
+    bone: new MeshStandardMaterial({ color: "#ddd8cb", roughness: 0.8 }),
+    tissue: new MeshStandardMaterial({ color: "#8e9994", roughness: 0.8 }),
+    selected: new MeshStandardMaterial({ color: "#c33d36", roughness: 0.8 }),
+  };
   const root = new Group();
   const bones = {} as Record<JointSlug | "pelvis", Bone>;
   const names = Object.keys(pivots) as (keyof typeof pivots)[];
@@ -102,7 +113,8 @@ export function createAnatomyRig(source: Group) {
   source.updateMatrixWorld(true);
   source.traverse(object => {
     if (!(object instanceof Mesh)) return;
-    const geometry = object.geometry.clone().applyMatrix4(object.matrixWorld);
+    const cachedGeometry = prepared.geometries.get(object);
+    const geometry = cachedGeometry ?? object.geometry.clone().applyMatrix4(object.matrixWorld);
     const box = new Box3().setFromBufferAttribute(geometry.getAttribute("position"));
     const center = box.getCenter(new Vector3());
     const name = object.name.toLowerCase();
@@ -116,9 +128,9 @@ export function createAnatomyRig(source: Group) {
     const finger = fingerSegments.find(segment => segment.name === object.name);
     const handIndex = allBones.indexOf(handBones[side]);
     const vertex = new Vector3(), closest = new Vector3();
-    const skinIndices = new Uint16Array(positions.count * 4);
-    const skinWeights = new Float32Array(positions.count * 4);
-    for (let index = 0; index < positions.count; index++) {
+    const skinIndices = new Uint16Array(cachedGeometry ? 0 : positions.count * 4);
+    const skinWeights = new Float32Array(cachedGeometry ? 0 : positions.count * 4);
+    if (!cachedGeometry) for (let index = 0; index < positions.count; index++) {
       const y = rigid ? center.y : positions.getY(index);
       let a: keyof typeof pivots = "pelvis", b: keyof typeof pivots = "torso";
       let weight = smooth(1.65, 1.88, y);
@@ -183,9 +195,12 @@ export function createAnatomyRig(source: Group) {
         }
       }
     }
-    geometry.setAttribute("skinIndex", new Uint16BufferAttribute(skinIndices, 4));
-    geometry.setAttribute("skinWeight", new Float32BufferAttribute(skinWeights, 4));
-    const material = new MeshStandardMaterial({ color: rigid ? "#ddd8cb" : "#8e9994", roughness: 0.8 });
+    if (!cachedGeometry) {
+      geometry.setAttribute("skinIndex", new Uint16BufferAttribute(skinIndices, 4));
+      geometry.setAttribute("skinWeight", new Float32BufferAttribute(skinWeights, 4));
+      prepared.geometries.set(object, geometry);
+    }
+    const material = rigid ? materials.bone : materials.tissue;
     const mesh = new SkinnedMesh(geometry, material);
     mesh.name = object.name; mesh.userData = { ...object.userData };
     // The limbs move beyond the original static bounds.
@@ -196,8 +211,16 @@ export function createAnatomyRig(source: Group) {
   });
   muscles.sort((a, b) => a.label.localeCompare(b.label));
   root.scale.setScalar(0.85);
-  return { root, bones, shoulderCaps, footBones, forearmBones, handBones, fingerSegments, skeleton, meshes, muscles, dispose() {
-    for (const mesh of meshes) { mesh.geometry.dispose(); (mesh.material as MeshStandardMaterial).dispose(); }
+  let disposed = false, retained = false;
+  const scratch = { vector: new Vector3(), target: new Vector3(), origin: new Vector3(), rotation: new Quaternion(), ankleRotation: new Quaternion() };
+  return { root, bones, shoulderCaps, footBones, forearmBones, handBones, fingerSegments, skeleton, meshes, muscles, materials, scratch,
+    retain() { if (!retained) { prepared.viewers++; retained = true; disposed = false; } },
+    dispose() {
+    if (disposed) return;
+    disposed = true;
+    if (retained) { prepared.viewers--; retained = false; }
+    if (!prepared.viewers) for (const geometry of prepared.geometries.values()) geometry.dispose();
+    for (const material of Object.values(materials)) material.dispose();
     skeleton.dispose();
   } };
 }
@@ -221,7 +244,7 @@ export function poseAnatomyRig(rig: AnatomyRig, pose: RigPose, gripping: boolean
     const wrist = pose[`${side}-wrist`];
     if (wrist) {
       // Twist along the actual forearm so turning the palm does not move the wrist.
-      rig.forearmBones[side].quaternion.setFromAxisAngle(rig.handBones[side].position.clone().normalize(),
+      rig.forearmBones[side].quaternion.setFromAxisAngle(rig.scratch.vector.copy(rig.handBones[side].position).normalize(),
         (side === "left" ? 1 : -1) * (wrist.x + 90) * Math.PI / 180);
     } else rig.forearmBones[side].rotation.set(0, (side === "left" ? -1 : 1) * forearmRotation * Math.PI / 180, 0);
     rig.handBones[side].rotation.set((wrist?.y ?? 0) * Math.PI / 180, 0, -(wrist?.z ?? 0) * Math.PI / 180);
@@ -251,16 +274,16 @@ export function plantAnatomyFeet(rig: AnatomyRig, style: string | undefined, pos
   if (style === "incline-curl") { lean = -45; height = 0.88; depth = 0.35; }
   if (style === "seated-curl") { height = 0.92; }
   rig.root.rotation.x = lean * radians;
-  rig.root.position.copy(new Vector3(0, height, depth).sub(new Vector3(0, 1.72, -0.07).multiplyScalar(0.85).applyQuaternion(rig.root.quaternion)));
+  rig.root.position.set(0, height, depth).sub(rig.scratch.vector.set(0, 1.72, -0.07).multiplyScalar(0.85).applyQuaternion(rig.root.quaternion));
   rig.bones.torso.rotation.x = 0;
   rig.root.updateMatrixWorld(true);
   for (const side of ["left", "right"] as const) {
     const hip = rig.bones[`${side}-hip`], knee = rig.bones[`${side}-knee`];
     const rearFoot = style === "split-squat" && side === "right";
-    const worldTarget = new Vector3(side === "left" ? 0.153 : -0.153, rearFoot ? 0.204 : 0.119,
+    const worldTarget = rig.scratch.target.set(side === "left" ? 0.153 : -0.153, rearFoot ? 0.204 : 0.119,
       style === "seated-curl" ? 0.85 : style === "bench-press" || style === "incline-curl" ? 0.95 : (side === "left" ? split : -split) - 0.034);
-    const target = rig.root.worldToLocal(worldTarget.clone());
-    const origin = new Vector3(...pivots[`${side}-hip`]);
+    const target = rig.root.worldToLocal(worldTarget);
+    const origin = rig.scratch.origin.fromArray(pivots[`${side}-hip`]);
     const dy = target.y - origin.y, dz = target.z - origin.z;
     const upper = Math.hypot(0.93, 0.03), lower = 0.65;
     const distance = Math.min(upper + lower - 0.0001, Math.max(Math.abs(upper - lower) + 0.0001, Math.hypot(dy, dz)));
@@ -269,8 +292,8 @@ export function plantAnatomyFeet(rig: AnatomyRig, style: string | undefined, pos
     hip.rotation.set(-bearing - opening + Math.atan2(0.03, 0.93), 0, 0);
     knee.rotation.set(Math.PI - Math.acos(Math.max(-1, Math.min(1, (upper * upper + lower * lower - distance * distance) / (2 * upper * lower)))) - Math.atan2(0.03, 0.93), 0, 0);
     rig.root.updateMatrixWorld(true);
-    const ankleRotation = rig.footBones[side].quaternion.clone();
-    rig.footBones[side].quaternion.copy(knee.getWorldQuaternion(new Quaternion()).invert());
+    const ankleRotation = rig.scratch.ankleRotation.copy(rig.footBones[side].quaternion);
+    rig.footBones[side].quaternion.copy(knee.getWorldQuaternion(rig.scratch.rotation).invert());
     if (rearFoot) rig.footBones[side].quaternion.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), 25 * radians));
     if (pose[`${side}-ankle`]) rig.footBones[side].quaternion.multiply(ankleRotation);
   }
@@ -353,7 +376,7 @@ export function highlightAnatomyRig(rig: AnatomyRig, target: string, isolate: bo
     const selected = mesh.userData.system === "muscles"
       && (target === `mesh:${mesh.name}` || Boolean(group?.pattern.test(mesh.name.toLowerCase())));
     mesh.visible = !isolate || target === "none" || selected;
-    (mesh.material as MeshStandardMaterial).color.set(selected ? "#c33d36" : mesh.userData.system === "skeleton" ? "#ddd8cb" : "#8e9994");
+    mesh.material = selected ? rig.materials.selected : mesh.userData.system === "skeleton" ? rig.materials.bone : rig.materials.tissue;
     if (selected) count++;
   }
   return count;

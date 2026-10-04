@@ -1,8 +1,10 @@
 "use client";
 
+import { useMotionFrame } from "./motion-frame";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BufferGeometry, Group, Quaternion, Vector3 } from "three";
+import { Group, Quaternion, Vector3 } from "three";
+import { createCableGeometry, updateCableGeometry } from "@/lib/motion/cable-geometry";
 import type { AnatomyRig } from "@/lib/motion/anatomy";
 import { studioCableFrame } from "@/lib/motion/studio-cable";
 import { maxPulleyHeight } from "@/lib/motion/studio";
@@ -17,11 +19,13 @@ function Shaft({ from, to, radius = 0.022, color = "#627479" }: { from: [number,
   </mesh>;
 }
 
-export function StudioCable({ object, rig, group, pose, editor }: { object: StudioObject; rig: AnatomyRig; group: React.RefObject<Group>; pose: RigPose; editor?: StudioEditor }) {
+export function StudioCable({ object, currentObject, rig, group, pose, editor }: { object: StudioObject; currentObject?: React.RefObject<StudioObject>; rig: AnatomyRig; group: React.RefObject<Group>; pose: RigPose; editor?: StudioEditor }) {
+  const frameRef = useMotionFrame();
+  const scratch = useMemo(() => ({ inverse: new Quaternion(), rotation: new Quaternion(), point: new Vector3(), tip: new Vector3(), points: Array.from({ length: 6 }, () => new Vector3()) }), []);
   const end = useRef<Group>(null), left = useRef<Group>(null), right = useRef<Group>(null);
   const knot = useRef<Group>(null);
   const cuff = useRef<Group>(null);
-  const wire = useMemo(() => new BufferGeometry(), []);
+  const wire = useMemo(() => createCableGeometry(), []);
   const lastReach = useRef<boolean | null>(null);
   const kind = object.cableAttachment ?? "d-handle";
   useEffect(() => () => wire.dispose(), [wire]);
@@ -34,25 +38,28 @@ export function StudioCable({ object, rig, group, pose, editor }: { object: Stud
       tower.rotation.set(0, transform.rotationY * Math.PI / 180, 0);
       tower.updateWorldMatrix(true, true);
     }
-    const frame = studioCableFrame(rig, object, tower, pose);
-    const inverse = tower.getWorldQuaternion(new Quaternion()).invert();
-    end.current.position.copy(tower.worldToLocal(frame.center.clone()));
-    end.current.quaternion.copy(inverse.clone().multiply(frame.rotation));
-    knot.current?.position.copy(tower.worldToLocal(frame.connection.clone()));
+    const frame = studioCableFrame(rig, currentObject?.current ?? object, tower, frameRef?.current.pose ?? pose);
+    const inverse = tower.getWorldQuaternion(scratch.inverse).invert();
+    end.current.position.copy(tower.worldToLocal(scratch.point.copy(frame.center)));
+    end.current.quaternion.copy(scratch.rotation.copy(inverse).multiply(frame.rotation));
+    knot.current?.position.copy(tower.worldToLocal(scratch.point.copy(frame.connection)));
     cuff.current?.scale.set(frame.cuffRadius, 0.22, frame.cuffRadius);
-    const points = [tower.worldToLocal(frame.pulley.clone()), tower.worldToLocal(frame.connection.clone())];
+    const points = scratch.points;
+    tower.worldToLocal(points[0].copy(frame.pulley)); tower.worldToLocal(points[1].copy(frame.connection));
+    let pointCount = 2;
     for (const side of ["left", "right"] as const) {
       const branch = side === "left" ? left.current : right.current;
       if (!branch) continue;
       const grip = frame.ropeGrips.find(item => item.side === side);
       branch.visible = !!grip;
       if (!grip) continue;
-      branch.position.copy(tower.worldToLocal(grip.point.clone()));
-      branch.quaternion.copy(inverse.clone().multiply(grip.rotation));
-      const tip = new Vector3(side === "left" ? -0.08 : 0.08, 0, 0).multiplyScalar(frame.scale).applyQuaternion(grip.rotation).add(grip.point);
-      points.push(tower.worldToLocal(frame.connection.clone()), tower.worldToLocal(tip));
+      branch.position.copy(tower.worldToLocal(scratch.point.copy(grip.point)));
+      branch.quaternion.copy(scratch.rotation.copy(inverse).multiply(grip.rotation));
+      const tip = scratch.tip.set(side === "left" ? -0.08 : 0.08, 0, 0).multiplyScalar(frame.scale).applyQuaternion(grip.rotation).add(grip.point);
+      tower.worldToLocal(points[pointCount++].copy(frame.connection));
+      tower.worldToLocal(points[pointCount++].copy(tip));
     }
-    wire.setFromPoints(points); wire.computeBoundingSphere();
+    updateCableGeometry(wire, points, pointCount);
     if (lastReach.current !== frame.reachable) { lastReach.current = frame.reachable; editor?.onGripReach(object.id, frame.reachable); }
   });
   return <>

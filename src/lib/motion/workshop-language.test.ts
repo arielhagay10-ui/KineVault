@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createWorkshopLanguage, parseLocalizedWorkshopNumber, workshopDirection } from "./workshop-language";
+import { workshopTutorialSteps } from "./workshop-tutorial";
 
 describe("workshop language", () => {
+  it("translates the complete tutorial into Hebrew", () => {
+    const { t } = createWorkshopLanguage("he");
+    for (const step of workshopTutorialSteps) {
+      for (const text of [step.title, ...step.tips]) expect(t(text)).toMatch(/[א-ת]/);
+    }
+  });
   it("translates essential steps, warnings and recovery instructions", () => {
     const { t } = createWorkshopLanguage("he");
     for (const text of ["Choose equipment", "Start and finish", "Preview", "Name and save", "Retry saving", "Restore recovered draft", "A hand cannot reach its handle. Use a smaller range or reset fit; inspect the wrist from the opposite side.", "Enable browser graphics acceleration or try another browser. The text summary and editing controls remain available."]) {

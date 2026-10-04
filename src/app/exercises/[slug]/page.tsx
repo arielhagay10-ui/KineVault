@@ -8,7 +8,7 @@ import { toggleFavorite } from "@/app/favorites/actions";
 import { copyPublicExercise } from "@/app/exercises/actions";
 import { getIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { mediaObjectKey, signMediaObjects } from "@/lib/media/signed-media";
+import { mediaObjectKey, signResolvedMediaObjects } from "@/lib/media/signed-media";
 import { resolveRenderReplacements } from "@/lib/media/render-replacements";
 
 export const dynamic = "force-dynamic";
@@ -22,21 +22,24 @@ function label(value: string | null | undefined) {
 export default async function ExercisePage({ params }: Props) {
   const { slug } = await params;
   const supabase = await createClient();
-  const identity = await getIdentity();
-  const { data: exercise } = await supabase.from("exercises")
+  const identityPromise = getIdentity();
+  const { data: exercise, error: exerciseError } = await supabase.from("exercises")
     .select("id,slug,current_content_id,status,favorite_count")
     .eq("slug", slug).eq("status", "published").maybeSingle();
+  if (exerciseError) throw new Error("The exercise could not be loaded");
   if (!exercise) notFound();
-  const { data: savedFavorite } = identity
-    ? await supabase.from("favorites").select("exercise_id")
-      .eq("exercise_id", exercise.id).eq("user_id", identity.userId).maybeSingle()
-    : { data: null };
+  const favoritePromise = identityPromise.then(async identity => {
+    const result = identity ? await supabase.from("favorites").select("exercise_id")
+      .eq("exercise_id", exercise.id).eq("user_id", identity.userId).maybeSingle() : { data: null, error: null };
+    if (result.error) throw new Error("Your saved exercise could not be loaded");
+    return result.data;
+  });
 
   const contentId = exercise.current_content_id;
   const [contentResult, musclesResult, jointsResult, actionsResult, equipmentResult,
     attachmentsResult, patternsResult, aliasesResult, biomechanicsResult, mediaResult,
-    relationsResult, scene] = await Promise.all([
-    supabase.from("exercise_content").select("*").eq("id", contentId).single(),
+    relationsResult, scene, savedFavorite, identity] = await Promise.all([
+    supabase.from("exercise_content").select("*,exercise_families(name,slug)").eq("id", contentId).single(),
     supabase.from("exercise_muscles").select("role,muscles(name,slug)").eq("content_id", contentId),
     supabase.from("exercise_joints").select("role,joints(name,slug)").eq("content_id", contentId),
     supabase.from("exercise_joint_actions").select("role,joint_actions(name,slug,joints(name))").eq("content_id", contentId),
@@ -46,9 +49,11 @@ export default async function ExercisePage({ params }: Props) {
     supabase.from("exercise_aliases").select("alias").eq("content_id", contentId),
     supabase.from("exercise_biomechanics").select("resistance_profile,peak_resistance_position,classification_confidence,reviewer_notes,body_positions(name),grips(name),stances(name),planes_of_motion(name),resistance_sources(name)").eq("content_id", contentId).maybeSingle(),
     supabase.from("exercise_media").select("kind,storage_bucket,storage_path,asset_group_id,camera_angle,character_presentation,license_name,source_credit").eq("content_id", contentId),
-    supabase.from("exercise_relations").select("source_exercise_id,target_exercise_id,relation_type")
+    supabase.from("exercise_relations").select("source_exercise_id,target_exercise_id,relation_type,source:exercises!exercise_relations_source_exercise_id_fkey(id,slug,status,exercise_content(name)),target:exercises!exercise_relations_target_exercise_id_fkey(id,slug,status,exercise_content(name))")
       .or(`source_exercise_id.eq.${exercise.id},target_exercise_id.eq.${exercise.id}`),
     loadWorkshopScene(contentId),
+    favoritePromise,
+    identityPromise,
   ]);
   if ([contentResult, musclesResult, jointsResult, actionsResult, equipmentResult, attachmentsResult,
     patternsResult, aliasesResult, biomechanicsResult, mediaResult, relationsResult].some((result) => result.error)) {
@@ -59,7 +64,7 @@ export default async function ExercisePage({ params }: Props) {
   if (!content) notFound();
   const biomech = biomechanicsResult.data;
   const media = await resolveRenderReplacements(mediaResult.data ?? []);
-  const signedMedia = await signMediaObjects(media);
+  const signedMedia = await signResolvedMediaObjects(media);
   const urlFor = (item: (typeof media)[number]) => signedMedia.get(mediaObjectKey(item));
   const groups = new Map<string, MediaGroup>();
   for (const item of media) {
@@ -70,25 +75,19 @@ export default async function ExercisePage({ params }: Props) {
     groups.set(group.id, group);
   }
   const relations = relationsResult.data ?? [];
-  const relatedIds = relations.map((relation) => relation.source_exercise_id === exercise.id
-    ? relation.target_exercise_id : relation.source_exercise_id);
-  const { data: relatedExercises } = relatedIds.length
-    ? await supabase.from("exercises").select("id,slug,current_content_id").in("id", relatedIds).eq("status", "published")
-    : { data: [] };
-  const { data: relatedContent } = (relatedExercises?.length ?? 0) > 0
-    ? await supabase.from("exercise_content").select("id,name").in("id", relatedExercises!.map((item) => item.current_content_id))
-    : { data: [] };
-  const relatedNames = new Map((relatedContent ?? []).map((item) => [item.id, item.name]));
-  const relatedById = new Map((relatedExercises ?? []).map((item) => [item.id, {
-    slug: item.slug, name: relatedNames.get(item.current_content_id) ?? item.slug,
-  }]));
+  const relatedById = new Map<string, { slug: string; name: string }>();
+  for (const relation of relations) for (const related of [relation.source, relation.target]) {
+    if (related && related.id !== exercise.id && related.status === "published") {
+      relatedById.set(related.id, { slug: related.slug, name: related.exercise_content?.name ?? related.slug });
+    }
+  }
   const variations = relations.filter((item) => item.relation_type === "variation_of" && item.target_exercise_id === exercise.id)
     .map((item) => relatedById.get(item.source_exercise_id)).filter((item) => item !== undefined);
   const parent = relations.find((item) => item.relation_type === "variation_of" && item.source_exercise_id === exercise.id);
   const parentExercise = parent ? relatedById.get(parent.target_exercise_id) : undefined;
-  const { data: family } = content.family_id
-    ? await supabase.from("exercise_families").select("name,slug").eq("id", content.family_id).maybeSingle()
-    : { data: null };
+  const family = content.exercise_families;
+  const hasInstructions = [content.setup_instructions, content.execution_instructions, content.form_cues,
+    content.common_mistakes, content.safety_notes, content.range_of_motion_notes].some(value => value?.trim());
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -101,20 +100,7 @@ export default async function ExercisePage({ params }: Props) {
       <div className="mx-auto max-w-7xl px-6 pb-20 pt-10 lg:px-10">
         <Link href="/exercises" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft size={16} /> Back to Explore</Link>
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-          <div>
-            <MediaGallery groups={[...groups.values()]} annotations={scene?.annotations} />
-            {scene && <MotionInspector scene={scene} />}
-            <section className="mt-8 rounded-2xl border border-border bg-card p-6">
-              <h2 className="text-xl font-semibold">How to perform it</h2>
-              <InfoBlock title="Setup" value={content.setup_instructions} />
-              <InfoBlock title="Execution" value={content.execution_instructions} />
-              <InfoBlock title="Form cues" value={content.form_cues} />
-              <InfoBlock title="Common mistakes" value={content.common_mistakes} />
-              <InfoBlock title="Safety notes" value={content.safety_notes} />
-              <InfoBlock title="Range of motion" value={content.range_of_motion_notes} />
-            </section>
-          </div>
-          <div>
+          <div className="min-w-0 lg:col-start-2 lg:row-start-1">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Exercise detail</p>
             <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">{content.name}</h1>
             {content.short_description && <p className="mt-5 text-lg leading-8 text-muted-foreground">{content.short_description}</p>}
@@ -135,11 +121,26 @@ export default async function ExercisePage({ params }: Props) {
             </div>
             {identity && <form action={copyPublicExercise} className="mt-4">
               <input type="hidden" name="exerciseId" value={exercise.id} />
-              <button type="submit" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary">Copy to my exercises</button>
+              <button type="submit" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring">Copy to my exercises</button>
               <p className="mt-2 text-xs leading-5 text-muted-foreground">Make an independent private copy of the reviewed classifications. The motion is included when its creator allowed reuse.</p>
             </form>}
 
-            <section className="mt-9 space-y-6 rounded-2xl border border-border bg-card p-6">
+          </div>
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2">
+            <MediaGallery groups={[...groups.values()]} annotations={scene?.annotations} />
+            {scene && <MotionInspector scene={scene} />}
+            {hasInstructions && <section className="mt-8 rounded-2xl border border-border bg-card p-6">
+              <h2 className="text-xl font-semibold">How to perform it</h2>
+              <InfoBlock title="Setup" value={content.setup_instructions} />
+              <InfoBlock title="Execution" value={content.execution_instructions} />
+              <InfoBlock title="Form cues" value={content.form_cues} />
+              <InfoBlock title="Common mistakes" value={content.common_mistakes} />
+              <InfoBlock title="Safety notes" value={content.safety_notes} />
+              <InfoBlock title="Range of motion" value={content.range_of_motion_notes} />
+            </section>}
+          </div>
+          <div className="min-w-0 lg:col-start-2 lg:row-start-2">
+            <section className="space-y-6 rounded-2xl border border-border bg-card p-6">
               <TagSection title="Primary muscles" items={(musclesResult.data ?? []).filter((item) => item.role === "primary" && item.muscles).map((item) => ({ name: item.muscles!.name, href: `/muscles/${item.muscles!.slug}` }))} />
               <TagSection title="Secondary muscles" items={(musclesResult.data ?? []).filter((item) => item.role === "secondary" && item.muscles).map((item) => ({ name: item.muscles!.name, href: `/muscles/${item.muscles!.slug}` }))} />
               <TagSection title="Stabilizers" items={(musclesResult.data ?? []).filter((item) => item.role === "stabilizer" && item.muscles).map((item) => ({ name: item.muscles!.name, href: `/muscles/${item.muscles!.slug}` }))} />
@@ -219,7 +220,7 @@ function TagSection({ title, items }: { title: string; items: { name: string; hr
 }
 
 function InfoBlock({ title, value }: { title: string; value: string | null }) {
-  if (!value) return null;
+  if (!value?.trim()) return null;
   return <div className="mt-6"><h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3><p className="mt-2 whitespace-pre-line leading-7 text-muted-foreground">{value}</p></div>;
 }
 

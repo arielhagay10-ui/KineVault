@@ -13,7 +13,7 @@ export function limbPoseBlock(scene: WorkshopScene, limb: PoseLimb): string | un
   if (limb.endsWith("foot") && scene.studio?.seating) return "Stand up to move feet freely. Seating keeps feet supported.";
   const side = limb.startsWith("left") ? "left" : "right";
   if (scene.equipment && (limb.endsWith("hand") || scene.equipment.slug === "single-cable")) return "Use editable equipment or remove the attached equipment before posing this limb.";
-  const held = scene.studio?.objects.find(object => studioAttachmentSlots(object).some(slot => slot.startsWith(side) && (limb.endsWith("hand") ? !slot.endsWith("ankle") : slot.endsWith("ankle"))));
+  const held = scene.studio?.objects.find(object => object.slug !== "cable-machine" && studioAttachmentSlots(object).some(slot => slot.startsWith(side) && (limb.endsWith("hand") ? !slot.endsWith("ankle") : slot.endsWith("ankle"))));
   if (held) return "Move the attached equipment to pose this limb, or release it first.";
 }
 

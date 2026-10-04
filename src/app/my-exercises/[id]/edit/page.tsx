@@ -67,7 +67,7 @@ export default async function EditPrivateExercisePage({ params, searchParams }: 
           <Link href={`/my-exercises/${record.id}/submit`} className="inline-flex rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-primary hover:bg-muted">Submit for review →</Link>
           <DuplicatePrivateButton privateId={record.id} />
         </div>
-        <div className="mt-8"><PrivateExerciseForm initial={initial} options={options} metadata={metadata} scene={scene} /></div>
+        <div className="mt-8"><PrivateExerciseForm key={JSON.stringify(metadata)} ownerId={identity.userId} initial={initial} options={options} metadata={metadata} scene={scene} /></div>
         <SharePanel privateId={record.id} active={(shares.data?.length ?? 0) > 0} />
       </div>
     </main>

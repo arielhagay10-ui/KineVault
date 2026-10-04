@@ -1,3 +1,4 @@
+import { openWorkshopTool, selectWorkshopObject } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
@@ -7,7 +8,7 @@ import { studioAssetNames } from "../../src/lib/motion/studio";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 test("cable row and pec deck can be added, animated, saved and reloaded", async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(240_000); page.setDefaultTimeout(15_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
@@ -37,9 +38,9 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
       await expect(page.getByRole("dialog").getByRole("button", { name: "Cable row", exact: true })).toBeVisible();
       await expect(page.getByRole("dialog").getByRole("button", { name: "Pec deck", exact: true })).toBeVisible();
       await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
-      await page.getByLabel("Scene objects").getByRole("button", { name: studioAssetNames[slug], exact: true }).click();
+      await selectWorkshopObject(page, studioAssetNames[slug]);
       await expect(page.getByRole("button", { name: "Stop using machine", exact: true })).toHaveAttribute("aria-pressed", "true");
-      await page.getByText("Advanced timeline", { exact: false }).click();
+      await openWorkshopTool(page, "Timeline");
       const artifacts = `.local-artifacts/machines/review/${slug}`;
       mkdirSync(artifacts, { recursive: true });
       for (const view of ["Three-quarter", "Side"]) {
@@ -52,7 +53,9 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
       }
       await page.getByRole("button", { name: "Three-quarter", exact: true }).click();
       if (slug === "pec-deck") {
+        await openWorkshopTool(page, "Contacts");
         await page.getByLabel("Pec deck mode", { exact: true }).selectOption("reverse");
+        await openWorkshopTool(page, "Timeline");
         await expect(page.getByText("Arm opening", { exact: true })).toBeVisible();
       }
       await page.getByRole("button", { name: "Play", exact: true }).click();
@@ -60,15 +63,17 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
       await expect.poll(() => page.getByLabel("Scrub timeline", { exact: true }).inputValue()).not.toBe(first);
       await page.getByRole("button", { name: "Pause", exact: true }).click();
       await page.getByRole("button", { name: /^Start ·/ }).click();
+      await openWorkshopTool(page, "Timeline");
       const travelLabel = slug === "pec-deck" ? "Arm opening percent" : "Row pull percent";
       await page.getByLabel(travelLabel, { exact: true }).fill("42");
       await page.getByLabel(travelLabel, { exact: true }).press("Enter");
-      await page.getByRole("button", { name: "Save scene", exact: true }).click();
+      await page.getByRole("button", { name: "Save", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload();
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
       await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
-      await page.getByLabel("Scene objects").getByRole("button", { name: studioAssetNames[slug], exact: true }).click();
+      await selectWorkshopObject(page, studioAssetNames[slug]);
+      await openWorkshopTool(page, "Timeline");
       await expect(page.getByLabel(travelLabel, { exact: true })).toHaveValue("42");
       if (slug === "pec-deck") {
         await expect(page.getByLabel("Pec deck mode", { exact: true })).toHaveValue("reverse");
@@ -77,16 +82,19 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
         const stored = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", saved.data.content_id).single();
         if (stored.error) throw stored.error;
         expect(stored.data.studio_layout).toMatchObject({ objects: [{ machineMode: "reverse", machineUse: true }], presentation: { highlight: "group:chest" } });
+        await openWorkshopTool(page, "Contacts");
         await page.getByLabel("Pec deck mode", { exact: true }).selectOption("regular");
+        await openWorkshopTool(page, "Timeline");
         await expect(page.getByText("Arm closure", { exact: true })).toBeVisible();
-        await page.getByRole("button", { name: "Save scene", exact: true }).click();
+        await page.getByRole("button", { name: "Save", exact: true }).click();
         await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
         await page.reload();
         await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
         await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
-        await page.getByRole("button", { name: "Select machine", exact: true }).click();
+        await selectWorkshopObject(page, studioAssetNames[slug]);
         await expect(page.getByLabel("Pec deck mode", { exact: true })).toHaveValue("regular");
       }
+      await openWorkshopTool(page, "Contacts");
       await page.getByRole("button", { name: "Stop using machine", exact: true }).click();
       await expect(page.getByRole("button", { name: "Use this machine", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Use this machine", exact: true }).click();

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { Group, Quaternion, Vector3 } from "three";
 import { correctAuthoredArmPath, createAnatomyRig, highlightAnatomyRig, plantAnatomyFeet, poseAnatomyRig } from "./anatomy";
@@ -13,6 +13,53 @@ beforeAll(async () => {
 });
 
 describe("Z-Anatomy integration", () => {
+  it("keeps the home demo dumbbells clear of the torso, hips and thighs throughout the loop", () => {
+    const rig = createAnatomyRig(source);
+    const body = rig.meshes.filter(mesh => /gluteus|vastus|rectus_femoris|adductor|Hip_bone|abdom|pectoralis|latissimus/i.test(mesh.name));
+    const point = new Vector3();
+    try {
+      for (let step = 0; step <= 16; step++) {
+        poseAnatomyRig(rig, sampleWorkshopPose(defaultScene.keyframes, defaultScene.durationMs * step / 16), true);
+        for (const side of ["left", "right"] as const) {
+          const hand = rig.handBones[side];
+          const center = hand.localToWorld(new Vector3(side === "left" ? .03 : -.03, -.15, .13));
+          const shaft = new Vector3(1, 0, 0).transformDirection(hand.matrixWorld);
+          for (const mesh of body) {
+            const positions = mesh.geometry.getAttribute("position");
+            let intersections = 0;
+            for (let vertex = 0; vertex < positions.count; vertex++) {
+              mesh.localToWorld(mesh.getVertexPosition(vertex, point));
+              point.sub(center);
+              const along = point.dot(shaft) / .85;
+              const radial = point.addScaledVector(shaft, -along * .85).length() / .85;
+              const insidePlate = Math.abs(Math.abs(along) - .12) < .035 && radial < .095;
+              const insideHandle = Math.abs(along) < .14 && radial < .024;
+              if (insidePlate || insideHandle) intersections++;
+            }
+            expect(intersections, `${side} ${mesh.name} at ${step}/16`).toBe(0);
+          }
+        }
+      }
+    } finally { rig.dispose(); }
+  });
+  it("shares immutable prepared geometry, preserves viewer highlights and releases GPU ownership once", () => {
+    const first = createAnatomyRig(source), second = createAnatomyRig(source);
+    first.retain(); second.retain();
+    const geometry = first.meshes[0].geometry;
+    const disposeGeometry = vi.fn(); geometry.addEventListener("dispose", disposeGeometry);
+    expect(second.meshes[0].geometry).toBe(geometry);
+    expect(second.skeleton).not.toBe(first.skeleton);
+    expect(new Set(first.meshes.map(mesh => mesh.material)).size).toBe(2);
+    highlightAnatomyRig(first, "group:triceps", false);
+    expect(new Set(first.meshes.map(mesh => mesh.material)).size).toBe(3);
+    expect(new Set(second.meshes.map(mesh => mesh.material)).size).toBe(2);
+    first.dispose(); expect(disposeGeometry).not.toHaveBeenCalled();
+    poseAnatomyRig(second, sampleWorkshopPose(defaultScene.keyframes, 1600));
+    expect(second.bones["left-shoulder"].rotation.z).not.toBe(0);
+    second.dispose(); expect(disposeGeometry).toHaveBeenCalledOnce();
+    second.dispose(); expect(disposeGeometry).toHaveBeenCalledOnce();
+    geometry.removeEventListener("dispose", disposeGeometry);
+  });
   it("presses vertically and keeps lunge weights outside the hips and thighs throughout the rep", () => {
     const rig = createAnatomyRig(source);
     try {

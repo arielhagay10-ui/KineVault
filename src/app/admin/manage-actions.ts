@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
+import { TAXONOMY_CACHE_TAG } from "@/lib/taxonomy-options";
 import { requireRole } from "@/lib/auth";
 import { Constants } from "@/lib/database.types";
 import { taxonomyMutationSchema, taxonomyNameSchema } from "@/lib/moderation/taxonomies";
@@ -56,6 +57,7 @@ export async function saveTaxonomy(_previous: AdminActionState, data: FormData):
     }
     if (error) return { error: mutationError(error) };
   }
+  updateTag(TAXONOMY_CACHE_TAG);
   revalidatePath("/admin/taxonomies");
   revalidatePath("/admin/submissions", "layout");
   return { error: null, message: "Classification saved. The change is in the admin audit history." };

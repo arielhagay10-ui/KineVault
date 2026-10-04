@@ -30,7 +30,7 @@ export type StudioObject = SceneTransform & {
   shoulderAlignment?: "left" | "right";
   elbowLocks?: Partial<Record<"left" | "right", ScenePoint>>;
 };
-export type BenchFacing = "front" | "left" | "right" | "back";
+export type BenchFacing = "front" | "left" | "right" | "back" | "supine" | "prone";
 export type StudioLayout = { body: SceneTransform; objects: StudioObject[]; frontalPlane?: boolean; presentation?: ScenePresentation; seating?: { benchId: string; facing: BenchFacing } };
 export const identityTransform: SceneTransform = { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scale: 1 };
 export const blankWorkshopScene: WorkshopScene = {
@@ -82,9 +82,9 @@ export const defaultScene: WorkshopScene = {
   cameraAngle: "three_quarter",
   equipment: { slug: "dumbbell-pair", x: 0, y: 0, z: 0, scale: 1 },
   keyframes: [
-    { timeMs: 0, poses: { "left-shoulder": { x: 0, y: 0, z: 5 }, "right-shoulder": { x: 0, y: 0, z: -5 } } },
+    { timeMs: 0, poses: { "left-shoulder": { x: 0, y: 0, z: -15 }, "right-shoulder": { x: 0, y: 0, z: 15 } } },
     { timeMs: 1600, poses: { "left-shoulder": { x: 0, y: 0, z: -75 }, "right-shoulder": { x: 0, y: 0, z: 75 } } },
-    { timeMs: 3200, poses: { "left-shoulder": { x: 0, y: 0, z: 5 }, "right-shoulder": { x: 0, y: 0, z: -5 } } },
+    { timeMs: 3200, poses: { "left-shoulder": { x: 0, y: 0, z: -15 }, "right-shoulder": { x: 0, y: 0, z: 15 } } },
   ],
 };
 

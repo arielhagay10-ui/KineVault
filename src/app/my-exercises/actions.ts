@@ -7,7 +7,7 @@ import { parsePrivateExerciseForm, parsePrivateMetadata } from "@/lib/private-ex
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
-export type SaveState = { error: string | null };
+export type SaveState = { error: string | null; field?: string | null };
 
 export async function duplicatePrivateExercise(_previous: SaveState, formData: FormData): Promise<SaveState> {
   const identity = await getIdentity();
@@ -30,10 +30,18 @@ export async function savePrivateExercise(_previous: SaveState, formData: FormDa
   if (!identity) return { error: "Sign in to save a private exercise." };
 
   const parsed = parsePrivateExerciseForm(formData);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the exercise fields." };
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const fields: Record<string, string> = { primaryMuscles: "primaryMuscle", secondaryMuscles: "secondaryMuscle", stabilizerMuscles: "stabilizerMuscle", joints: "joint", jointActions: "jointAction" };
+    const key = String(issue?.path[0] ?? "name");
+    return { error: issue?.message ?? "Check the exercise fields.", field: fields[key] ?? key };
+  }
   const input = parsed.data;
   const metadata = parsePrivateMetadata(formData, input);
-  if (!metadata.success) return { error: metadata.error.issues[0]?.message ?? "Check the detailed classifications." };
+  if (!metadata.success) {
+    const issue = metadata.error.issues[0];
+    return { error: issue?.message ?? "Check the detailed classifications.", field: String(issue?.path[0] ?? "name") };
+  }
   const supabase = await createClient();
   const { data: savedId, error } = await supabase.rpc("save_private_metadata", {
     p_private_id: input.privateId ?? undefined,

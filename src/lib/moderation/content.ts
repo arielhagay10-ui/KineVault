@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { loadPrivateExerciseOptions, type Option, type PrivateExerciseOptions } from "@/lib/private-exercises/options";
+import { type Option, type PrivateExerciseOptions } from "@/lib/private-exercises/options";
+import { loadTaxonomyOptions } from "@/lib/taxonomy-options";
 import { reviewPatchSchema, type ReviewPatch } from "@/lib/moderation/schema";
 
 export type ReviewOptions = PrivateExerciseOptions & {
@@ -9,21 +10,7 @@ export type ReviewOptions = PrivateExerciseOptions & {
 };
 
 export async function loadReviewOptions(): Promise<ReviewOptions> {
-  const supabase = await createClient();
-  const [base, attachments, patterns, grips, stances, planes, sources] = await Promise.all([
-    loadPrivateExerciseOptions(),
-    supabase.from("attachments").select("slug,name").order("name"),
-    supabase.from("movement_patterns").select("slug,name").order("name"),
-    supabase.from("grips").select("slug,name").order("name"),
-    supabase.from("stances").select("slug,name").order("name"),
-    supabase.from("planes_of_motion").select("slug,name").order("name"),
-    supabase.from("resistance_sources").select("slug,name").order("name"),
-  ]);
-  if ([attachments, patterns, grips, stances, planes, sources].some((result) => result.error)) {
-    throw new Error("Review classifications could not be loaded");
-  }
-  return { ...base, attachments: attachments.data ?? [], movementPatterns: patterns.data ?? [],
-    grips: grips.data ?? [], stances: stances.data ?? [], planes: planes.data ?? [], resistanceSources: sources.data ?? [] };
+  return loadTaxonomyOptions();
 }
 
 export async function loadReviewContent(contentId: string): Promise<ReviewPatch | null> {

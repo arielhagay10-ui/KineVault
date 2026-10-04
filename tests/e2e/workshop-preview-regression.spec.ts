@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+
 test("recipe preview reaches ready and survives Strict Mode initialization", async ({ page }) => {
   test.setTimeout(120_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -25,7 +27,7 @@ test("recipe preview reaches ready and survives Strict Mode initialization", asy
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
-    await page.getByRole("button", { name: /Cable row.*Pull to the torso/ }).click();
+    await page.getByRole("button", { name: /^Cable row start to finish/ }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 30000 });
     await expect(page.getByRole("button", { name: "Fit scene", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "Choose equipment", exact: true }).click();

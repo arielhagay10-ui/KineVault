@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page, type Locator } from "@playwright/test";
 import { blankWorkshopScene } from "../../src/lib/motion/workshop";
+import { setWorkshopLanguage, openWorkshopTool } from "./workshop-menu.helpers";
 import { createQuickScene } from "../../src/lib/motion/quick-create";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
@@ -17,6 +18,8 @@ async function drag(page: Page, handle: Locator, dx: number, dy: number, cancel 
   await page.mouse.up();
   await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
 }
+
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
 
 test("hands and feet drag, cancel, undo, and survive saved preview without detaching contacts", async ({ page }) => {
   test.setTimeout(180_000);
@@ -41,7 +44,8 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "View finish", exact: true }).click();
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
-    await expect(page.getByText("Editing pose 2 · 1.60s", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("1");
+    await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("1600");
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await page.getByRole("button", { name: "Front", exact: true }).click();
     await drag(page, page.getByRole("button", { name: "Drag Left hand", exact: true }), 25, -65);
@@ -68,7 +72,7 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await page.getByRole("button", { name: "Drag Right foot", exact: true }).press("ArrowUp");
     await page.screenshot({ path: `${folder}/controls.png`, fullPage: true });
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
-    await page.getByRole("button", { name: "Save privately", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();
     const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single(); if (record.error) throw record.error;
     const saved = await owner.from("exercise_scenes").select("id,studio_layout,motion_style").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
@@ -98,10 +102,11 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(0);
     await expect(page.getByText("Choose Edit this moment to pose the displayed time.")).toBeVisible();
     await page.getByRole("button", { name: "View finish", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
+    await openWorkshopTool(page, "Timeline");
     await page.getByRole("button", { name: "Edit this moment", exact: true }).click();
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
-    await page.getByLabel("Workshop language").selectOption("he");
+    await setWorkshopLanguage(page, "he");
     await expect(page.getByRole("button", { name: "גרירת יד שמאל", exact: true })).toBeVisible();
     await page.setViewportSize({ width: 320, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

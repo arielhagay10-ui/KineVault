@@ -1,10 +1,11 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
 
 export type AppRole = Database["public"]["Enums"]["app_role"];
 
-export async function getIdentity(): Promise<{ userId: string; role: AppRole } | null> {
+async function readIdentity(): Promise<{ userId: string; role: AppRole } | null> {
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
   if (claimsError || !claimsData?.claims.sub) {
@@ -22,8 +23,12 @@ export async function getIdentity(): Promise<{ userId: string; role: AppRole } |
   return { userId: claimsData.claims.sub, role: roleRow.role };
 }
 
+// React caches only this render request; no identities enter the shared data cache.
+export const getIdentity = cache(readIdentity);
+
 export async function requireRole(allowed: readonly AppRole[]) {
-  const identity = await getIdentity();
+  // Mutations always recheck the current claims and database role.
+  const identity = await readIdentity();
   if (!identity || !allowed.includes(identity.role)) {
     throw new Error("Forbidden");
   }

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
 import { captureMotion } from "./lib/capture-motion.mjs";
+import { failRenderClaim } from "./lib/fail-render.mjs";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
@@ -47,9 +48,10 @@ async function renderOne() {
     temporaryDirectory = await mkdtemp(join(tmpdir(), "kinevault-render-"));
     stage = "capture and encode";
     const { webm, mp4, poster } = await captureMotion({ scene,
-      pageUrl: `${appUrl}/internal/render/${job.job_id}`, token: renderToken, directory: temporaryDirectory });
+      pageUrl: `${appUrl}/internal/render/${job.job_id}`, token: renderToken, directory: temporaryDirectory,
+      onMetrics: metrics => process.stdout.write(`Render phases ${JSON.stringify({ jobId: job.job_id, claimId: job.claim_id, ...metrics })}\n`) });
 
-    const prefix = `${job.submission_id}/${job.job_id}`;
+    const prefix = `${job.submission_id}/${job.job_id}/${job.claim_id}`;
     const outputs = [
       [`${prefix}/demo.webm`, webm, "video/webm"],
       [`${prefix}/demo.mp4`, mp4, "video/mp4"],
@@ -63,6 +65,7 @@ async function renderOne() {
     stage = "complete job";
     const { error: completeError } = await supabase.rpc("complete_render_job", {
       p_job_id: job.job_id,
+      p_claim_id: job.claim_id,
       p_asset_group_id: randomUUID(),
       p_webm_path: outputs[0][0], p_mp4_path: outputs[1][0], p_poster_path: outputs[2][0],
     });
@@ -71,8 +74,8 @@ async function renderOne() {
     return true;
   } catch (error) {
     process.stderr.write(`Render stage: ${stage}\n`);
-    if (uploaded.length) await supabase.storage.from("exercise-private").remove(uploaded);
-    await supabase.rpc("fail_render_job", { p_job_id: job.job_id, p_error_code: "render_error" });
+    const failureError = await failRenderClaim(supabase, job, uploaded);
+    if (failureError) process.stderr.write(`Render failure cleanup was not confirmed: ${failureError.message}\n`);
     throw error;
   } finally {
     if (temporaryDirectory) {

@@ -1,8 +1,10 @@
 "use client";
 
+import { WorkshopGuidance } from "./workshop-guidance";
+
 import type { StudioObject } from "@/lib/motion/workshop";
 import { machineGripChoices, type MachineGripChoices, type MachineReachReport } from "@/lib/motion/studio-machines";
-import { translateWorkshopTree, useWorkshopLanguage } from "./workshop-language";
+import { useWorkshopLanguage } from "./workshop-language";
 
 export type WorkshopGripControlsProps = {
   object: StudioObject;
@@ -24,40 +26,40 @@ function PalmPicture({ outward }: { outward: boolean }) {
 }
 
 export function WorkshopGripControls({ object, onChange, onPreviewPose, onRepairRange, reach, disabled }: WorkshopGripControlsProps) {
-  const { language } = useWorkshopLanguage();
+  const { t } = useWorkshopLanguage();
   if (!["cable-row-machine", "pec-deck"].includes(object.slug)) return null;
   const choices = machineGripChoices(object);
   const warnings = reach?.objectId === object.id ? reach.warnings : [];
   const buttonClass = "min-h-11 rounded-md border px-3 py-2 text-base disabled:opacity-50 aria-pressed:border-primary aria-pressed:bg-primary/10";
-  return translateWorkshopTree(<div className="space-y-4">
+  return (<div className="space-y-4">
     <fieldset disabled={disabled} className="space-y-2">
-      <legend className="text-base font-medium">Which way do your palms face?</legend>
+      <legend className="text-base font-medium">{t("Which way do your palms face?")}</legend>
       <div className="grid grid-cols-2 gap-2">
         {(["inward", "outward"] as const).map(machinePalm => <button key={machinePalm} type="button" aria-pressed={choices.machinePalm === machinePalm} onClick={() => onChange({ machinePalm })} className={`${buttonClass} flex flex-col items-center`}>
           <PalmPicture outward={machinePalm === "outward"} />
-          {machinePalm === "inward" ? "Palms toward each other" : "Palms outward"}
+          {machinePalm === "inward" ? t("Palms toward each other") : t("Palms outward")}
         </button>)}
       </div>
     </fieldset>
     <fieldset disabled={disabled} className="space-y-2">
-      <legend className="text-base font-medium">Where do your elbows move?</legend>
+      <legend className="text-base font-medium">{t("Where do your elbows move?")}</legend>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {(["beside-body", "shoulder-height"] as const).map(machineElbowPath => <button key={machineElbowPath} type="button" aria-pressed={choices.machineElbowPath === machineElbowPath} onClick={() => onChange({ machineElbowPath })} className={buttonClass}>
-          {machineElbowPath === "beside-body" ? "Keep elbows beside the body" : "Arms at shoulder height"}
+          {machineElbowPath === "beside-body" ? t("Keep elbows beside the body") : t("Arms at shoulder height")}
         </button>)}
       </div>
     </fieldset>
-    <p className="text-sm text-muted-foreground">Both hands use these choices. Check the palms and wrists at the start and finish.</p>
+    <WorkshopGuidance className="text-sm text-muted-foreground">{t("Both hands use these choices. Check the palms and wrists at the start and finish.")}</WorkshopGuidance>
     {onPreviewPose && <div className="flex flex-wrap gap-2">
-      <button type="button" disabled={disabled} onClick={() => onPreviewPose("start")} className={buttonClass}>Check both hands at start</button>
-      <button type="button" disabled={disabled} onClick={() => onPreviewPose("finish")} className={buttonClass}>Check both hands at finish</button>
+      <button type="button" disabled={disabled} onClick={() => onPreviewPose("start")} className={buttonClass}>{t("Check both hands at start")}</button>
+      <button type="button" disabled={disabled} onClick={() => onPreviewPose("finish")} className={buttonClass}>{t("Check both hands at finish")}</button>
     </div>}
     {warnings.length > 0 && <div role="status" className="space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
-      {warnings.map(warning => <p key={`${warning.side}-${warning.kind}`}><strong>{warning.message}</strong> {warning.repair}</p>)}
+      {warnings.map(warning => <p key={`${warning.side}-${warning.kind}`}><strong>{t(warning.message)}</strong> {t(warning.repair)}</p>)}
       <div className="flex flex-wrap gap-2">
-        {onRepairRange && <button type="button" disabled={disabled} onClick={onRepairRange} className={buttonClass}>Adjust start and finish</button>}
-        <button type="button" disabled={disabled} onClick={() => onChange({ machinePalm: object.machineMode === "reverse" ? "outward" : "inward", machineElbowPath: object.slug === "cable-row-machine" ? "beside-body" : "shoulder-height" })} className={buttonClass}>Use standard palm and elbow choices</button>
+        {onRepairRange && <button type="button" disabled={disabled} onClick={onRepairRange} className={buttonClass}>{t("Adjust start and finish")}</button>}
+        <button type="button" disabled={disabled} onClick={() => onChange({ machinePalm: object.machineMode === "reverse" ? "outward" : "inward", machineElbowPath: object.slug === "cable-row-machine" ? "beside-body" : "shoulder-height" })} className={buttonClass}>{t("Use standard palm and elbow choices")}</button>
       </div>
     </div>}
-  </div>, language);
+  </div>);
 }

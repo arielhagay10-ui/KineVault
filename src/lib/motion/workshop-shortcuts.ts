@@ -20,7 +20,7 @@ export function workshopShortcut(event: ShortcutKey, context: ShortcutContext): 
   if (context.interactive) return null;
   if (key === "?") return "help";
   if (event.shiftKey) return null;
-  if (key === "delete") return "remove";
+  if (key === "delete" || key === "backspace") return "remove";
   if (key === " " || event.code === "Space") return "play";
   if (key === "[" || event.code === "BracketLeft") return "previous";
   if (key === "]" || event.code === "BracketRight") return "next";

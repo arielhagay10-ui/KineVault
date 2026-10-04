@@ -12,6 +12,7 @@ const slug = incline ? "incline-dumbbell-curl" : "seated-dumbbell-curl";
 const name = incline ? "Incline Dumbbell Curl" : "Seated Dumbbell Curl";
 const authoredScene = incline ? inclineCurlScene : seatedCurlScene;
 import { captureMotion } from "./lib/capture-motion.mjs";
+import { requireCurrentCurationClaim } from "./lib/curation-claim.mjs";
 
 process.loadEnvFile(".env.local");
 const app = process.env.RENDER_APP_URL ?? "http://127.0.0.1:3000";
@@ -85,25 +86,27 @@ if (mode === "prepare") {
     const pending = sql("select s.id from public.render_jobs j join public.exercise_submissions s on s.original_content_id=(select content_id from public.exercise_scenes where id=j.scene_id) where j.status in ('queued','running') order by j.queued_at,j.id;").split("\n");
     if (pending.length !== 1 || pending[0] !== manifest.submission) throw Error("Unrelated jobs exist; leave them untouched");
     const [job] = await rpc("claim_render_job");
-    if (job?.submission_id !== manifest.submission) throw Error("Unexpected job");
+    if (job?.submission_id !== manifest.submission || !job.claim_id) throw Error("Unexpected job or missing claim identifier");
     manifest.job = job.job_id;
+    manifest.claimId = job.claim_id;
     await checkpoint();
-  }
+  } else await requireCurrentCurationClaim(service, manifest);
   console.log(`Claimed ${manifest.job}`);
 } else if (mode === "render") {
   if (manifest.rendered) throw Error("Render already completed");
+  await requireCurrentCurationClaim(service, manifest);
   const scene = await rpc("read_render_scene", { p_job_id: manifest.job });
   const files = await captureMotion({ scene, pageUrl: `${app}/internal/render/${manifest.job}`, token: process.env.RENDER_WORKER_TOKEN, directory });
   const paths = {};
   for (const [kind, file] of Object.entries(files)) {
-    paths[kind] = `${manifest.submission}/${manifest.job}/${kind === "poster" ? "poster.webp" : `demo.${kind}`}`;
+    paths[kind] = `${manifest.submission}/${manifest.job}/${manifest.claimId}/${kind === "poster" ? "poster.webp" : `demo.${kind}`}`;
     const { data: exists } = await service.storage.from("exercise-private").exists(paths[kind]);
     if (!exists) {
       const { error } = await service.storage.from("exercise-private").upload(paths[kind], await readFile(file), { contentType: kind === "poster" ? "image/webp" : `video/${kind}` });
       if (error) throw error;
     }
   }
-  await rpc("complete_render_job", { p_job_id: manifest.job, p_asset_group_id: randomUUID(), p_webm_path: paths.webm, p_mp4_path: paths.mp4, p_poster_path: paths.poster });
+  await rpc("complete_render_job", { p_job_id: manifest.job, p_claim_id: manifest.claimId, p_asset_group_id: randomUUID(), p_webm_path: paths.webm, p_mp4_path: paths.mp4, p_poster_path: paths.poster });
   manifest.rendered = true; manifest.paths = paths;
   await checkpoint();
   console.log(`Rendered ${name}`);

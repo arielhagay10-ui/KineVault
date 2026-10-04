@@ -1,7 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { WorkshopLanguageProvider, translateWorkshopTree, useWorkshopLanguage } from "./workshop-language";
+import { WorkshopLanguageProvider, useWorkshopLanguage } from "./workshop-language";
+import { WorkshopGuidance, WorkshopGuidanceProvider } from "./workshop-guidance";
+import { WorkshopComparison } from "./workshop-comparison";
 import { WorkshopGripControls } from "./workshop-grip-controls";
 import { createStudioObject } from "@/lib/motion/studio";
 import { blankWorkshopScene } from "@/lib/motion/workshop";
@@ -9,16 +11,31 @@ import { MotionCanvas } from "./motion-canvas";
 
 describe("workshop translation rendering", () => {
   it("translates intrinsic labels and accessible names without changing input values", () => {
-    const tree = createElement("div", null,
-      createElement("button", { "aria-label": "Choose equipment", title: "Preview" }, "Choose equipment"),
-      createElement("input", { placeholder: "Name your private exercise", defaultValue: "Preview" }),
-      createElement("span", { "data-workshop-translate": "false" }, "Preview"));
-    const markup = renderToStaticMarkup(translateWorkshopTree(tree, "he"));
+    function Labels() {
+      const { t } = useWorkshopLanguage();
+      return createElement("div", null,
+        createElement("button", { "aria-label": t("Choose equipment"), title: t("Preview") }, t("Choose equipment")),
+        createElement("input", { placeholder: t("Name your private exercise"), defaultValue: "Preview" }),
+        createElement("span", { "data-workshop-translate": "false" }, "Preview"));
+    }
+    const markup = renderToStaticMarkup(createElement(WorkshopLanguageProvider, { language: "he" }, createElement(Labels)));
     expect(markup).toContain('aria-label="בחירת ציוד"');
     expect(markup).toContain('title="תצוגה מקדימה"');
     expect(markup).toContain('placeholder="שם לתרגיל הפרטי שלך"');
     expect(markup).toContain('value="Preview"');
     expect(markup).toContain('data-workshop-translate="false">Preview');
+  });
+
+  it("keeps essential guidance after closing the tutorial and labels stacked comparison views", () => {
+    const markup = renderToStaticMarkup(createElement(WorkshopGuidanceProvider, { enabled: false },
+      createElement(WorkshopGuidance, null, "Optional tutorial copy"),
+      createElement(WorkshopGuidance, { essential: true }, "The machine controls this joint")));
+    expect(markup).not.toContain("Optional tutorial copy");
+    expect(markup).toContain("The machine controls this joint");
+    const comparison = renderToStaticMarkup(createElement(WorkshopLanguageProvider, { language: "he" }, createElement(WorkshopComparison, { scene: blankWorkshopScene })));
+    expect(comparison).toContain("grid-cols-1"); expect(comparison).toContain("sm:grid-cols-2");
+    expect(comparison).toContain('aria-label="השוואת תנוחת ההתחלה"');
+    expect(comparison).toContain('aria-label="השוואת תנוחת הסיום"');
   });
 
   it("provides the selected language to nested workshop controls", () => {

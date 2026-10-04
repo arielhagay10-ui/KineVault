@@ -5,12 +5,16 @@ import { replacePrivateShare, revokePrivateShare } from "@/app/my-exercises/shar
 
 export function SharePanel({ privateId, active }: { privateId: string; active: boolean }) {
   const [state, action, pending] = useActionState(replacePrivateShare, { url: null, error: null });
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<{ url: string; error: boolean } | null>(null);
+  const copied = copyState?.url === state.url && !copyState.error;
 
   async function copyLink() {
     if (!state.url) return;
-    await navigator.clipboard.writeText(new URL(state.url, window.location.origin).toString());
-    setCopied(true);
+    const url = state.url;
+    try {
+      await navigator.clipboard.writeText(new URL(url, window.location.origin).toString());
+      setCopyState({ url, error: false });
+    } catch { setCopyState({ url, error: true }); }
   }
 
   return (
@@ -36,8 +40,11 @@ export function SharePanel({ privateId, active }: { privateId: string; active: b
         <p className="text-sm font-semibold text-primary">New link created. Copy it now; it will not be shown again.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <input readOnly aria-label="Share link" value={state.url} className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm" />
-          <button type="button" onClick={copyLink} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">{copied ? "Copied" : "Copy link"}</button>
+          <button type="button" onClick={copyLink} className="min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/85">{copied ? "Copied" : "Copy link"}</button>
         </div>
+        {copyState?.url === state.url && <p role={copyState.error ? "alert" : "status"} className={`mt-3 text-sm ${copyState.error ? "text-destructive" : "text-primary"}`}>
+          {copyState.error ? "Could not copy. Select the link and copy it manually." : "Share link copied."}
+        </p>}
       </div>}
       {state.error && <p role="alert" className="mt-4 text-sm text-red-700 dark:text-red-300">{state.error}</p>}
     </section>

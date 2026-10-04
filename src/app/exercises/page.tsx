@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, Dumbbell, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, BookOpen, Dumbbell, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExerciseCards } from "@/components/catalog/exercise-cards";
 import { FilterSection } from "@/components/catalog/filter-section";
 import { MobileFilters } from "@/components/catalog/mobile-filters";
 import { createClient } from "@/lib/supabase/server";
+import { loadTaxonomyOptions } from "@/lib/taxonomy-options";
 import {
   filterParamNames, nextPageUrl, parseExploreParams, type ExploreCursor, type RawSearchParams,
 } from "@/lib/search/params";
@@ -41,8 +42,7 @@ export default async function ExplorePage({ searchParams }: Props) {
   }
 
   const supabase = await createClient();
-  const [results, muscles, joints, actions, families, patterns, planes,
-    categories, equipment, attachments, sources, positions] = await Promise.all([
+  const [results, options] = await Promise.all([
     supabase.rpc("explore_exercises", {
       search_text: params.query || undefined,
       muscle_slugs: params.muscles,
@@ -72,21 +72,10 @@ export default async function ExplorePage({ searchParams }: Props) {
       cursor_id: params.cursor?.id,
       page_size: 24,
     }),
-    supabase.from("muscles").select("slug,name").order("name"),
-    supabase.from("joints").select("id,slug,name").order("name"),
-    supabase.from("joint_actions").select("slug,name,joint_id").order("slug"),
-    supabase.from("exercise_families").select("slug,name").order("name"),
-    supabase.from("movement_patterns").select("slug,name").order("name"),
-    supabase.from("planes_of_motion").select("slug,name").order("name"),
-    supabase.from("equipment_categories").select("slug,name").order("name"),
-    supabase.from("equipment").select("slug,name").order("name"),
-    supabase.from("attachments").select("slug,name").order("name"),
-    supabase.from("resistance_sources").select("slug,name").order("name"),
-    supabase.from("body_positions").select("slug,name").order("name"),
+    loadTaxonomyOptions(),
   ]);
 
-  if ([results, muscles, joints, actions, families, patterns, planes, categories,
-    equipment, attachments, sources, positions].some((result) => result.error)) {
+  if (results.error) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-24">
         <h1 className="text-3xl font-semibold">Explore is unavailable</h1>
@@ -107,29 +96,29 @@ export default async function ExplorePage({ searchParams }: Props) {
     if (params.sort === "most_favorited") nextCursor.favoriteCount = last.favorite_count;
   }
 
-  const jointNames = new Map((joints.data ?? []).map((joint) => [joint.id, joint.name]));
   const activeFilterCount = filterParamNames.reduce((count, [field]) => count + params[field].length, 0);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-card/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3.5 lg:px-10">
           <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-          <Link href="/dashboard" className="text-sm font-medium text-muted-foreground">My library</Link>
+          <Link href="/dashboard" className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-[8px] border border-input px-4 py-2 text-sm font-semibold text-primary hover:bg-muted"><BookOpen size={17} aria-hidden />My library</Link>
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-6 pb-20 pt-12 lg:px-10">
-        <div className="mb-10 max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Explore the database</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">Find the movement you mean.</h1>
-          <p className="mt-4 text-muted-foreground">Search exercises and combine anatomical, equipment, and resistance filters.</p>
+      <div className="mx-auto max-w-7xl px-6 pb-20 pt-7 sm:pt-8 lg:px-10">
+        <div className="mb-7 max-w-2xl">
+          <p className="text-[0.8125rem] font-medium text-primary">Explore the database</p>
+          <h1 className="mt-2 text-[1.9375rem] font-semibold leading-[1.16] tracking-[-0.035em] sm:text-[2.375rem] sm:leading-[1.15]">Find the movement you mean.</h1>
+          <p className="mt-3 text-[0.9375rem] leading-[1.65] text-muted-foreground">Search exercises and combine anatomical, equipment, and resistance filters.</p>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[285px_minmax(0,1fr)]">
           <aside>
             <MobileFilters count={activeFilterCount}>
-            <form action="/exercises" method="get" className="rounded-2xl border border-border bg-card p-5 lg:sticky lg:top-6">
+            <form action="/exercises" method="get" className="flex flex-col rounded-[12px] border border-border bg-card shadow-[0_2px_5px_rgb(36_58_78/0.025)] lg:sticky lg:top-6 lg:max-h-[max(20rem,calc(100dvh-300px))]">
+              <div className="min-h-0 max-h-[52dvh] overflow-y-auto p-5 [scrollbar-gutter:stable] lg:max-h-none lg:flex-1">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal size={18} /> Filters</h2>
                 {activeFilterCount > 0 && <Link href="/exercises" className="text-xs font-medium text-primary">Clear all</Link>}
@@ -139,63 +128,74 @@ export default async function ExplorePage({ searchParams }: Props) {
               <div className="relative mb-5">
                 <Search size={17} className="absolute left-3 top-3 text-muted-foreground" />
                 <input id="exercise-search" name="q" defaultValue={params.query} placeholder="Name or alias"
-                  className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring" />
+                  className="min-h-11 w-full rounded-[8px] border border-input bg-card py-2.5 pl-10 pr-3 text-sm placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring" />
               </div>
 
+              <FilterSection title="Any muscle role" name="muscle" options={options.muscles} selected={params.muscles} />
+              <FilterSection title="Joints" name="joint" options={(options.joints).map(({ slug, name }) => ({ slug, name }))} selected={params.joints} />
+              <FilterSection title="Exercise families" name="family" options={options.families} selected={params.families} />
+              <FilterHeading title="Equipment" />
+              <FilterSection title="Equipment" name="equipment" options={options.equipment} selected={params.equipment} />
+              <FilterSection title="Joint actions" name="jointAction" options={options.jointActions} selected={params.jointActions} defaultOpen />
+              <details open={filterParamNames.some(([field]) => !["muscles", "joints", "jointActions", "equipment", "families"].includes(field) && params[field].length > 0)} className="border-t border-border py-1.5">
+                <summary className="min-h-11 cursor-pointer content-center text-sm font-semibold">Advanced classifications</summary>
+                <div className="mt-2">
               <FilterHeading title="Anatomy" />
-              <FilterSection title="Any muscle role" name="muscle" options={muscles.data ?? []} selected={params.muscles} />
-              <FilterSection title="Primary muscles" name="primaryMuscle" options={muscles.data ?? []} selected={params.primaryMuscles} />
-              <FilterSection title="Secondary muscles" name="secondaryMuscle" options={muscles.data ?? []} selected={params.secondaryMuscles} />
-              <FilterSection title="Stabilizer muscles" name="stabilizerMuscle" options={muscles.data ?? []} selected={params.stabilizerMuscles} />
-              <FilterSection title="Joints" name="joint" options={(joints.data ?? []).map(({ slug, name }) => ({ slug, name }))} selected={params.joints} />
-              <details open className="border-t border-border py-4">
-                <summary className="cursor-pointer font-semibold">Joint actions</summary>
-                <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-2">
-                  {(actions.data ?? []).map((action) => (
-                    <label key={action.slug} className="flex cursor-pointer items-start gap-2 text-sm text-muted-foreground">
-                      <input type="checkbox" name="jointAction" value={action.slug}
-                        defaultChecked={params.jointActions.includes(action.slug)} className="mt-0.5 accent-primary" />
-                      <span>{jointNames.get(action.joint_id) ?? "Joint"} {action.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </details>
+              <FilterSection title="Primary muscles" name="primaryMuscle" options={options.muscles} selected={params.primaryMuscles} />
+              <FilterSection title="Secondary muscles" name="secondaryMuscle" options={options.muscles} selected={params.secondaryMuscles} />
+              <FilterSection title="Stabilizer muscles" name="stabilizerMuscle" options={options.muscles} selected={params.stabilizerMuscles} />
               <FilterHeading title="Movement" />
-              <FilterSection title="Exercise families" name="family" options={families.data ?? []} selected={params.families} />
-              <FilterSection title="Movement patterns" name="movementPattern" options={patterns.data ?? []} selected={params.movementPatterns} />
-              <FilterSection title="Plane of motion" name="plane" options={planes.data ?? []} selected={params.planes} />
+              <FilterSection title="Movement patterns" name="movementPattern" options={options.movementPatterns} selected={params.movementPatterns} />
+              <FilterSection title="Plane of motion" name="plane" options={options.planes} selected={params.planes} />
               <FilterSection title="Mechanic" name="mechanic" options={optionList(mechanicOptions)} selected={params.mechanics} />
               <FilterSection title="Force type" name="forceType" options={optionList(forceOptions)} selected={params.forceTypes} />
               <FilterSection title="Laterality" name="laterality" options={optionList(lateralityOptions)} selected={params.lateralities} />
-              <FilterHeading title="Equipment" />
-              <FilterSection title="Equipment category" name="equipmentCategory" options={categories.data ?? []} selected={params.equipmentCategories} />
-              <FilterSection title="Equipment" name="equipment" options={equipment.data ?? []} selected={params.equipment} />
-              <FilterSection title="Attachments" name="attachment" options={attachments.data ?? []} selected={params.attachments} />
+              <FilterSection title="Equipment category" name="equipmentCategory" options={options.equipmentCategories} selected={params.equipmentCategories} />
+              <FilterSection title="Attachments" name="attachment" options={options.attachments} selected={params.attachments} />
               <FilterHeading title="Biomechanics" />
-              <FilterSection title="Resistance source" name="resistanceSource" options={sources.data ?? []} selected={params.resistanceSources} />
+              <FilterSection title="Resistance source" name="resistanceSource" options={options.resistanceSources} selected={params.resistanceSources} />
               <FilterSection title="Resistance profile" name="resistanceProfile"
                 options={profileOptions.map(([slug, name]) => ({ slug, name }))} selected={params.resistanceProfiles} />
               <FilterSection title="Peak resistance" name="peakPosition" options={optionList(peakOptions)} selected={params.peakPositions} />
               <FilterHeading title="Other" />
-              <FilterSection title="Body position" name="bodyPosition" options={positions.data ?? []} selected={params.bodyPositions} />
+              <FilterSection title="Body position" name="bodyPosition" options={options.bodyPositions} selected={params.bodyPositions} />
               <FilterSection title="Difficulty" name="difficulty" options={optionList(difficultyOptions)} selected={params.difficulties} />
 
+                </div>
+              </details>
               <label className="mt-4 block text-sm font-semibold" htmlFor="sort">Sort by</label>
               <select id="sort" name="sort" defaultValue={params.sort}
-                className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm">
+                className="mt-2 min-h-11 w-full rounded-[8px] border border-input bg-card px-3 py-2.5 text-sm">
                 <option value="alphabetical">Alphabetical</option>
                 <option value="newest">Newest</option>
                 <option value="most_favorited">Most favorited</option>
               </select>
-              <Button type="submit" className="mt-5 w-full">Apply filters <ArrowRight size={16} /></Button>
-              <p className="mt-3 text-xs leading-5 text-muted-foreground">Every selected value must match.</p>
+              </div>
+              <div className="shrink-0 rounded-b-[12px] border-t bg-card px-5 py-4">
+                <Button type="submit" className="min-h-11 w-full">Apply filters <ArrowRight size={16} /></Button>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">Every selected value must match.</p>
+              </div>
             </form>
             </MobileFilters>
           </aside>
 
           <section aria-label="Search results">
+            {activeFilterCount > 0 && <ul aria-label="Selected filters" className="mb-5 flex flex-wrap gap-2">
+              {filterParamNames.flatMap(([field, name]) => params[field].map(value => {
+                const taxonomy = options[field as keyof typeof options];
+                const label = taxonomy?.find(option => option.slug === value)?.name ?? value.replaceAll("_", " ").replaceAll("-", " ");
+                const query = new URLSearchParams();
+                if (params.query) query.set("q", params.query);
+                if (params.sort !== "alphabetical") query.set("sort", params.sort);
+                for (const [otherField, otherName] of filterParamNames) for (const selected of params[otherField]) {
+                  if (otherName !== name || selected !== value) query.append(otherName, selected);
+                }
+                return <li key={`${name}-${value}`}><Link href={`/exercises?${query}`} aria-label={`Remove ${label} filter`}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border bg-card px-3 text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">{label}<span aria-hidden>×</span></Link></li>;
+              }))}
+            </ul>}
             <div className="mb-5 flex items-center justify-between gap-4">
-              <p className="text-sm font-medium text-muted-foreground">{visibleRows.length} {visibleRows.length === 1 ? "exercise" : "exercises"} on this page</p>
+              <p className="text-sm font-medium text-foreground">{visibleRows.length} {visibleRows.length === 1 ? "exercise" : "exercises"} on this page</p>
               {activeFilterCount > 0 && <p className="text-xs text-muted-foreground">{activeFilterCount} active filters</p>}
             </div>
             {visibleRows.length === 0 ? (
@@ -218,7 +218,7 @@ export default async function ExplorePage({ searchParams }: Props) {
             )}
             {nextCursor && (
               <Link href={nextPageUrl(params, nextCursor)}
-                className="mt-8 inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-primary hover:bg-muted">
+                className="mt-8 inline-flex items-center gap-2 rounded-[12px] border border-border bg-card px-5 py-3 text-sm font-semibold text-primary hover:bg-muted">
                 Next page <ArrowRight size={16} />
               </Link>
             )}
@@ -230,5 +230,5 @@ export default async function ExplorePage({ searchParams }: Props) {
 }
 
 function FilterHeading({ title }: { title: string }) {
-  return <h3 className="mt-7 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{title}</h3>;
+  return <h3 className="mt-[18px] pb-2 text-[0.8125rem] font-semibold text-muted-foreground">{title}</h3>;
 }

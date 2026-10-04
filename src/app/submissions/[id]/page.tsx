@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { withdrawSubmission } from "@/app/submissions/actions";
-import { SharedMotion } from "@/components/character/shared-motion";
+import { MotionInspector } from "@/components/character/motion-inspector";
+import { MediaGallery } from "@/components/catalog/media-gallery";
 import { getIdentity } from "@/lib/auth";
 import { loadPrivateRenderMedia } from "@/lib/media/private-media";
 import { loadWorkshopScene } from "@/lib/motion/load-scene";
@@ -59,13 +60,12 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
       {content.data.short_description && <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">{content.data.short_description}</p>}
       {(renderedMedia?.webm || renderedMedia?.mp4) && <section className="mt-9 rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">Rendered demonstration</h2><span className="text-xs text-muted-foreground">Private review asset</span></div>
-        <video autoPlay muted loop playsInline controls poster={renderedMedia.poster ?? undefined} className="aspect-square w-full rounded-xl bg-muted object-contain">
-          {renderedMedia.webm && <source src={renderedMedia.webm} type="video/webm" />}
-          {renderedMedia.mp4 && <source src={renderedMedia.mp4} type="video/mp4" />}
-        </video>
+        <MediaGallery groups={[{ id, presentation: "anatomy", angle: scene?.cameraAngle ?? null,
+          webm: renderedMedia.webm ?? undefined, mp4: renderedMedia.mp4 ?? undefined,
+          poster: renderedMedia.poster ?? undefined, license: "CC BY-SA 4.0", credit: "Z-Anatomy / BodyParts3D" }]} />
       </section>}
       {renderJob && renderJob.status !== "succeeded" && <p role="status" className="mt-6 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">Demonstration render: {renderJob.status.replaceAll("_", " ")}{renderJob.status === "failed" ? ". A reviewer can request another attempt." : "."}</p>}
-      {scene && <SharedMotion scene={scene} />}
+      {scene && <MotionInspector scene={scene} />}
       <div className="mt-8 grid gap-5 md:grid-cols-2">
         <section className="rounded-2xl border border-border bg-card p-6">
           <h2 className="text-xl font-semibold">Original classifications</h2>

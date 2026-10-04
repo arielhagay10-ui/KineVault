@@ -9,11 +9,20 @@ export function mediaObjectKey(item: StorageObject) {
 }
 
 export async function signMediaObjects(objects: StorageObject[]) {
-  const supabase = await createClient();
   const resolved = await resolveRenderReplacements(objects);
-  const originalKeys = new Map(resolved.map((item, index) => [mediaObjectKey(item), mediaObjectKey(objects[index])]));
+  const signed = await signResolvedMediaObjects(resolved);
+  return new Map(objects.flatMap((item, index): [string, string][] => {
+    const url = signed.get(mediaObjectKey(resolved[index]));
+    return url ? [[mediaObjectKey(item), url]] : [];
+  }));
+}
+
+/** Sign already-resolved records without looking up replacement renders again. */
+export async function signResolvedMediaObjects(objects: StorageObject[]) {
+  if (!objects.length) return new Map<string, string>();
+  const supabase = await createClient();
   const buckets = new Map<string, Set<string>>();
-  for (const object of resolved) {
+  for (const object of objects) {
     const paths = buckets.get(object.storage_bucket) ?? new Set<string>();
     paths.add(object.storage_path);
     buckets.set(object.storage_bucket, paths);
@@ -22,7 +31,7 @@ export async function signMediaObjects(objects: StorageObject[]) {
     const { data, error } = await supabase.storage.from(bucket).createSignedUrls([...paths], 900);
     if (error) return [];
     return (data ?? []).flatMap((item): [string, string][] =>
-      item.signedUrl && item.path ? [[originalKeys.get(`${bucket}/${item.path}`) ?? `${bucket}/${item.path}`, item.signedUrl]] : []);
+      item.signedUrl && item.path ? [[`${bucket}/${item.path}`, item.signedUrl]] : []);
   }));
   return new Map<string, string>(results.flat());
 }

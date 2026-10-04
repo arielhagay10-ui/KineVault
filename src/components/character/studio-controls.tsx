@@ -1,9 +1,10 @@
 "use client";
 
+import { useMotionFrame } from "./motion-frame";
 import { createPortal, useFrame, useThree } from "@react-three/fiber";
 import { TransformControls } from "@react-three/drei";
-import { Fragment, useRef, type ReactNode } from "react";
-import { Group, Object3D, Quaternion, Vector3 } from "three";
+import { Fragment, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { BoxHelper, Group, Object3D, Quaternion, Vector3 } from "three";
 import type { AnatomyRig } from "@/lib/motion/anatomy";
 import { readJointAngles, readSceneTransform, studioPointFromWorld, studioPointToWorld } from "@/lib/motion/studio";
 import { constrainSupportedWeight, reachStudioGrip, studioForearmReach, weightGripPoint } from "@/lib/motion/studio-grip";
@@ -21,6 +22,7 @@ import { StudioLimbDrag } from "./studio-limb-drag";
 
 export type StudioSelection = { kind: "body" } | { kind: "joint"; slug: JointSlug } | { kind: "object"; id: string } | null;
 export type StudioEditor = {
+  adjusting?: boolean;
   limbPosing?: boolean;
   limbPose?: RigPose;
   blockedLimbs?: PoseLimb[];
@@ -37,6 +39,7 @@ export type StudioEditor = {
   frontalPlane?: boolean;
   selection: StudioSelection; tool: "select" | "translate" | "rotate" | "scale"; snap: boolean; sensitivity: number; playing: boolean; dragging: boolean; posing: boolean;
   onSelect: (selection: StudioSelection) => void;
+  onActivate?: (selection: StudioSelection) => void;
   onBodyChange: (transform: SceneTransform) => void;
   onObjectChange: (id: string, transform: SceneTransform) => void;
   onJointChange: (slug: JointSlug, angles: JointAngles) => void;
@@ -98,7 +101,8 @@ export function StudioBody({ transform, rig, editor, children }: { transform: Sc
   const dragEvents = useStudioDrag(group, { kind: "body" }, editor, target => editor?.onBodyChange(readSceneTransform(target)));
   return <>
     <group ref={group} {...dragEvents} position={[transform.x, transform.y, transform.z]} rotation={[transform.rotationX, transform.rotationY, transform.rotationZ].map(value => value * Math.PI / 180) as [number, number, number]} scale={transform.scale}
-      onClick={editor && editor.interactionEnabled !== false ? event => { event.stopPropagation(); if (event.delta < 3) editor.onSelect({ kind: "body" }); } : undefined}>
+      onClick={editor && editor.interactionEnabled !== false ? event => { event.stopPropagation(); if (event.delta < 3) editor.onSelect({ kind: "body" }); } : undefined}
+      onDoubleClick={editor?.onActivate ? event => { event.stopPropagation(); if (event.delta < 3) editor.onActivate?.({ kind: "body" }); } : undefined}>
       {children}
     </group>
     {editor && editor.interactionEnabled !== false && !editor.playing && <>
@@ -142,14 +146,14 @@ function Weights({ barbell }: { barbell: boolean }) {
 export function StudioEquipment({ objects, body, rig, pose, timeMs, editor }: { objects: StudioObject[]; body: SceneTransform; rig: AnatomyRig; pose: RigPose; timeMs: number; editor?: StudioEditor }) {
   const geometry = useRef(new Map<string, Group>());
   const placementSnapshot = JSON.stringify({ objects, body, pose, timeMs, supports: editor?.supportObjectIds });
-  return <>{objects.map(object => <StudioAsset key={object.id} object={sampleStudioObject(object, timeMs)} body={body} rig={rig} pose={pose} editor={editor} onGeometry={group => { if (group) geometry.current.set(object.id, group); else geometry.current.delete(object.id); }} />)}<StudioPlacementAdvisory objects={objects} body={body} rig={rig} geometry={geometry} editor={editor} placementSnapshot={placementSnapshot} /></>;
+  return <>{objects.map(object => <StudioAsset key={object.id} object={object} body={body} rig={rig} pose={pose} editor={editor} onGeometry={group => { if (group) geometry.current.set(object.id, group); else geometry.current.delete(object.id); }} />)}<StudioPlacementAdvisory objects={objects} body={body} rig={rig} geometry={geometry} editor={editor} placementSnapshot={placementSnapshot} /></>;
 }
 
 /** Registered after the equipment solvers, so bounds use the final held/machine pose. */
 function StudioPlacementAdvisory({ objects, body, rig, geometry, editor, placementSnapshot }: { objects: StudioObject[]; body: SceneTransform; rig: AnatomyRig; geometry: React.RefObject<Map<string, Group>>; editor?: StudioEditor; placementSnapshot: string }) {
   const lastPlacement = useRef<string | null>(null);
   useFrame(() => {
-    if (!editor?.onPlacementOverlap || editor.playing || editor.dragging) return;
+    if (!editor?.onPlacementOverlap || editor.playing || editor.dragging || editor.adjusting) return;
     rig.root.updateWorldMatrix(true, true);
     const solvedPose = Object.values(rig.bones).map(bone => bone.matrixWorld.elements);
     const snapshot = JSON.stringify({ placementSnapshot, solvedPose });
@@ -157,25 +161,44 @@ function StudioPlacementAdvisory({ objects, body, rig, geometry, editor, placeme
     lastPlacement.current = snapshot;
     for (const object of objects) {
       const mesh = geometry.current.get(object.id);
-      const overlap = !!mesh && needsPlacementAdvisory(object, editor.supportObjectIds) && equipmentBoundsOverlap(mesh, placementBodyBounds(rig.root, snapshot), .015 * body.scale);
+      const overlap = !!mesh && needsPlacementAdvisory(object, editor.supportObjectIds) && equipmentBoundsOverlap(mesh, placementBodyBounds(rig.root, JSON.stringify(solvedPose)), .015 * body.scale);
       editor.onPlacementOverlap(object.id, overlap);
     }
   });
   return null;
 }
 
+function SelectionOutline({ target }: { target: React.RefObject<Group> }) {
+  const outline = useMemo(() => new BoxHelper(new Group(), "#2b9891"), []);
+  useEffect(() => () => { outline.geometry.dispose(); outline.material.dispose(); }, [outline]);
+  useFrame(() => { if (target.current) outline.setFromObject(target.current); });
+  return <primitive object={outline} />;
+}
+
 function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: StudioObject; body: SceneTransform; rig: AnatomyRig; pose: RigPose; editor?: StudioEditor; onGeometry: (group: Group | null) => void }) {
   const group = useRef<Group>(null!);
+  const frameRef = useMotionFrame();
+  const currentObject = useRef(object);
+  const scratch = useMemo(() => ({ rotation: new Quaternion(), center: new Vector3(), capturedElbow: new Vector3() }), []);
   const selected = editor?.selection?.kind === "object" && editor.selection.id === object.id;
   const lastReach = useRef<boolean | null>(null);
   const captured = useRef<StudioEditor["captureElbow"]>(null);
   const dragEvents = useStudioDrag(group, { kind: "object", id: object.id }, editor, target => editor?.onObjectChange(object.id, readSceneTransform(target)));
   useFrame(() => {
+    const liveObject = sampleStudioObject(object, frameRef?.current.timeMs ?? 0);
+    currentObject.current = liveObject;
+    if (group.current && !editor?.dragging) {
+      group.current.position.set(liveObject.x, liveObject.y, liveObject.z);
+      group.current.rotation.set(liveObject.rotationX * Math.PI / 180, liveObject.rotationY * Math.PI / 180, liveObject.rotationZ * Math.PI / 180);
+      group.current.scale.setScalar(liveObject.scale);
+      group.current.updateWorldMatrix(true, true);
+    }
+    const livePose = frameRef?.current.pose ?? pose;
     if (!group.current || object.attachment === "none" || !["barbell", "dumbbell", "kettlebell"].includes(object.slug)) return;
     group.current.updateWorldMatrix(true, false);
     const sides: ("left" | "right")[] = object.attachment === "both" ? ["left", "right"] : object.attachment === "left" || object.attachment === "right" ? [object.attachment] : [];
-    const rotation = group.current.getWorldQuaternion(new Quaternion());
-    const center = group.current.getWorldPosition(new Vector3());
+    const rotation = group.current.getWorldQuaternion(scratch.rotation);
+    const center = group.current.getWorldPosition(scratch.center);
     const supports = sides.flatMap(side => {
       const lock = object.elbowLocks?.[side];
       if (!lock) return [];
@@ -190,19 +213,20 @@ function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: 
     for (const side of sides) {
       const grip = group.current.localToWorld(weightGripPoint(object, side));
       const lock = object.elbowLocks?.[side];
-      reachable = reachStudioGrip(rig, side, grip, rotation, pose[`${side}-wrist`], lock ? studioPointToWorld(lock, body) : undefined) < 0.005 && reachable;
+      reachable = reachStudioGrip(rig, side, grip, rotation, livePose[`${side}-wrist`], lock ? studioPointToWorld(lock, body) : undefined) < 0.005 && reachable;
     }
     const request = editor?.captureElbow;
     if (request?.objectId === object.id && request !== captured.current) {
       captured.current = request;
-      editor?.onCaptureElbow?.(object.id, request.side, studioPointFromWorld(rig.bones[`${request.side}-elbow`].getWorldPosition(new Vector3()), body));
+      editor?.onCaptureElbow?.(object.id, request.side, studioPointFromWorld(rig.bones[`${request.side}-elbow`].getWorldPosition(scratch.capturedElbow), body));
     }
     if (lastReach.current !== reachable) { lastReach.current = reachable; editor?.onGripReach(object.id, reachable); }
-  });
+  }, -1);
   return <>
     <group ref={group} {...dragEvents} position={[object.x, object.y, object.z]} rotation={[object.rotationX, object.rotationY, object.rotationZ].map(value => value * Math.PI / 180) as [number, number, number]} scale={object.scale}
-      onClick={editor && editor.interactionEnabled !== false ? event => { event.stopPropagation(); if (event.delta < 3) editor.onSelect({ kind: "object", id: object.id }); } : undefined}>
-      <group ref={onGeometry}>{isStudioMachine(object.slug) ? <StudioMachine object={object} editor={editor} /> : object.slug === "cable-machine" ? <StudioCable object={object} rig={rig} group={group} pose={pose} editor={editor} />
+      onClick={editor && editor.interactionEnabled !== false ? event => { event.stopPropagation(); if (event.delta < 3) editor.onSelect({ kind: "object", id: object.id }); } : undefined}
+      onDoubleClick={editor?.onActivate ? event => { event.stopPropagation(); if (event.delta < 3) editor.onActivate?.({ kind: "object", id: object.id }); } : undefined}>
+      <group ref={onGeometry}>{isStudioMachine(object.slug) ? <StudioMachine object={object} currentObject={currentObject} editor={editor} /> : object.slug === "cable-machine" ? <StudioCable object={object} currentObject={currentObject} rig={rig} group={group} pose={pose} editor={editor} />
         : object.slug === "kettlebell" ? <Kettlebell both={object.attachment === "both"} />
         : object.slug === "bench" ? <AdjustableBench angle={object.benchAngle} />
         : object.slug === "squat-rack" ? <>
@@ -213,6 +237,7 @@ function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: 
         </> : <Weights barbell={object.slug === "barbell"} />}</group>
       {selected && <mesh position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.45, 0.48, 48]} /><meshBasicMaterial color="#2b9891" /></mesh>}
     </group>
+    {selected && <SelectionOutline target={group} />}
     {editor && editor.interactionEnabled !== false && !editor.placementLockedIds?.includes(object.id) && selected && editor.tool !== "select" && !editor.playing && <Handles object={group} mode={editor.tool} editor={editor} onCommit={target => editor.onObjectChange(object.id, readSceneTransform(target))} />}
   </>;
 }

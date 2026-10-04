@@ -7,7 +7,7 @@ const shortcuts = [
   ["Redo", "Ctrl / ⌘ + Shift + Z · Ctrl + Y"],
   ["Save scene", "Ctrl / ⌘ + S"],
   ["Duplicate selected equipment", "Ctrl / ⌘ + D"],
-  ["Remove selected equipment", "Delete"],
+  ["Remove selected equipment", "Backspace / Delete"],
   ["Play / pause", "Space"],
   ["Previous / next pose", "[ / ]"],
   ["Move with mouse / Camera", "E / C"],

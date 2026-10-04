@@ -38,10 +38,17 @@ test("real motion renders stay private until approval and play publicly afterwar
   const { data: submissionId, error: submitError } = await owner.rpc("submit_private_exercise", { p_private_id: privateId, p_duplicate_disposition: "new" });
   if (submitError) throw submitError;
   const { data: submission } = await owner.from("exercise_submissions").select("original_content_id").eq("id", submissionId).single();
+  // Prioritize only this fixture; existing development render jobs remain untouched.
+  const renderFixture = async (contentId: string) => {
+    const validatedId = z.uuid().parse(contentId);
+    execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
+      `update public.render_jobs job set queued_at = '1970-01-01' where job.status = 'queued' and job.scene_id in (select id from public.exercise_scenes where content_id = '${validatedId}');`], { stdio: "pipe" });
+    await run(process.execPath, ["scripts/render-worker.mjs", "--once"], { timeout: 90_000 });
+  };
   for (let attempt = 0; attempt < 8; attempt++) {
     const { data: media } = await owner.from("exercise_media").select("kind,storage_path").eq("content_id", submission!.original_content_id);
     if (media?.length === 3) break;
-    await run(process.execPath, ["scripts/render-worker.mjs", "--once"], { timeout: 90_000 });
+    await renderFixture(submission!.original_content_id);
   }
   const { data: privateMedia } = await owner.from("exercise_media").select("storage_path").eq("content_id", submission!.original_content_id);
   expect(privateMedia).toHaveLength(3);
@@ -104,7 +111,7 @@ test("real motion renders stay private until approval and play publicly afterwar
   const { data: curlSubmission, error: curlSubmitError } = await owner.rpc("submit_private_exercise", { p_private_id: curlId, p_duplicate_disposition: "new" });
   if (curlSubmitError) throw curlSubmitError;
   const { data: curlSnapshot } = await owner.from("exercise_submissions").select("original_content_id").eq("id", curlSubmission).single();
-  await run(process.execPath, ["scripts/render-worker.mjs", "--once"], { timeout: 90_000 });
+  await renderFixture(curlSnapshot!.original_content_id);
   const { data: curlMedia } = await owner.from("exercise_media").select("kind,storage_path").eq("content_id", curlSnapshot!.original_content_id);
   expect(curlMedia).toHaveLength(3);
   for (const asset of curlMedia!) {

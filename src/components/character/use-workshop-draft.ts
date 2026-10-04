@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { saveWorkshopScene } from "@/app/my-exercises/[id]/workshop/actions";
 import { DraftSaveQueue, clearDraftRecoveryCopies, confirmDraftRecovery, draftRecoveryKey, draftSnapshot, migrateDraftRecovery, persistDraftRecovery, readDraftRecovery, removeOwnedDraftRecovery, type DraftRecovery } from "@/lib/motion/workshop-draft";
 import type { WorkshopScene } from "@/lib/motion/workshop";
@@ -21,8 +21,8 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
   const [lastSaved, setLastSaved] = useState({ scene: initialScene, name: initialName });
   const key = draftRecoveryKey(ownerId, savedId);
   const storageKey = useRef(key);
-  const snapshot = draftSnapshot({ scene, name });
-  const [baseline, setBaseline] = useState(draftSnapshot({ scene: initialScene, name: initialName }));
+  const snapshot = useMemo(() => draftSnapshot({ scene, name }), [scene, name]);
+  const [baseline, setBaseline] = useState(() => draftSnapshot({ scene: initialScene, name: initialName }));
   const latest = useRef({ scene, name, snapshot });
   const mounted = useRef(false);
   const inFlight = useRef(0);

@@ -1,7 +1,7 @@
 # KineVault design guide
 
 Design reference for a companion app that should feel like part of KineVault.
-Based on the working source on **30 September 2026**. Measurements assume a
+Based on the working source on **3 October 2026**. Measurements assume a
 16px root font size; preserve scalable text in implementation.
 
 **Current** means implemented in this repository. **Companion guidance** means
@@ -31,22 +31,22 @@ Use semantic names in components; switch their values with the theme.
 
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |
-| `background` | `#f6f7f9` | `#12171d` | Page canvas |
-| `foreground` | `#192026` | `#e5eaf0` | Main text |
+| `background` | `#f5f6f8` | `#12171d` | Page canvas |
+| `foreground` | `#1c2730` | `#edf1f5` | Main text |
 | `card` | `#ffffff` | `#1a222b` | Cards, forms, toolbars |
-| `card-foreground` | `#192026` | `#e5eaf0` | Text on cards |
+| `card-foreground` | `#1c2730` | `#edf1f5` | Text on cards |
 | `popover` | `#ffffff` | `#1a222b` | Floating menus |
-| `popover-foreground` | `#192026` | `#e5eaf0` | Menu text |
+| `popover-foreground` | `#1c2730` | `#edf1f5` | Menu text |
 | `primary` | `#314e65` | `#94bdd7` | Main actions, links, selections |
 | `primary-foreground` | `#ffffff` | `#10181f` | Text/icons on primary fill |
 | `secondary` | `#e9edf1` | `#25313d` | Secondary action fill |
 | `secondary-foreground` | `#314e65` | `#d7e6f2` | Secondary action text |
 | `muted` | `#e9edf1` | `#25313d` | Media wells, subdued surfaces, tags |
-| `muted-foreground` | `#52606d` | `#b0bdca` | Descriptions, labels, helper text |
+| `muted-foreground` | `#4e5d6a` | `#b7c3ce` | Descriptions, labels, helper text |
 | `accent` | `#e3ebf1` | `#253747` | Active annotations and subtle emphasis |
 | `accent-foreground` | `#243f55` | `#d7e6f2` | Text on accent surfaces |
-| `border` | `#ced6de` | `#3b4a59` | Dividers and outlines |
-| `input` | `#ced6de` | `#3b4a59` | Input borders |
+| `border` | `#d5dde4` | `#3b4a59` | Dividers and outlines |
+| `input` | `#c5ced8` | `#617181` | Input borders |
 | `ring` | `#638ba6` | `#94bdd7` | Keyboard focus |
 | `destructive` | `oklch(0.577 0.245 27.325)` | `oklch(0.704 0.191 22.216)` | Destructive button and invalid states |
 
@@ -135,21 +135,22 @@ Geist cannot be used; match weight, scale, and spacing as closely as possible.
 | Role | Size / line height | Weight | Tracking |
 | --- | --- | --- | --- |
 | Wordmark | 20px / 28px | 700 | `-0.05em` |
-| Home hero | 48px, 60px at `sm`, 72px at `xl`; line height `1.02` | 600 | `-0.065em` |
-| Explore/detail/taxonomy title | 36px / 40px; 48px / 48px at `sm` | 600 | `-0.055em` |
-| Library title | 36px / 40px | 600 | `-0.055em` |
+| Home hero | 41px / 1.1; 54px / 1.09 at `sm` | 600 | `-0.05em` |
+| Explore/library title | 31px / 1.16; 38px / 1.15 at `sm` | 600 | `-0.035em` |
+| Detail/taxonomy title | 36px / 40px; 48px / 48px at `sm` | 600 | `-0.055em` |
 | Auth title | 30px / 36px | 600 | `-0.05em` |
 | Workshop title | 24px / 32px | 600 | Default |
 | Panel title | 20px / 28px | 600 | Default |
-| Card title | 18px / 28px | 600 | `-0.025em` (`tracking-tight`) |
-| Intro paragraph | 18px / 32px | 400 | Default |
+| Exercise card title | 19px / 1.35 | 600 | `-0.025em` |
+| Home intro paragraph | 16px / 1.7; 17px at `sm` | 400 | Default |
+| Explore/library intro paragraph | 15px / 1.65 | 400 | Default |
 | Main body | 16px / 24px; instruction prose 28px line height | 400 | Default |
 | UI label / button | 14px / 20px | 500–600 | Default |
-| Card description | 14px / 24px | 400 | Default |
+| Exercise card description | 14px / 1.6 | 400 | Default |
 | Helper text | 12px / 16px or 20px | 400 | Default |
-| Page eyebrow | 12px / 16px, uppercase | 700 | `0.18em`; home `0.2em` |
-| Filter group heading | 12px / 16px, uppercase | 700 | `0.16em` |
-| Card category | 12px / 16px, uppercase | 600 | `0.12em` |
+| Home/Explore/library intro label | 13px, sentence case | 500 | Default |
+| Explore filter group heading | 13px, sentence case | 600 | Default |
+| Exercise card category | 12px / 16px, capitalized | 500 | Default |
 | Detail taxonomy heading | 14px / 20px, uppercase | 600 | `0.1em` |
 
 - Use sentence case for titles, labels, buttons, and descriptions.
@@ -205,12 +206,18 @@ Common values: **4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64, 80px**.
 
 Media clips to the parent radius. Avoid sharp inner images inside rounded cards.
 
+Home actions, Explore fields, and library navigation use explicit 8px corners.
+Home preview, Explore filters, exercise cards, and library panels use explicit
+12px corners. These classes override the shared radius scale locally; workshop,
+detail, and form surfaces retain their existing tokens.
+
 ### Depth
 
 - Default panels are flat: fill + 1px border.
 - Auth uses `shadow-sm`; floating equipment menu uses `shadow-lg`.
-- Exercise-card hover adds `shadow-lg shadow-black/5` and a 2px upward translation.
-- Private-card hover uses `shadow-md`.
+- Exercise cards and Explore filters use a subtle slate-tinted 2px/5px shadow.
+  Exercise-card hover changes the border/title and adds a 2px upward translation.
+- Private-card hover changes its border and fill.
 - Use shadows to clarify hover or elevation, not on every nested panel.
 - No established blur/glass treatment or background gradient is required.
 
@@ -233,11 +240,13 @@ Maximum width includes container padding. Use centered containers and
 
 ### Navigation
 
-- Public content header: wordmark left, contextual navigation right,
-  card/80 fill, bottom border, 20px vertical padding.
+- Explore header: wordmark left, outlined My library action with a BookOpen icon
+  right, card fill, bottom border, 14px vertical padding.
+- Other public content headers retain their contextual navigation and spacing.
 - Home header: no enclosing panel; 28px vertical padding, logo tile + wordmark,
-  “My library” link and outlined pill “Explore exercises”.
-- Account header: wordmark left, sign-out right, bottom divider.
+  outlined “My library” action and outlined pill “Explore exercises”.
+- Account header: wordmark left, Explore exercises and sign-out right, bottom divider.
+  Community submission/update links use outlined actions with 44px hit areas.
 - Detail pages offer a back link with a 16px left-arrow icon.
 - Admin header wraps its text navigation and labels the area “Review”.
 - Headers are not globally sticky. Sticky behavior is used for filters and the workshop preview.
@@ -313,7 +322,8 @@ Separate destructive actions spatially and state their consequence before confir
 - Labels above controls: 14px semibold, typically 8px gap.
 - Main inputs/textareas: full width, 1px border, 14px radius,
   16px horizontal / 12px vertical padding; foreground text on a themed surface.
-- Filter controls: background fill, 12px horizontal / 10px vertical padding, 14px text.
+- Explore filter controls: card fill, input border, 8px corners, 44px minimum height,
+  12px horizontal / 10px vertical padding, 14px text.
 - Search field: leading 17px Search icon at 12px inset, 40px left padding;
   placeholder “Name or alias”.
 - Input focus: primary border and 2px ring in addition to the global visible outline.
@@ -341,11 +351,13 @@ Separate destructive actions spatially and state their consequence before confir
 └──────────────────────────────┘
 ```
 
-- Entire card is one link: card fill, 1px border, 18px radius, clipped media.
-- Media: 4:3 well, muted fill, `object-contain` to preserve full figure/equipment.
-- Body: 20px padding; category → title → description gaps are 8px.
-- Hover: 2px lift, restrained shadow, title turns primary.
-- Grid: one column → two at `sm` → three at `xl`; 16px gaps.
+- Entire card is one link: card fill, 1px border, 12px radius, clipped media.
+- Media: 4:3 well, light `#f7f8f8` / dark muted fill, bottom divider,
+  `object-contain` to preserve full figure/equipment.
+- Body: 18px top / 20px other padding; category → title gap 7px,
+  title → description gap 9px. Category uses primary text.
+- Hover: 2px lift, border changes, title turns primary.
+- Grid: one column → two at `sm` → three at `xl`; 20px gaps.
 - First three poster images load eagerly; remaining posters load lazily.
 - Missing poster uses the thin Dumbbell glyph, not a broken image or invented demo.
 
@@ -366,8 +378,10 @@ Separate destructive actions spatially and state their consequence before confir
 ### Home
 
 Header → two-column hero at `lg` → explanatory copy left, motion study right.
-Column proportions are **0.83 : 1.17**. Intro uses a primary eyebrow with an 8px dot,
-large tight heading, muted 18px paragraph, two small feature panels, and a text CTA.
+Column proportions are **0.83 : 1.17**. Intro uses a sentence-case primary label,
+a compact two-line desktop heading, muted paragraph, two flat feature groups,
+and a filled Explore reviewed exercises CTA. Hero top padding is 28px mobile,
+40px from `sm`; its bottom padding is 56px.
 Stack the hero on smaller screens. Demonstration remains the main visual asset.
 
 ### Explore
@@ -387,11 +401,15 @@ Eyebrow / title / short explanation
 └───────────────────┘
 ```
 
-- Content starts 48px below its header; intro has 40px bottom separation.
+- Content starts 28px below its header, 32px from `sm`; intro has 28px bottom separation.
 - Desktop grid: `285px minmax(0,1fr)`, 32px gap; filter panel sticks 24px from top.
-- Filter panel: 18px radius, 20px padding, group dividers, uppercase group headings.
-- Disclosure sections have 16px vertical padding; selected groups open by default.
-  Joint actions start open; their list max-height is 256px versus 192px for other groups.
+- Filter panel: 12px radius, 20px padding, group dividers, sentence-case group headings.
+- Disclosure sections have 6px vertical padding and 44px summaries; selected
+  groups open by default. Joint actions start open; option lists max-height is 192px.
+- Filter panel is a flex column: options scroll above a separate, non-overlapping
+  Apply filters footer. Desktop maximum height is `max(20rem, 100dvh - 300px)`;
+  the mobile option area has a 52dvh maximum. Checked rows use accent fill and
+  foreground labels, alongside the checked input.
 - Sort choices: Alphabetical, Newest, Most favorited. End with full-width Apply filters.
 - Every selected value must match, including values inside the same group.
 - Filters are applied explicitly; query parameters preserve and share the search.
@@ -428,7 +446,8 @@ on small screens without Explore's hide/show wrapper.
 
 Use 1024px width and simple navigation. Show two medium panels for private exercises
 and favorites, real counts, then saved exercise links. Private drafts use a two-column
-grid from `sm`, textual cards, explicit “Private draft”, and “Open workshop”.
+grid from `sm`, 12px panels, explicit “Private draft”, and “Resume draft”.
+Use sentence-case intro labels, the compact Explore title scale, and 8px action corners.
 Use role-specific review navigation only where available.
 
 ### Authentication

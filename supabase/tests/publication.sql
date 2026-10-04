@@ -24,17 +24,18 @@ select public.begin_submission_review(current_setting('test.submission_id')::uui
 select throws_ok($$select public.approve_submission(current_setting('test.submission_id')::uuid,'publication-raise')$$,
   'P0001','rendered demonstration is incomplete','approval waits for all rendered assets');
 set local role service_role;
-select set_config('test.job_id',(select job_id from public.claim_render_job())::text,true);
+select set_config('test.job_id',job_id::text,true), set_config('test.claim_id',claim_id::text,true)
+from public.claim_render_job();
 set local role postgres;
 insert into storage.objects(bucket_id,name) values
-  ('exercise-private',current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.webm'),
-  ('exercise-private',current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.mp4'),
-  ('exercise-private',current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/poster.webp');
+  ('exercise-private',current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.webm'),
+  ('exercise-private',current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.mp4'),
+  ('exercise-private',current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/poster.webp');
 set local role service_role;
-select public.complete_render_job(current_setting('test.job_id')::uuid,gen_random_uuid(),
-  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.webm',
-  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/demo.mp4',
-  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/poster.webp');
+select public.complete_render_job(current_setting('test.job_id')::uuid,current_setting('test.claim_id')::uuid,gen_random_uuid(),
+  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.webm',
+  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/demo.mp4',
+  current_setting('test.submission_id') || '/' || current_setting('test.job_id') || '/' || current_setting('test.claim_id') || '/poster.webp');
 set local role authenticated;
 select throws_ok($$select public.approve_submission(current_setting('test.submission_id')::uuid,'publication-raise')$$,
   'P0001','public media object missing: webm','approval verifies copied public objects');

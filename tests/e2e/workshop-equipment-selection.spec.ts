@@ -1,0 +1,123 @@
+import { randomUUID } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
+import { expect, test } from "@playwright/test";
+import { PerspectiveCamera, Vector3 } from "three";
+import { createStudioObject } from "../../src/lib/motion/studio";
+import { fitWorkshopCamera } from "../../src/lib/motion/workshop-camera";
+import { blankWorkshopScene } from "../../src/lib/motion/workshop";
+import { setWorkshopLanguage, selectWorkshopObject, setWorkshopMode, expandWorkshopControls } from "./workshop-menu.helpers";
+
+test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+
+test("essentials come first and double-click selects equipment for safe keyboard removal", async ({ page }) => {
+  test.setTimeout(120_000);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
+  const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const email = `equipment-selection-${randomUUID()}@example.test`, password = "EquipmentFixture2026!";
+  const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (account.error) throw account.error;
+  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    await owner.auth.signInWithPassword({ email, password });
+    const weight = { ...createStudioObject("dumbbell", randomUUID(), 0), x: 1.4, y: 1.1, z: 0, attachment: "none" as const };
+    const scene = { ...blankWorkshopScene, studio: { ...blankWorkshopScene.studio!, objects: [weight] } };
+    const created = await owner.rpc("save_workshop_draft", { p_scene: scene, p_name: "Selection fixture" });
+    if (created.error) throw created.error;
+    await page.setViewportSize({ width: 1500, height: 1100 });
+    await page.goto("/sign-in");
+    await page.getByLabel("Email", { exact: true }).fill(email);
+    await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await page.goto(`/my-exercises/${created.data}/workshop`);
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+    const workshop = page.getByLabel("Workshop editor", { exact: true });
+    const objects = page.getByLabel("Scene objects", { exact: true });
+    const openPicker = () => page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
+    await openPicker();
+    const dialog = page.getByRole("dialog"), essentials = dialog.getByRole("region", { name: "Essentials", exact: true });
+    await expect(essentials.getByRole("button", { name: /^(Cable machine|Dumbbell|Barbell)$/ })).toHaveText(["Cable machine", "Dumbbell", "Barbell"]);
+    await expect(dialog.getByRole("region").first()).toHaveAccessibleName("Essentials");
+    await essentials.getByRole("button", { name: "Favorite Dumbbell", exact: true }).click();
+    await expect(dialog.getByRole("button", { name: "Dumbbell", exact: true })).toHaveCount(1);
+    await expect(dialog.getByRole("region").first()).toHaveAccessibleName("Essentials");
+    await dialog.getByRole("searchbox").fill("seated row");
+    await expect(essentials).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "Cable row", exact: true })).toBeVisible();
+    await dialog.getByRole("searchbox").fill("");
+    await expect(essentials).toBeVisible();
+    mkdirSync(".local-artifacts/workshop/equipment-selection", { recursive: true });
+    await page.screenshot({ path: ".local-artifacts/workshop/equipment-selection/picker.png" });
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: "Front", exact: true }).click();
+    const doubleClickWeight = async () => {
+      const canvas = page.locator("canvas");
+      const bounds = (await canvas.boundingBox())!;
+      const fit = fitWorkshopCamera(scene, "front", bounds.width / bounds.height, 34);
+      const camera = new PerspectiveCamera(34, bounds.width / bounds.height, .1, 100);
+      camera.position.copy(fit.position); camera.lookAt(fit.target); camera.updateMatrixWorld();
+      const point = new Vector3(weight.x, weight.y + .2, weight.z).project(camera);
+      await page.mouse.dblclick(bounds.x + (point.x + 1) * bounds.width / 2, bounds.y + (1 - point.y) * bounds.height / 2);
+    };
+    // Camera mode accepts double-click without enabling movement or changing placement.
+    await doubleClickWeight();
+    await expect(page.getByRole("tab", { name: "Contacts", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(workshop).toBeFocused();
+    await expect(page.getByRole("button", { name: "Camera", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("tab", { name: "Position", exact: true }).click();
+    await expandWorkshopControls(page, "Precise placement");
+    await expect(page.getByRole("textbox", { name: "Position X meters", exact: true })).toHaveValue("1.4");
+    await expect(page.getByRole("textbox", { name: "Position Y meters", exact: true })).toHaveValue("1.1");
+    await doubleClickWeight();
+    await page.keyboard.press("Backspace");
+    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
+    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toHaveCount(0);
+    await workshop.focus(); await page.keyboard.press("Control+z");
+    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
+    // The figure cannot be deleted, and text fields retain both editing keys.
+    await selectWorkshopObject(page, "Anatomical figure");
+    await workshop.focus(); await page.keyboard.press("Delete"); await page.keyboard.press("Backspace");
+    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
+    await expect(objects.getByRole("button", { name: "Anatomical figure", exact: true })).toBeVisible();
+    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
+    await doubleClickWeight();
+    const name = page.getByRole("textbox", { name: "Exercise name", exact: true });
+    await name.fill("Typed"); await name.press("End"); await name.press("Backspace");
+    await expect(name).toHaveValue("Type");
+    await name.press("Home"); await name.press("Delete"); await expect(name).toHaveValue("ype");
+    await openPicker(); await dialog.getByRole("searchbox").press("Backspace");
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
+    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
+    // Selection takes focus back from the field; Delete needs no extra click.
+    await name.focus(); await doubleClickWeight(); await expect(workshop).toBeFocused();
+    await page.keyboard.press("Delete");
+    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
+    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toHaveCount(0);
+    await workshop.focus(); await page.keyboard.press("Control+s");
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
+    await expect.poll(async () => {
+      const draft = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
+      if (draft.error) throw draft.error;
+      const saved = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", draft.data.content_id).single();
+      if (saved.error) throw saved.error;
+      return (saved.data.studio_layout as { objects: unknown[] }).objects.length;
+    }, { timeout: 20_000 }).toBe(0);
+    await page.reload();
+    await setWorkshopMode(page, "advanced");
+    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
+    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toHaveCount(0);
+    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
+    await expect(objects.getByRole("button", { name: "Anatomical figure", exact: true })).toBeVisible();
+    await setWorkshopLanguage(page, "he");
+    await page.getByRole("button", { name: "הוספת ציוד", exact: true }).filter({ visible: true }).click();
+    await expect(dialog.getByRole("region").first()).toHaveAccessibleName("ציוד בסיסי");
+    expect(errors).toEqual([]);
+  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+});

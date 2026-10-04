@@ -18,21 +18,21 @@ export async function ExerciseCards({ rows }: { rows: ExerciseRow[] }) {
     signed.get(mediaObjectKey(item))]));
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
       {rows.map((exercise, index) => {
         const poster = posters.get(exercise.content_id);
         return (
           <Link key={exercise.exercise_id} href={`/exercises/${exercise.slug}`}
-            className="group overflow-hidden rounded-2xl border border-border bg-card transition hover:-translate-y-0.5 hover:border-border hover:shadow-lg hover:shadow-black/5">
-            <div className="flex aspect-[4/3] items-center justify-center bg-muted text-muted-foreground">
+            className="group overflow-hidden rounded-[12px] border border-border bg-card shadow-[0_2px_5px_rgb(36_58_78/0.025)] transition hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-ring motion-safe:hover:-translate-y-0.5">
+            <div className="flex aspect-[4/3] items-center justify-center border-b border-border bg-[#f7f8f8] text-muted-foreground dark:bg-muted">
               {poster
                 ? <Image src={poster} alt="" width={640} height={640} loading={index < 3 ? "eager" : "lazy"} unoptimized className="h-full w-full object-contain" />
                 : <Dumbbell size={42} strokeWidth={1.2} aria-hidden />}
             </div>
-            <div className="p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{exercise.family_slug?.replaceAll("-", " ") ?? "Exercise"}</p>
-              <h2 className="mt-2 text-lg font-semibold tracking-tight group-hover:text-primary">{exercise.name}</h2>
-              {exercise.short_description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{exercise.short_description}</p>}
+            <div className="px-5 pb-5 pt-[18px]">
+              <p className="text-xs font-medium capitalize text-primary">{exercise.family_slug?.replaceAll("-", " ") ?? "Exercise"}</p>
+              <h2 className="mt-[7px] text-[1.1875rem] font-semibold leading-[1.35] tracking-[-0.025em] group-hover:text-primary">{exercise.name}</h2>
+              {exercise.short_description && <p className="mt-[9px] line-clamp-2 text-sm leading-[1.6] text-muted-foreground">{exercise.short_description}</p>}
             </div>
           </Link>
         );
