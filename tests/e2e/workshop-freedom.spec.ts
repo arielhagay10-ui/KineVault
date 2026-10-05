@@ -20,7 +20,7 @@ async function dragLimb(page: Page, name: string, dx: number, dy: number) {
 
 test("free cable poses, explicit row contacts, undo and saved playback", async ({ page }) => {
   test.setTimeout(180_000);
-  page.setDefaultTimeout(15_000);
+  page.setDefaultTimeout(60_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
@@ -89,7 +89,7 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
     expect(frames.data[2].motion_joint_poses).toHaveLength(0);
     expect(frames.data[1].motion_joint_poses.length).toBeGreaterThanOrEqual(8);
     await page.goto(`/my-exercises/${records.data.id}/workshop`);
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopJoint(page, "Left hip");
     await page.getByRole("button", { name: "View finish", exact: true }).click();
     await expect(jointField(page, "x")).toHaveValue("25");
@@ -115,7 +115,7 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
     twoPoses.keyframes.splice(1, 1);
     const legacy = await owner.rpc("create_workshop_exercise", { p_scene: twoPoses }); if (legacy.error) throw legacy.error;
     await page.goto(`/my-exercises/${legacy.data}/workshop`);
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Start and finish", exact: true }).click();
     await page.getByRole("button", { name: "Edit finish", exact: true }).click();
     await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("1");

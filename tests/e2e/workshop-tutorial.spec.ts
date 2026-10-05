@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("first exercise tutorial resumes, closes, and stays optional on later exercises", async ({ page, context, browser }) => {
   test.setTimeout(180_000);

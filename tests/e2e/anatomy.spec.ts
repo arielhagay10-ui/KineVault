@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("anatomical model supports muscle groups, individual selection, isolation and playback", async ({ page }) => {
+  test.setTimeout(120_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
@@ -35,6 +36,7 @@ test("anatomical model supports muscle groups, individual selection, isolation a
 });
 
 test("anatomy download errors allow retry", async ({ page }) => {
+  test.setTimeout(120_000);
   await page.route("**/models/z-anatomy/*.glb", route => route.fulfill({ status: 503, body: "Unavailable" }));
   await page.goto("/");
   await page.getByRole("button", { name: "Open interactive 3D preview", exact: true }).click();

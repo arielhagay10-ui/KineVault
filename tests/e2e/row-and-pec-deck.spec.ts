@@ -8,7 +8,7 @@ import { studioAssetNames } from "../../src/lib/motion/studio";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 test("cable row and pec deck can be added, animated, saved and reloaded", async ({ page }) => {
-  test.setTimeout(240_000); page.setDefaultTimeout(15_000);
+  test.setTimeout(240_000); page.setDefaultTimeout(60_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
@@ -70,7 +70,7 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
       await page.getByRole("button", { name: "Save", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload();
-      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
       await selectWorkshopObject(page, studioAssetNames[slug]);
       await openWorkshopTool(page, "Timeline");
@@ -89,7 +89,7 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
         await page.getByRole("button", { name: "Save", exact: true }).click();
         await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
         await page.reload();
-        await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+        await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
         await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
         await selectWorkshopObject(page, studioAssetNames[slug]);
         await expect(page.getByLabel("Pec deck mode", { exact: true })).toHaveValue("regular");

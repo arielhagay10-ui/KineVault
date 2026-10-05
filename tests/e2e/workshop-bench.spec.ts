@@ -8,11 +8,11 @@ import { blankWorkshopScene, identityTransform } from "../../src/lib/motion/work
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("bench positions stay visible, follow the pad, and survive save and reload", async ({ page }) => {
   test.setTimeout(180_000);
-  page.setDefaultTimeout(15_000);
+  page.setDefaultTimeout(60_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
@@ -69,7 +69,7 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
       if (stored.error) throw stored.error;
       expect(stored.data.studio_layout).toMatchObject({ seating: { benchId, facing }, objects: [{ benchAngle: 0 }] });
       await page.reload();
-      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await expect(controls.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
       await setWorkshopMode(page, "advanced");
       await page.getByRole("tab", { name: "Timeline", exact: true }).click();

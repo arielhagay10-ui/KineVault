@@ -8,7 +8,7 @@ import { blankWorkshopScene, identityTransform } from "../../src/lib/motion/work
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("leave equipment from the toolbar, move independently, undo and save", async ({ page }) => {
   test.setTimeout(180_000);

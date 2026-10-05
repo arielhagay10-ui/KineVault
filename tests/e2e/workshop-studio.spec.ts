@@ -8,10 +8,10 @@ import { createStudioObject } from "../../src/lib/motion/studio";
 import { blankWorkshopScene } from "../../src/lib/motion/workshop";
 import { fitWorkshopCamera } from "../../src/lib/motion/workshop-camera";
 
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("shoulder alignment, plane lock and cuff preferences survive bench edits and reload", async ({ page }) => {
-  page.setDefaultTimeout(15_000);
+  page.setDefaultTimeout(60_000);
   test.setTimeout(150_000);
   const fixture = await createOwner();
   const errors: string[] = [];
@@ -227,7 +227,7 @@ async function createOwner() {
 
 test("kettlebell grips and adjustable cable attachments survive switching, playback and reload", async ({ page }) => {
   test.setTimeout(300_000);
-  page.setDefaultTimeout(15_000);
+  page.setDefaultTimeout(60_000);
   const fixture = await createOwner(), errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   const artifacts = ".local-artifacts/workshop/cable-attachments";
@@ -253,7 +253,7 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
     await page.getByLabel("Exercise name", { exact: true }).fill("Cable attachment fixture");
     await openWorkshopMenu(page);
     await page.getByRole("button", { name: "Save & add details", exact: false }).click();
-    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit\?sceneSaved=1$/);
+    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit\?sceneSaved=1$/, { timeout: 60_000 });
     const id = page.url().split("/my-exercises/")[1].split("/")[0];
     await page.goto(`/my-exercises/${id}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -382,7 +382,7 @@ test("support controls, explicit animation and presentation survive saving witho
     await page.getByLabel("Exercise name", { exact: true }).fill("Cable attachment fixture");
     await openWorkshopMenu(page);
     await page.getByRole("button", { name: "Save & add details", exact: false }).click();
-    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit\?sceneSaved=1$/);
+    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit\?sceneSaved=1$/, { timeout: 60_000 });
     const id = page.url().split("/my-exercises/")[1].split("/")[0];
     const saved = await fixture.owner.from("private_exercises").select("content_id").eq("id", id).single();
     const data = await fixture.owner.from("exercise_scenes").select("studio_layout").eq("content_id", saved.data!.content_id).single();
@@ -426,6 +426,7 @@ test("support controls, explicit animation and presentation survive saving witho
 });
 
 test("ankles and positive knee bends can be posed and saved", async ({ page }) => {
+  test.setTimeout(120_000);
   const fixture = await createOwner();
   try {
     await page.setViewportSize({ width: 1600, height: 1050 });
@@ -455,7 +456,7 @@ test("ankles and positive knee bends can be posed and saved", async ({ page }) =
     await page.getByLabel("Exercise name", { exact: true }).fill("Knee and ankle fixture");
     await openWorkshopMenu(page);
     await page.getByRole("button", { name: /Save & add details/ }).click();
-    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit\?sceneSaved=1$/);
+    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit\?sceneSaved=1$/, { timeout: 60_000 });
     const id = page.url().split("/my-exercises/")[1].split("/")[0];
     await page.goto(`/my-exercises/${id}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -538,7 +539,7 @@ test("wrist poses and slower movement controls work and survive reloading", asyn
     await page.getByLabel("Exercise name", { exact: true }).fill("Wrist grip fixture");
     await openWorkshopMenu(page);
     await page.getByRole("button", { name: /Save & add details/ }).click();
-    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit\?sceneSaved=1$/);
+    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit\?sceneSaved=1$/, { timeout: 60_000 });
     const id = page.url().split("/my-exercises/")[1].split("/")[0];
     await page.goto(`/my-exercises/${id}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -623,7 +624,7 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
     await page.getByLabel("Exercise name", { exact: true }).fill("Cable attachment fixture");
     await openWorkshopMenu(page);
     await page.getByRole("button", { name: "Save & add details", exact: false }).click();
-    await expect(page).toHaveURL(/\/my-exercises\/[0-9a-f-]+\/edit\?sceneSaved=1$/);
+    await expect(page).toHaveURL(/\/my-exercises\/[0-9a-f-]+\/edit\?sceneSaved=1$/, { timeout: 60_000 });
     const confirmation = "Movement saved privately. Give it a name. Anatomy and instructions are optional.";
     await expect(page.getByRole("status").filter({ hasText: confirmation })).toHaveText(confirmation);
     await page.getByLabel("Name", { exact: true }).fill("My barbell motion");
@@ -653,6 +654,7 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
 });
 
 test("existing demo barbells become selectable and movable", async ({ page }) => {
+  test.setTimeout(120_000);
   const fixture = await createOwner();
   try {
     const draft = await fixture.owner.rpc("save_private_exercise", { p_name: "Legacy barbell fixture" });

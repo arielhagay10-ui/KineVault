@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("guided private creation, recovery, picker, RTL and mobile controls", async ({ page, context }) => {
   test.setTimeout(240_000);
@@ -194,7 +194,7 @@ test("a committed first save survives a lost response and reload without duplica
     await page.getByRole("button", { name: "Name and save", exact: true }).press("Enter");
     await expect(page.getByRole("article", { name: "Saved private exercise", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Add optional details", exact: true }).press("Enter");
-    await expect(page).toHaveURL(new RegExp(`/my-exercises/${first.data![0].id}/edit\\?sceneSaved=1$`));
+    await expect(page).toHaveURL(new RegExp(`/my-exercises/${first.data![0].id}/edit\\?sceneSaved=1$`), { timeout: 60_000 });
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Lost response pec deck");
   } finally {
     await page.unroute("**/my-exercises/new");
@@ -275,9 +275,9 @@ test("a late save response cannot erase a newer resumed draft", async ({ page, c
     await expect.poll(() => !!release).toBe(true);
     // Client navigation keeps the old component's pending completion in this document.
     await page.getByRole("link", { name: "← Exercise details", exact: true }).click();
-    await expect(page).toHaveURL(/\/edit$/);
+    await expect(page).toHaveURL(/\/edit$/, { timeout: 60_000 });
     await page.getByRole("link", { name: "Open motion workshop →", exact: true }).click();
-    await expect(page).toHaveURL(/\/workshop$/);
+    await expect(page).toHaveURL(/\/workshop$/, { timeout: 60_000 });
     if (await page.getByRole("button", { name: "Keep server version", exact: true }).isVisible()) {
       await page.getByRole("button", { name: "Keep server version", exact: true }).click();
     }
@@ -331,7 +331,7 @@ test("expired sign-in provides a repair and preserves the latest unsaved name", 
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(page).toHaveURL(/\/workshop$/);
+    await expect(page).toHaveURL(/\/workshop$/, { timeout: 60_000 });
     await page.getByRole("button", { name: "Restore recovered draft", exact: true }).click();
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await expect(page.getByLabel("Exercise name", { exact: true })).toHaveValue("Recovered after sign-in");

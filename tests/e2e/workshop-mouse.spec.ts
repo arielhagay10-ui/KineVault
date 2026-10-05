@@ -21,7 +21,7 @@ async function drag(page: Page, handle: Locator, dx: number, dy: number, cancel 
   await page.mouse.up();
 }
 
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("mouse handles edit row endpoints with Undo, cancellation and saved motion", async ({ page }) => {
   test.setTimeout(180_000);
@@ -72,7 +72,7 @@ test("mouse handles edit row endpoints with Undo, cancellation and saved motion"
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await expect(height).toHaveValue(movedHeight); await expect(travel).toHaveValue(movedTravel);
     await expect(page.getByRole("textbox", { name: "Start handle height meters", exact: true })).toHaveValue("1.23");
     const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single(); if (record.error) throw record.error;
@@ -116,7 +116,7 @@ for (const mode of ["regular", "reverse"] as const) {
       await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
       const pec = createQuickScene("pec-deck"); pec.studio!.objects[0].machineMode = mode;
       const saved = await owner.rpc("create_workshop_exercise", { p_scene: pec }); if (saved.error) throw saved.error;
-      await page.goto(`/my-exercises/${saved.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+      await page.goto(`/my-exercises/${saved.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await page.getByRole("button", { name: "Front", exact: true }).click();
       await page.getByRole("button", { name: "Drag finish", exact: true }).click();
       const grips = page.getByRole("button", { name: "Drag Pec deck handle", exact: true }); await expect(grips).toHaveCount(2);

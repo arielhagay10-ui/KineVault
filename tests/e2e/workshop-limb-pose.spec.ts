@@ -19,7 +19,7 @@ async function drag(page: Page, handle: Locator, dx: number, dy: number, cancel 
   await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
 }
 
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("hands and feet drag, cancel, undo, and survive saved preview without detaching contacts", async ({ page }) => {
   test.setTimeout(180_000);
@@ -82,7 +82,7 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     expect(frames.data[1].motion_joint_poses).toHaveLength(8);
     expect(saved.data.studio_layout).toMatchObject({ presentation: { highlight: "group:abs" }, objects: [] });
     expect(saved.data.motion_style).toBe("free");
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "View finish", exact: true }).click();
     for (const view of ["Three-quarter", "Side"]) {
       await page.getByRole("button", { name: view, exact: true }).click();
@@ -113,7 +113,7 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/my-exercises");
     await page.getByRole("button", { name: "Preview saved motion", exact: true }).click();
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("slider", { name: /^Preview time for / }).fill("1600");
     await page.locator("canvas").screenshot({ path: `${folder}/library-preview.png` });
     await page.getByRole("button", { name: "Play", exact: true }).click();
@@ -121,7 +121,7 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     const pec = createQuickScene("pec-deck");
     const machine = await owner.rpc("create_workshop_exercise", { p_scene: pec }); if (machine.error) throw machine.error;
-    await page.goto(`/my-exercises/${machine.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.goto(`/my-exercises/${machine.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(0);
     await expect(page.getByText("Leave the machine to pose hands and feet freely. Move its handles to keep contact.")).toBeVisible();

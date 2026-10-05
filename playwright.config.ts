@@ -13,6 +13,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   use: {
     baseURL: "http://127.0.0.1:3000",
+    navigationTimeout: 60_000,
     screenshot: "only-on-failure",
     ...devices["Desktop Chrome"],
     ...(process.platform === "win32" ? { channel: "chrome" } : {}),

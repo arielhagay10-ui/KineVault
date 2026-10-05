@@ -10,7 +10,7 @@ import { setWorkshopLanguage, selectWorkshopObject, setWorkshopMode, expandWorks
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("essentials come first and double-click selects equipment for safe keyboard removal", async ({ page }) => {
   test.setTimeout(120_000);

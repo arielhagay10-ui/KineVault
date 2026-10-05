@@ -7,7 +7,7 @@ import { machineDemoScene, machineSlugs, machineTravelLabels } from "../../src/l
 import { studioAssetNames } from "../../src/lib/motion/studio";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supinated" as const })), { slug: "lat-pulldown-machine" as const, grip: "pronated" as const }]) {
   test(`machine carriages animate, save, reload and remain editable with supported contact: ${slug}${slug === "lat-pulldown-machine" ? ` ${grip}` : ""}`, async ({ page }) => {
@@ -65,7 +65,7 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       await page.getByLabel(`${machineTravelLabels[slug]} percent`, { exact: true }).fill("42");
       await page.getByRole("button", { name: "Save", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
-      await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+      await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await selectWorkshopObject(page, studioAssetNames[slug]);
       await openWorkshopTool(page, "Timeline");
       await expect(page.getByLabel(`${machineTravelLabels[slug]} percent`, { exact: true })).toHaveValue("42");

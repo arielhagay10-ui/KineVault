@@ -33,6 +33,10 @@ jobs:
 
   browser:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,19 +54,21 @@ jobs:
           echo "SUPABASE_SERVICE_ROLE_KEY=$(npx supabase status -o env | sed -n 's/^SERVICE_ROLE_KEY=//p' | tr -d '"')" >> "$GITHUB_ENV"
           echo "RENDER_WORKER_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - run: npm run build
-      - run: npm run test:e2e
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
         env:
           KINEVAULT_E2E_PRODUCTION: "1"
       - name: Check preview initialization in development
+        if: matrix.shard == 1
         run: npx playwright test tests/e2e/workshop-preview-regression.spec.ts
       - run: npm run test:media
+        if: matrix.shard == 1
         env:
           KINEVAULT_E2E_PRODUCTION: "1"
       - name: Upload browser failure details
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-failures
+          name: browser-failures-${{ matrix.shard }}
           path: |
             test-results/**/error-context.md
             test-results/**/*.png

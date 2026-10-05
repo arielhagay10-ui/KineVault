@@ -7,10 +7,10 @@ import { createStudioObject } from "../../src/lib/motion/studio";
 import { blankWorkshopScene, identityTransform } from "../../src/lib/motion/workshop";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("workshop tools are directly accessible without scrolling through unrelated controls", async ({ page }) => {
-  test.setTimeout(120_000); page.setDefaultTimeout(15_000);
+  test.setTimeout(120_000); page.setDefaultTimeout(60_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });

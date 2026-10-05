@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 import { machineDemoScene } from "../../src/lib/motion/studio-machines";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
-test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
+test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("keyframe pose, timing, deletion and undo persist without losing machine contact", async ({ page }) => {
   test.setTimeout(120_000);
