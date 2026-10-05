@@ -23,7 +23,9 @@ export function StudioLimbDrag({ rig, limb, editor }: { rig: AnatomyRig; limb: P
     const peer = rig.bones[`${other}-${limb.endsWith("hand") ? "wrist" : "ankle"}`].getWorldPosition(new Vector3()).project(camera);
     const bounds = gl.domElement.getBoundingClientRect();
     const close = Math.hypot((point.x - peer.x) * bounds.width / 2, (point.y - peer.y) * bounds.height / 2) < 48;
-    const next = close ? side === "left" ? -26 : 26 : 0;
+    // Anatomical left can appear on either screen side as the camera rotates.
+    const screenLeft = point.x < peer.x || (point.x === peer.x && side === "left");
+    const next = close ? screenLeft ? -26 : 26 : 0;
     setOffset(previous => previous === next ? previous : next);
   });
   const drag = useRef<{ plane: Plane; hit: Vector3; point: Vector3; pose: RigPose; sensitivity: number; moved: boolean; element: HTMLButtonElement; pointerId: number; direction: "view" | "floor"; right: Vector3; up: Vector3; forward: Vector3 } | null>(null);

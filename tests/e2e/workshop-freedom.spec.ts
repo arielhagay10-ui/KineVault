@@ -13,6 +13,7 @@ async function dragLimb(page: Page, name: string, dx: number, dy: number) {
   const bounds = (await handle.boundingBox())!;
   const x = bounds.x + bounds.width / 2, y = bounds.y + bounds.height / 2;
   await page.mouse.move(x, y); await page.mouse.down();
+  await expect(handle).toBeFocused();
   await page.mouse.move(x + dx, y + dy, { steps: 12 }); await page.mouse.up();
   await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
 }
