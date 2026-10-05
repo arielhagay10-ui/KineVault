@@ -1,4 +1,5 @@
 import { mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { setWorkshopMode, setWorkshopLanguage, selectWorkshopObject, expandWorkshopControls } from "./workshop-menu.helpers";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page, type Locator } from "@playwright/test";
@@ -22,12 +23,12 @@ async function drag(page: Page, handle: Locator, dx: number, dy: number, cancel 
 
 test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
 
-test("mouse handles edit row and pec deck endpoints with Undo, cancellation and saved motion", async ({ page }) => {
+test("mouse handles edit row endpoints with Undo, cancellation and saved motion", async ({ page }) => {
   test.setTimeout(180_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
-  const email = `mouse-${Date.now()}@example.test`, password = "MouseFixture2026!";
+  const email = `mouse-${randomUUID()}@example.test`, password = "MouseFixture2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
   const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
@@ -91,7 +92,28 @@ test("mouse handles edit row and pec deck endpoints with Undo, cancellation and 
       await page.waitForTimeout(scene.durationMs / Number(speed) + 400);
       await page.getByRole("button", { name: "Pause", exact: true }).click();
     }
-    for (const mode of ["regular", "reverse"] as const) {
+    expect(errors).toEqual([]);
+  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+});
+
+for (const mode of ["regular", "reverse"] as const) {
+  test(`mouse handles edit ${mode} pec deck endpoints with Undo and keyboard controls`, async ({ page }) => {
+    test.setTimeout(180_000);
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
+    const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    const email = `mouse-${randomUUID()}@example.test`, password = "MouseFixture2026!";
+    const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    if (account.error) throw account.error;
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+    mkdirSync(folder, { recursive: true });
+    try {
+      await page.setViewportSize({ width: 1500, height: 1100 });
+      await page.goto("/sign-in");
+      await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
+      await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
       const pec = createQuickScene("pec-deck"); pec.studio!.objects[0].machineMode = mode;
       const saved = await owner.rpc("create_workshop_exercise", { p_scene: pec }); if (saved.error) throw saved.error;
       await page.goto(`/my-exercises/${saved.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
@@ -113,15 +135,17 @@ test("mouse handles edit row and pec deck endpoints with Undo, cancellation and 
       await expect(field).toHaveValue(changed);
       await page.getByRole("button", { name: "Drag finish", exact: true }).click();
       await page.locator('[data-workshop-preview]').screenshot({ path: `${folder}/pec-${mode}.png` });
-    }
-    await setWorkshopLanguage(page, "he");
-    await expect(page.getByRole("button", { name: "הזזה עם העכבר", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "גרירת ידית פרפר", exact: true })).toHaveCount(2);
-    await page.setViewportSize({ width: 320, height: 800 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
-});
+      if (mode === "reverse") {
+        await setWorkshopLanguage(page, "he");
+        await expect(page.getByRole("button", { name: "הזזה עם העכבר", exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "גרירת ידית פרפר", exact: true })).toHaveCount(2);
+        await page.setViewportSize({ width: 320, height: 800 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+      expect(errors).toEqual([]);
+    } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  });
+}
 
 test("equipment can be lifted with the mouse or moved along the floor", async ({ page }) => {
   test.setTimeout(120_000);

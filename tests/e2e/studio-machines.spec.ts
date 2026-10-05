@@ -9,23 +9,22 @@ import { studioAssetNames } from "../../src/lib/motion/studio";
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 test.beforeEach(async ({ page }) => page.setDefaultTimeout(15_000));
 
-test("machine carriages animate, save, reload and remain editable with supported contact", async ({ page }) => {
-  test.setTimeout(300_000);
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
-  const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
-  const email = `machines-${Date.now()}@example.test`, password = "MachineFixture2026!";
-  const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-  if (account.error) throw account.error;
-  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
-  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
-  try {
-    await page.setViewportSize({ width: 1600, height: 1100 });
-    await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
-    await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
-    for (const variant of [...machineSlugs.map(slug => ({ slug, grip: "supinated" as const })), { slug: "lat-pulldown-machine" as const, grip: "pronated" as const }]) {
-      const { slug, grip } = variant;
+for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supinated" as const })), { slug: "lat-pulldown-machine" as const, grip: "pronated" as const }]) {
+  test(`machine carriages animate, save, reload and remain editable with supported contact: ${slug}${slug === "lat-pulldown-machine" ? ` ${grip}` : ""}`, async ({ page }) => {
+    test.setTimeout(300_000);
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
+    const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    const email = `machines-${randomUUID()}@example.test`, password = "MachineFixture2026!";
+    const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    if (account.error) throw account.error;
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+    try {
+      await page.setViewportSize({ width: 1600, height: 1100 });
+      await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
+      await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
       const scene = machineDemoScene(slug, randomUUID(), grip);
       const created = await owner.rpc("create_workshop_exercise", { p_scene: scene });
       if (created.error) throw created.error;
@@ -110,7 +109,7 @@ test("machine carriages animate, save, reload and remain editable with supported
       if (frozen.error) throw frozen.error;
       expect(frozen.data.studio_layout).toEqual(expect.objectContaining({ objects: [expect.objectContaining({ slug, machineUse: true,
         ...(slug === "lat-pulldown-machine" ? { machineGrip: grip } : {}) })] }));
-    }
-    expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
-});
+      expect(errors).toEqual([]);
+    } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  });
+}
