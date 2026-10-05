@@ -8,7 +8,8 @@ export async function openWorkshopMenu(page: Page) {
 }
 
 export async function setWorkshopMode(page: Page, mode: "quick" | "advanced") {
-  await page.getByRole("button", { name: mode === "quick" ? "Quick create" : "Advanced editing", exact: true }).click();
+  const button = page.getByRole("button", { name: mode === "quick" ? "Quick create" : "Advanced editing", exact: true });
+  if (await button.getAttribute("aria-pressed") !== "true") await button.click();
   const menu = page.locator("[data-workshop-menu]");
   if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator("summary").click();
 }

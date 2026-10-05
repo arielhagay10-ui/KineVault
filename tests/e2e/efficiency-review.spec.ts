@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./published-catalog.helpers";
 
 test("metadata warns only for actual edits and keeps them after cancelled navigation", async ({ page }) => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -111,7 +112,7 @@ test("share copy failure is announced and replacing a copied link resets feedbac
   } finally { await service.auth.admin.deleteUser(account.data.user.id); }
 });
 
-test("mobile navigation and detail title remain visible in both themes", async ({ page }) => {
+test("mobile navigation and detail title remain visible in both themes", async ({ page, publishedCableRaise }) => {
   mkdirSync(".local-artifacts/efficiency-review", { recursive: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
@@ -121,8 +122,8 @@ test("mobile navigation and detail title remain visible in both themes", async (
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `.local-artifacts/efficiency-review/home-mobile-${theme}.png`, fullPage: true });
   }
-  await page.goto("/exercises/cable-lateral-raise");
-  await expect(page.getByRole("heading", { name: "Cable Lateral Raise", exact: true })).toBeInViewport();
+  await page.goto(`/exercises/${publishedCableRaise.slug}`);
+  await expect(page.getByRole("heading", { name: publishedCableRaise.name, exact: true })).toBeInViewport();
   await expect(page.getByRole("link", { name: /Sign in to save/ })).toBeInViewport();
   await page.screenshot({ path: ".local-artifacts/efficiency-review/detail-mobile-dark.png", fullPage: true });
 });

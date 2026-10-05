@@ -1,7 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./published-catalog.helpers";
 
 for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
-  test(`filter options stay above the Apply button at ${viewport.width}px`, async ({ page }) => {
+  test(`filter options stay above the Apply button at ${viewport.width}px`, async ({ page, publishedCableRaise }) => {
     await page.setViewportSize(viewport);
     await page.goto("/exercises");
     const form = page.locator('#explore-filters form');
@@ -19,7 +20,9 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
     await page.getByRole("button", { name: "Apply filters" }).click();
     await expect(page).toHaveURL(/equipment=cable/);
     await expect(page).toHaveURL(/jointAction=shoulder-abduction/);
-    await page.getByRole("link").filter({ has: page.getByRole("heading", { name: "Cable Lateral Raise", exact: true }) }).click();
-    await expect(page.getByRole("heading", { name: "Cable Lateral Raise", exact: true })).toBeVisible();
+    await page.locator(`a[href="/exercises/${publishedCableRaise.slug}"]`)
+      .filter({ has: page.getByRole("heading", { name: publishedCableRaise.name, exact: true }) }).click();
+    await expect(page).toHaveURL(new RegExp(`/exercises/${publishedCableRaise.slug}$`));
+    await expect(page.getByRole("heading", { name: publishedCableRaise.name, exact: true })).toBeVisible();
   });
 }

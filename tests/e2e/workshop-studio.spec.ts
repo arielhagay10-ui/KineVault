@@ -295,17 +295,17 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
       }
       for (const view of ["Front", "Side"]) {
         await page.getByRole("button", { name: view, exact: true }).click();
+        await openWorkshopTool(page, "Timeline");
         for (let step = 0; step <= 8; step++) {
-          await openWorkshopTool(page, "Timeline");
           await page.getByLabel("Scrub timeline").evaluate((element, value) => {
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(element, String(value));
             element.dispatchEvent(new Event("input", { bubbles: true }));
           }, step * 400);
           await expect(page.getByLabel("Scrub timeline")).toHaveValue(String(step * 400));
-          await openWorkshopTool(page, "Contacts");
           await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
           await page.locator("canvas").screenshot({ path: `${artifacts}/${kind}-${view}-${step}.png` });
         }
+        await openWorkshopTool(page, "Contacts");
       }
       await openWorkshopTool(page, "Timeline");
       await page.getByRole("button", { name: "Play", exact: true }).click();
@@ -624,7 +624,8 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
     await openWorkshopMenu(page);
     await page.getByRole("button", { name: "Save & add details", exact: false }).click();
     await expect(page).toHaveURL(/\/my-exercises\/[0-9a-f-]+\/edit\?sceneSaved=1$/);
-    await expect(page.getByRole("status")).toHaveText("Movement saved privately. Give it a name. Anatomy and instructions are optional.");
+    const confirmation = "Movement saved privately. Give it a name. Anatomy and instructions are optional.";
+    await expect(page.getByRole("status").filter({ hasText: confirmation })).toHaveText(confirmation);
     await page.getByLabel("Name", { exact: true }).fill("My barbell motion");
     await page.getByText("Description, equipment and classifications (optional)", { exact: true }).click();
     await page.getByLabel("Short description").fill("An exercise created in the workshop first.");

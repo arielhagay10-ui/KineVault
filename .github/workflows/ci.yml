@@ -51,3 +51,12 @@ jobs:
           echo "RENDER_WORKER_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - run: npm run test:e2e
       - run: npm run test:media
+      - name: Upload browser failure details
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failures
+          path: |
+            test-results/**/error-context.md
+            test-results/**/*.png
+          retention-days: 7

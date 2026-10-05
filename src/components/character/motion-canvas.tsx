@@ -418,7 +418,7 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
     </div>
     {simplifiedControls && !compact && <>
       <WorkshopCameraControls viewsOnly={!!controlsTarget && !fullscreen} view={view} mode={mode} editable={!!editor} ready={!!muscles.length && !failure} selectionLabel={selectionLabel} faded={faded} fullscreen={fullscreen} onViewChange={changeView} onModeChange={value => { setLocalMode(value); onInteractionModeChange?.(value); }} onAction={cameraAction} onFadeChange={setFaded} onFullscreen={toggleFullscreen} />
-      <p role="status" className={fillViewport && !previewMessage ? "sr-only" : "mt-2 text-sm"}>{previewMessage}</p>
+      <p role="status" className={fillViewport ? "mt-2 min-h-5 shrink-0 text-sm" : "mt-2 text-sm"}>{previewMessage}</p>
       <details hidden={!!controlsTarget && !failure && !fullscreen} className="mt-3 text-base" open={!!failure}><summary className="min-h-11 cursor-pointer py-2">{t("Text scene summary")}</summary><div className="space-y-2 py-2 text-sm">
         <p><span data-workshop-translate="false">{scene.studio?.objects.length ? equipmentNames : t(equipmentNames)}</span>. {t("{count} poses over {duration} seconds. Current preview time: {time} seconds.", { count: scene.keyframes.length, duration: scene.durationMs / 1000, time: Math.round(timeMs / 100) / 10 })}</p>
         <p>{selectionLabel ? <>{t("Selected:")} <span data-workshop-translate="false">{selection?.kind === "object" ? selectionLabel : t(selectionLabel)}</span>.</> : t("Nothing selected.")} {target === "none" ? t("No muscle highlight.") : <>{t("Muscle highlight:")} {t(selectedHighlight)}.</>} {t(isolate ? "Only selected anatomy is shown." : "Whole body is shown.")}</p>
