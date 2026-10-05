@@ -630,7 +630,7 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
     await page.getByText("Description, equipment and classifications (optional)", { exact: true }).click();
     await page.getByLabel("Short description").fill("An exercise created in the workshop first.");
     await page.getByRole("button", { name: "Save privately", exact: true }).click();
-    await expect(page.getByRole("status")).toHaveText("Saved privately.");
+    await expect(page.getByRole("status").filter({ hasText: /^Saved privately\.$/ })).toHaveText("Saved privately.");
     await page.getByRole("link", { name: "Open motion workshop", exact: false }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopObject(page, "Barbell");

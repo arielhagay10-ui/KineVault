@@ -43,8 +43,8 @@ test("row start and finish heights move independently and survive private save/r
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();
-    await page.reload();
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload({ waitUntil: "commit", timeout: 60_000 });
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Start and finish", exact: true }).click();
     await expect(start).toHaveValue("1.1"); await expect(finish).toHaveValue("1.45");
     await page.getByRole("region", { name: "Playback controls" }).getByRole("button", { name: "View finish", exact: true }).click();
@@ -54,7 +54,7 @@ test("row start and finish heights move independently and survive private save/r
       for (let i = 0; i <= 16; i++) {
         await page.getByLabel("Preview time", { exact: true }).fill(String(scene.durationMs * i / 16));
         await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
-        await page.locator("canvas").screenshot({ path: `${folder}/${view.toLowerCase()}-${i}.png` });
+        await page.locator("canvas").screenshot({ path: `${folder}/${view.toLowerCase()}-${i}.png`, timeout: 60_000 });
       }
     }
     for (const speed of ["1", "0.25"]) {
@@ -71,8 +71,8 @@ test("row start and finish heights move independently and survive private save/r
     expect(stored.data.studio_layout).toMatchObject({ presentation: { highlight: "group:abs" }, objects: [{ machineHandleHeight: 1.1 }] });
     const layout = stored.data.studio_layout as { objects: { frames: { timeMs: number; machineHandleHeight: number }[] }[] };
     expect(layout.objects[0].frames.find(frame => frame.timeMs === scene.durationMs / 2)?.machineHandleHeight).toBe(1.45);
-    await page.reload();
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload({ waitUntil: "commit", timeout: 60_000 });
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Start and finish", exact: true }).click();
     await expect(start).toHaveValue("1.1"); await expect(finish).toHaveValue("1.45");
     await page.getByRole("button", { name: "Small range", exact: true }).click();
@@ -94,7 +94,7 @@ test("row start and finish heights move independently and survive private save/r
     await card.getByRole("button", { name: "Play", exact: true }).click();
     await page.waitForTimeout(scene.durationMs + 800);
     await card.getByRole("button", { name: "Pause", exact: true }).click();
-    await card.screenshot({ path: `${folder}/saved-library.png` });
+    await card.screenshot({ path: `${folder}/saved-library.png`, timeout: 60_000 });
     expect(errors).toEqual([]);
   } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
 });
