@@ -6,7 +6,7 @@ export const LIST_PAGE_SIZE = 24;
 export function parseListPage(raw: RawSearchParams) {
   const first = (value: RawSearchParams[string]) => Array.isArray(value) ? value[0] : value;
   const page = z.coerce.number().int().min(1).max(100000).catch(1).parse(first(raw.page) ?? 1);
-  const query = z.string().trim().max(100).catch("").parse(first(raw.q) ?? "");
+  const query = z.string().trim().transform(value => value.slice(0, 100)).catch("").parse(first(raw.q) ?? "");
   return { page, query, from: (page - 1) * LIST_PAGE_SIZE, to: page * LIST_PAGE_SIZE - 1 };
 }
 

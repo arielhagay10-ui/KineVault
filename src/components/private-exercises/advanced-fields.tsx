@@ -1,3 +1,4 @@
+import { Textarea } from "@/components/ui/textarea";
 import { Constants } from "@/lib/database.types";
 import type { ReviewOptions } from "@/lib/moderation/content";
 import type { ReviewPatch } from "@/lib/moderation/schema";
@@ -17,7 +18,7 @@ export function AdvancedPrivateFields({ initial, options }: { initial?: ReviewPa
   const taxonomies = { grip: options.grips, stance: options.stances, plane: options.planes, resistance_source: options.resistanceSources };
   return <details className="rounded-2xl border bg-card p-6"><summary className="min-h-11 cursor-pointer text-lg font-semibold">Instructions and detailed classifications (optional)</summary>
     <div className="mt-6 grid gap-5 sm:grid-cols-2">
-      <label className="text-base font-semibold sm:col-span-2">Aliases<textarea name="aliases" aria-label="Aliases" maxLength={3300} rows={3}
+      <label className="text-base font-semibold sm:col-span-2">Aliases<Textarea name="aliases" aria-label="Aliases" maxLength={3300} rows={3}
         defaultValue={initial?.aliases.join("\n") ?? ""} placeholder="One alternate name per line." className={input} /></label>
       {Object.entries(taxonomies).map(([field, values]) => <label key={field} className="text-base font-semibold">
         {reviewFieldLabels[field as keyof typeof taxonomies]}<select name={field} aria-label={reviewFieldLabels[field as keyof typeof taxonomies]} defaultValue={initial?.[field as keyof typeof taxonomies] ?? ""} className={input}>
@@ -33,9 +34,9 @@ export function AdvancedPrivateFields({ initial, options }: { initial?: ReviewPa
         title={reviewFieldLabels[field]} name={field} options={field === "attachments" ? options.attachments : options.movementPatterns}
         selected={initial?.[field] ?? []} />)}
       {privateInstructionFields.map((field) => <label key={field} className="text-base font-semibold">{reviewFieldLabels[field]}
-        <textarea name={field} aria-label={reviewFieldLabels[field]} defaultValue={initial?.[field] ?? ""} maxLength={4000} rows={3} className={input} />
+        <Textarea name={field} aria-label={reviewFieldLabels[field]} defaultValue={initial?.[field] ?? ""} maxLength={4000} rows={3} className={input} />
       </label>)}
-      <label className="text-base font-semibold sm:col-span-2">Classification notes<textarea name="reviewer_notes" aria-label="Classification notes" maxLength={2000} rows={3}
+      <label className="text-base font-semibold sm:col-span-2">Classification notes<Textarea name="reviewer_notes" aria-label="Classification notes" maxLength={2000} rows={3}
         defaultValue={initial?.reviewer_notes ?? ""} placeholder="Describe geometry, setup dependencies, or uncertainty." className={input} /></label>
     </div>
   </details>;

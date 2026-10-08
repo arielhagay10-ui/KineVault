@@ -5,7 +5,7 @@ test("anatomical model supports muscle groups, individual selection, isolation a
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
-  await page.getByRole("button", { name: "Open interactive 3D preview", exact: true }).click();
+  await page.getByRole("button", { name: "Try the movement viewer", exact: true }).click();
   const viewer = page.locator('[data-anatomy-state="ready"]');
   await expect(viewer).toBeVisible({ timeout: 60_000 });
   await page.getByLabel("Highlight", { exact: true }).selectOption("group:triceps");
@@ -39,7 +39,7 @@ test("anatomy download errors allow retry", async ({ page }) => {
   test.setTimeout(120_000);
   await page.route("**/models/z-anatomy/*.glb", route => route.fulfill({ status: 503, body: "Unavailable" }));
   await page.goto("/");
-  await page.getByRole("button", { name: "Open interactive 3D preview", exact: true }).click();
+  await page.getByRole("button", { name: "Try the movement viewer", exact: true }).click();
   await expect(page.getByText("Could not load the 3D preview.", { exact: true })).toBeVisible();
   await page.unroute("**/models/z-anatomy/*.glb");
   await page.getByRole("button", { name: "Retry preview", exact: true }).click();

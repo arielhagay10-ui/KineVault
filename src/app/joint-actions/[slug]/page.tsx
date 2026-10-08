@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "@/components/ui/icons";
 import { ExerciseCards } from "@/components/catalog/exercise-cards";
 import { FilterSection } from "@/components/catalog/filter-section";
 import { Button } from "@/components/ui/button";
@@ -60,12 +60,8 @@ export default async function JointActionPage({ params, searchParams }: Props) {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl px-6 pb-20 pt-8 lg:px-10">
-        <header className="flex items-center justify-between border-b border-border pb-6">
-          <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-          <Link href="/exercises" className="flex items-center gap-2 text-sm text-primary"><ArrowLeft size={16} /> Explore</Link>
-        </header>
         <div className="max-w-3xl pb-10 pt-12">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Joint action</p>
+
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">{action.joints?.name} {action.name}</h1>
           <p className="mt-4 text-lg leading-8 text-muted-foreground">
             {action.description ?? `A movement at the ${action.joints?.name.toLowerCase() ?? "joint"} classified as ${action.name.toLowerCase()}. Exercise classifications depend on the performed technique and are reviewed individually.`}

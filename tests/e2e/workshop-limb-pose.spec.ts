@@ -1,3 +1,4 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
@@ -29,11 +30,13 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
   const email = `limb-${Date.now()}@example.test`, password = "LimbFixture2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
-  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
-  mkdirSync(folder, { recursive: true });
+
   try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    mkdirSync(folder, { recursive: true });
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in");
     await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
@@ -48,6 +51,43 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("1600");
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await page.getByRole("button", { name: "Front", exact: true }).click();
+    // A changing reach advisory must not resize the canvas or disrupt pointer capture.
+    const preview = page.getByLabel("3D exercise preview", { exact: true });
+    const hand = page.getByRole("button", { name: "Drag Left hand", exact: true });
+    await hand.hover();
+    const initialPreview = (await preview.boundingBox())!;
+    const handBounds = (await hand.boundingBox())!;
+    const handX = handBounds.x + handBounds.width / 2, handY = handBounds.y + handBounds.height / 2;
+    await page.mouse.move(handX, handY); await page.mouse.down();
+    await page.mouse.move(handX + 600, handY - 600, { steps: 12 });
+    const reachMessage = "This target is beyond the limb's reach or joint limits. The closest pose within joint limits is shown.";
+    await page.getByText(reachMessage, { exact: true }).first().waitFor({ state: "attached" });
+    const limitedPreview = (await preview.boundingBox())!;
+    expect(limitedPreview.y).toBeCloseTo(initialPreview.y, 0);
+    expect(limitedPreview.height).toBeCloseTo(initialPreview.height, 0);
+    await page.mouse.up();
+    const feedback = page.getByRole("button", { name: "Pose limit", exact: true });
+    await expect(feedback).toBeVisible();
+    await feedback.focus();
+    await expect(page.getByRole("tooltip")).toHaveText(reachMessage);
+    await page.screenshot({ path: `${folder}/pose-limit.png` });
+    await page.setViewportSize({ width: 1003, height: 871 });
+    await hand.focus();
+    const narrowPreview = (await preview.boundingBox())!;
+    const narrowFeedback = (await feedback.boundingBox())!;
+    expect(narrowFeedback.x).toBeGreaterThanOrEqual(narrowPreview.x);
+    expect(narrowFeedback.y).toBeGreaterThanOrEqual(narrowPreview.y);
+    expect(narrowFeedback.x + narrowFeedback.width).toBeLessThanOrEqual(narrowPreview.x + narrowPreview.width);
+    expect(narrowFeedback.y + narrowFeedback.height).toBeLessThanOrEqual(narrowPreview.y + narrowPreview.height);
+    await expect(page.getByRole("tooltip")).not.toBeVisible();
+    await page.screenshot({ path: `${folder}/pose-limit-narrow.png` });
+    await page.setViewportSize({ width: 1500, height: 1100 });
+    await page.getByRole("button", { name: "Undo", exact: true }).first().click();
+    await drag(page, hand, 10, -10, true);
+    await expect(feedback).toHaveCount(0);
+    const restoredPreview = (await preview.boundingBox())!;
+    expect(restoredPreview.y).toBeCloseTo(initialPreview.y, 0);
+    expect(restoredPreview.height).toBeCloseTo(initialPreview.height, 0);
     await drag(page, page.getByRole("button", { name: "Drag Left hand", exact: true }), 25, -65);
     await expect(page.getByRole("button", { name: "Undo", exact: true }).first()).toBeEnabled();
     const canvas = page.locator("canvas");
@@ -68,11 +108,12 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await drag(page, page.getByRole("button", { name: "Drag Right hand", exact: true }), -25, -65);
     await page.getByRole("button", { name: "Side", exact: true }).click();
     await drag(page, page.getByRole("button", { name: "Drag Left foot", exact: true }), 15, -35);
-    await expect(page.getByText("Foot contact changed. Check the sole and floor from Side view before saving.")).toBeVisible();
+    await page.getByRole("button", { name: "Check foot contact", exact: true }).focus();
+    await expect(page.getByRole("tooltip")).toHaveText("Foot contact changed. Check the sole and floor from Side view before saving.");
     await page.getByRole("button", { name: "Drag Right foot", exact: true }).press("ArrowUp");
     await page.screenshot({ path: `${folder}/controls.png`, fullPage: true });
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save privately", exact: true }).click();
     await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();
     const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single(); if (record.error) throw record.error;
     const saved = await owner.from("exercise_scenes").select("id,studio_layout,motion_style").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
@@ -126,5 +167,5 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(0);
     await expect(page.getByText("Leave the machine to pose hands and feet freely. Move its handles to keep contact.")).toBeVisible();
     expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

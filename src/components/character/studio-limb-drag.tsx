@@ -2,7 +2,7 @@
 
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Move } from "lucide-react";
+import { Move } from "@/components/ui/icons";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { Group, Plane, Raycaster, Vector2, Vector3 } from "three";
 import type { AnatomyRig } from "@/lib/motion/anatomy";
@@ -22,10 +22,11 @@ export function StudioLimbDrag({ rig, limb, editor }: { rig: AnatomyRig; limb: P
     const point = anchor.current.getWorldPosition(new Vector3()).project(camera);
     const peer = rig.bones[`${other}-${limb.endsWith("hand") ? "wrist" : "ankle"}`].getWorldPosition(new Vector3()).project(camera);
     const bounds = gl.domElement.getBoundingClientRect();
-    const close = Math.hypot((point.x - peer.x) * bounds.width / 2, (point.y - peer.y) * bounds.height / 2) < 48;
-    // Anatomical left can appear on either screen side as the camera rotates.
-    const screenLeft = point.x < peer.x || (point.x === peer.x && side === "left");
-    const next = close ? screenLeft ? -26 : 26 : 0;
+    const dx = (point.x - peer.x) * bounds.width / 2;
+    const close = Math.hypot(dx, (point.y - peer.y) * bounds.height / 2) < 48;
+    // Spread in screen order; anatomical left can be on either side of the camera.
+    const direction = Math.abs(dx) > 1 ? Math.sign(dx) : side === "left" ? -1 : 1;
+    const next = close ? direction * Math.max(0, (52 - Math.abs(dx)) / 2) : 0;
     setOffset(previous => previous === next ? previous : next);
   });
   const drag = useRef<{ plane: Plane; hit: Vector3; point: Vector3; pose: RigPose; sensitivity: number; moved: boolean; element: HTMLButtonElement; pointerId: number; direction: "view" | "floor"; right: Vector3; up: Vector3; forward: Vector3 } | null>(null);

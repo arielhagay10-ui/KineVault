@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
-import { expect, test } from "@playwright/test";
+import { expect, test, type BrowserContext } from "@playwright/test";
 import { z } from "zod";
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 
 test("reviewer corrections and change requests reach the contributor", async ({ page, browser }) => {
   test.setTimeout(60_000);
@@ -18,6 +19,8 @@ test("reviewer corrections and change requests reach the contributor", async ({ 
     admin.auth.admin.createUser({ email: ownerEmail, password, email_confirm: true }),
     admin.auth.admin.createUser({ email: reviewerEmail, password, email_confirm: true }),
   ]);
+  let ownerContext: BrowserContext | undefined;
+  try {
   if (ownerResult.error || reviewerResult.error) throw new Error("Local review accounts could not be created");
   const reviewerId = z.uuid().parse(reviewerResult.data.user!.id);
   execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-c",
@@ -56,7 +59,7 @@ test("reviewer corrections and change requests reach the contributor", async ({ 
   await page.getByRole("button", { name: "Record decision" }).click();
   await expect(page.getByText("This review is changes requested.")).toBeVisible();
 
-  const ownerContext = await browser.newContext();
+  ownerContext = await browser.newContext();
   const ownerPage = await ownerContext.newPage();
   await ownerPage.goto("/sign-in");
   await ownerPage.getByLabel("Email").fill(ownerEmail);
@@ -69,5 +72,13 @@ test("reviewer corrections and change requests reach the contributor", async ({ 
   await expect(ownerPage.getByRole("heading", { name: "Browser Review Raise", exact: true })).toBeVisible();
   await expect(ownerPage.locator("ins").filter({ hasText: "Corrected Browser Raise" })).toBeVisible();
   expect((await ownerPage.goto("/admin"))?.status()).toBe(404);
-  await ownerContext.close();
+  } finally {
+    const cleanup = await Promise.allSettled([
+      ...(ownerContext ? [ownerContext.close()] : []),
+      ...(ownerResult.data.user ? [cleanupLocalFixture({ admin, userId: ownerResult.data.user.id, email: ownerEmail, password })] : []),
+      ...(reviewerResult.data.user ? [cleanupLocalFixture({ admin, userId: reviewerResult.data.user.id, email: reviewerEmail, password })] : []),
+    ]);
+    const failures = cleanup.filter(result => result.status === "rejected").map(result => result.reason);
+    if (failures.length) throw new AggregateError(failures, "Moderation fixture cleanup failed");
+  }
 });

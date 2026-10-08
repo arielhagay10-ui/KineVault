@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Play } from "lucide-react";
+import { Pause, Play } from "@/components/ui/icons";
 import type { WorkshopScene } from "@/lib/motion/workshop";
 import { workshopMomentName } from "@/lib/motion/workshop-history";
 import { useWorkshopLanguage } from "./workshop-language";
@@ -16,7 +16,7 @@ export function WorkshopPlaybackControls({ scene, timeMs, playing, speed, select
   const { t, formatNumber } = useWorkshopLanguage();
   return <section aria-label={t("Playback controls")} className="shrink-0 space-y-1 border-t bg-card px-2 py-2">
     <div className="flex flex-wrap items-center gap-2">
-      <button type="button" disabled={disabled} onClick={() => onPlayingChange(!playing)} className={buttonClass}>{playing ? <Pause size={16} /> : <Play size={16} />}{t(playing ? "Pause" : "Play")}</button>
+      <button data-tutorial-target="playback" type="button" disabled={disabled} onClick={() => onPlayingChange(!playing)} className={buttonClass}>{playing ? <Pause size={16} /> : <Play size={16} />}{t(playing ? "Pause" : "Play")}</button>
       <select aria-label={t("Preview speed")} value={speed} onChange={event => onSpeedChange(Number(event.target.value))} className="min-h-11 max-w-20 rounded-lg border bg-card p-2">{[.25, .5, 1].map(value => <option key={value} value={value}>{formatNumber(value)}×</option>)}</select>
       <button type="button" aria-label={t("View start")} onClick={() => onTimeChange(0)} className={buttonClass}>{t("Start")}</button>
       <button type="button" aria-label={t("View finish")} onClick={() => onTimeChange(scene.durationMs / 2)} className={buttonClass}>{t("Finish")}</button>

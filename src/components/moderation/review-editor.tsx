@@ -1,5 +1,7 @@
 "use client";
 
+
+import { Textarea } from "@/components/ui/textarea";
 import { useActionState } from "react";
 import { editSubmission } from "@/app/admin/submissions/actions";
 import { reviseExercise } from "@/app/admin/exercises/actions";
@@ -29,8 +31,8 @@ export function ReviewEditor({ submissionId, exerciseId, contentId, initial, opt
     <input type="hidden" name="submissionId" value={submissionId} />
     {exerciseId && <><input type="hidden" name="exerciseId" value={exerciseId} /><input type="hidden" name="contentId" value={contentId} /></>}
     <label className="block text-sm font-semibold">Name<input name="name" required minLength={2} maxLength={160} defaultValue={initial.name} className={inputClass} /></label>
-    <label className="block text-sm font-semibold">Aliases<textarea name="aliases" aria-label="Aliases" maxLength={3300} rows={3} defaultValue={initial.aliases.join("\n")} placeholder="One alternate name per line." className={inputClass} /></label>
-    <label className="block text-sm font-semibold">Description<textarea name="description" aria-label="Description" maxLength={500} rows={3} defaultValue={initial.description ?? ""} className={inputClass} /></label>
+    <label className="block text-sm font-semibold">Aliases<Textarea name="aliases" aria-label="Aliases" maxLength={3300} rows={3} defaultValue={initial.aliases.join("\n")} placeholder="One alternate name per line." className={inputClass} /></label>
+    <label className="block text-sm font-semibold">Description<Textarea name="description" aria-label="Description" maxLength={500} rows={3} defaultValue={initial.description ?? ""} className={inputClass} /></label>
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Object.entries(taxonomyFields).map(([field, choices]) => <label key={field} className="block text-sm font-semibold">
         {reviewFieldLabels[field as keyof typeof taxonomyFields]}
@@ -54,16 +56,16 @@ export function ReviewEditor({ submissionId, exerciseId, contentId, initial, opt
       <ChoiceGroup field="attachments" choices={options.attachments} selected={initial.attachments} />
       <ChoiceGroup field="movement_patterns" choices={options.movementPatterns} selected={initial.movement_patterns} />
     </div>
-    <label className="block text-sm font-semibold">Reviewer notes<textarea name="reviewer_notes" aria-label="Reviewer notes" rows={3} maxLength={2000} defaultValue={initial.reviewer_notes ?? ""} className={inputClass} />
+    <label className="block text-sm font-semibold">Reviewer notes<Textarea name="reviewer_notes" aria-label="Reviewer notes" rows={3} maxLength={2000} defaultValue={initial.reviewer_notes ?? ""} className={inputClass} />
       <span className="mt-2 block text-xs font-normal leading-5 text-muted-foreground">Explain setup dependencies, uncertainty, and the reasoning behind resistance classifications. Approved notes appear on the exercise page.</span>
     </label>
     <details className="rounded-xl border border-border p-4">
       <summary className="cursor-pointer text-sm font-semibold">Instructions and safety</summary>
       <div className="mt-4 grid gap-4 md:grid-cols-2">{instructionFields.map((field) => <label key={field} className="block text-sm font-semibold">
-        {reviewFieldLabels[field]}<textarea name={field} aria-label={reviewFieldLabels[field]} rows={3} maxLength={4000} defaultValue={initial[field] ?? ""} className={inputClass} />
+        {reviewFieldLabels[field]}<Textarea name={field} aria-label={reviewFieldLabels[field]} rows={3} maxLength={4000} defaultValue={initial[field] ?? ""} className={inputClass} />
       </label>)}</div>
     </details>
-    <label className="block text-sm font-semibold">Reason for corrections<textarea name="comment" required minLength={5} maxLength={2000} rows={2} className={inputClass} placeholder="Explain what changed and why." /></label>
+    <label className="block text-sm font-semibold">Reason for corrections<Textarea name="comment" required minLength={5} maxLength={2000} rows={2} className={inputClass} placeholder="Explain what changed and why." /></label>
     {state.error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{state.error}</p>}
     {state.message && <p role="status" className="text-sm text-primary">{state.message}</p>}
     <button disabled={pending} className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">{pending ? "Saving…" : "Save corrections"}</button>

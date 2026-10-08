@@ -1,3 +1,5 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { setWorkshopMode, selectWorkshopObject } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -19,13 +21,14 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
   const email = `bench-${randomUUID()}@example.test`, password = "BenchFixture2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
-  const errors: string[] = [];
-  page.on("pageerror", error => errors.push(error.message));
-  const benchId = randomUUID(), artifacts = ".local-artifacts/workshop/bench-positions";
-  mkdirSync(artifacts, { recursive: true });
+
   try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    const benchId = randomUUID(), artifacts = ".local-artifacts/workshop/bench-positions";
+    mkdirSync(artifacts, { recursive: true });
     const scene = { ...blankWorkshopScene, studio: { body: identityTransform,
       objects: [{ ...createStudioObject("bench", benchId, 0), ...identityTransform, benchAngle: 0 }],
       seating: { benchId, facing: "front" as const } },
@@ -40,6 +43,8 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Start and finish", exact: true }).click();
+    await page.getByText("Grip and equipment options", { exact: true }).click();
     const controls = page.getByRole("region", { name: "Bench body position", exact: true }).filter({ visible: true });
     await expect(controls).toBeVisible();
     await setWorkshopMode(page, "advanced");
@@ -70,6 +75,8 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
       expect(stored.data.studio_layout).toMatchObject({ seating: { benchId, facing }, objects: [{ benchAngle: 0 }] });
       await page.reload();
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+      await page.getByRole("button", { name: "Start and finish", exact: true }).click();
+      await page.getByText("Grip and equipment options", { exact: true }).click();
       await expect(controls.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
       await setWorkshopMode(page, "advanced");
       await page.getByRole("tab", { name: "Timeline", exact: true }).click();
@@ -96,6 +103,8 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
       await page.getByRole("button", { name: "Pause", exact: true }).click();
     }
     await setWorkshopMode(page, "quick");
+    await page.getByRole("button", { name: "Start and finish", exact: true }).click();
+    await page.getByText("Grip and equipment options", { exact: true }).click();
     await expect(controls).toBeVisible();
     await controls.getByRole("button", { name: "Sit", exact: true }).click();
     for (const facing of ["front", "left", "right"]) {
@@ -116,12 +125,15 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
     await expect(controls.getByRole("button", { name: "Leave bench", exact: true })).toHaveCount(0);
     await page.setViewportSize({ width: 1440, height: 1100 });
     await page.goto("/my-exercises/new");
+    await dismissWorkshopTutorial(page);
     await page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
     await page.getByRole("dialog").getByRole("searchbox").fill("bench");
     await page.getByRole("dialog").getByRole("button", { name: "Adjustable bench", exact: true }).first().click();
+    await page.getByRole("button", { name: "Start and finish", exact: true }).click();
+    await page.getByText("Grip and equipment options", { exact: true }).click();
     await expect(controls.getByRole("button", { name: "Lie face up", exact: true })).toBeVisible();
     await controls.getByRole("button", { name: "Lie face up", exact: true }).click();
     await expect(controls.getByRole("button", { name: "Lie face up", exact: true })).toHaveAttribute("aria-pressed", "true");
     expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

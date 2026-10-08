@@ -1,17 +1,32 @@
-import { expect, test } from "@playwright/test";
+import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
+import { expect, test, type BrowserContext } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { jointField, openWorkshopMenu, selectWorkshopJoint } from "./workshop-menu.helpers";
 
 test("an owner can save, share, and revoke a private exercise", async ({ page, browser }) => {
   test.setTimeout(90_000);
   page.setDefaultTimeout(15_000);
   const email = `kinevault-e2e-${Date.now()}@example.test`;
+  const password = "ExamplePassphrase2026!";
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw new Error("Local fixtures required");
+  const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+  let userId: string | undefined;
+  let anonymous: BrowserContext | undefined;
+  try {
   await page.goto("/sign-up");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("ExamplePassphrase2026!");
+  await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
+  const account = await owner.auth.signInWithPassword({ email, password });
+  if (account.error) throw account.error;
+  userId = account.data.user.id;
 
   await page.goto("/my-exercises/new");
+    await dismissWorkshopTutorial(page);
   await page.getByRole("button", { name: "Name and save", exact: true }).click();
   await page.getByLabel("Exercise name", { exact: true }).fill("Private Cable Raise");
   await openWorkshopMenu(page);
@@ -73,7 +88,7 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   const relativeLink = await page.getByRole("textbox", { name: "Share link" }).inputValue();
   expect(relativeLink).toMatch(/^\/shared\/[A-Za-z0-9_-]{43}$/);
 
-  const anonymous = await browser.newContext();
+  anonymous = await browser.newContext();
   const sharedPage = await anonymous.newPage();
   await sharedPage.goto(relativeLink);
   await expect(sharedPage.getByRole("heading", { name: "Private Cable Raise" })).toBeVisible();
@@ -87,5 +102,15 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   await expect(page.getByText("No active share link.")).toBeVisible();
   const revokedResponse = await sharedPage.reload();
   expect(revokedResponse?.status()).toBe(404);
-  await anonymous.close();
+  } finally {
+    try {
+      if (anonymous) await anonymous.close();
+    } finally {
+      if (!userId) {
+        const account = await owner.auth.signInWithPassword({ email, password });
+        userId = account.data.user?.id;
+      }
+      if (userId) await cleanupLocalFixture({ admin, userId, email, password });
+    }
+  }
 });

@@ -1,3 +1,4 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { openWorkshopTool, selectWorkshopObject } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -15,11 +16,12 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
   const email = `row-deck-${Date.now()}@example.test`, password = "EquipmentFixture2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
-  const errors: string[] = [];
-  page.on("pageerror", error => errors.push(error.message));
+
   try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
     await page.setViewportSize({ width: 1600, height: 1100 });
     await page.goto("/sign-in");
     await page.getByLabel("Email", { exact: true }).fill(email);
@@ -35,6 +37,7 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60000 });
       await expect(page.locator("[data-highlight-count]")).not.toHaveAttribute("data-highlight-count", "0");
       await page.getByRole("button", { name: "Add equipment", exact: true }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "View all equipment", exact: true }).click();
       await expect(page.getByRole("dialog").getByRole("button", { name: "Cable row", exact: true })).toBeVisible();
       await expect(page.getByRole("dialog").getByRole("button", { name: "Pec deck", exact: true })).toBeVisible();
       await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
@@ -104,5 +107,5 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
       await page.setViewportSize({ width: 1600, height: 1100 });
     }
     expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

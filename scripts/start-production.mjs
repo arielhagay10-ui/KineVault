@@ -9,7 +9,7 @@ cpSync(".next/static", resolve(root, ".next/static"), { recursive: true });
 if (existsSync("public")) cpSync("public", resolve(root, "public"), { recursive: true });
 const child = spawn(process.execPath, [resolve(root, "server.js")], {
   stdio: "inherit", windowsHide: true,
-  env: { ...process.env, HOSTNAME: "127.0.0.1", PORT: "3000", NODE_ENV: "production" },
+  env: { ...process.env, HOSTNAME: "127.0.0.1", PORT: process.env.PORT ?? "3000", NODE_ENV: "production" },
 });
 process.on("SIGINT", () => child.kill("SIGINT"));
 process.on("SIGTERM", () => child.kill("SIGTERM"));

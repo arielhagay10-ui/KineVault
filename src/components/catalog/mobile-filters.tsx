@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "@/components/ui/icons";
 
 export function MobileFilters({ children, count }: { children: ReactNode; count: number }) {
   const [open, setOpen] = useState(false);

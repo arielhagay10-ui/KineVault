@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Heart, Info } from "lucide-react";
+import { ArrowLeft, Heart, Info } from "@/components/ui/icons";
 import { MediaGallery, type MediaGroup } from "@/components/catalog/media-gallery";
 import { MotionInspector } from "@/components/character/motion-inspector";
 import { loadWorkshopScene } from "@/lib/motion/load-scene";
@@ -91,17 +91,11 @@ export default async function ExercisePage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-card/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
-          <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-          <Link href="/exercises" className="flex items-center gap-2 text-sm font-medium text-muted-foreground"><ArrowLeft size={16} /> Explore</Link>
-        </div>
-      </header>
       <div className="mx-auto max-w-7xl px-6 pb-20 pt-10 lg:px-10">
         <Link href="/exercises" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft size={16} /> Back to Explore</Link>
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
           <div className="min-w-0 lg:col-start-2 lg:row-start-1">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Exercise detail</p>
+
             <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">{content.name}</h1>
             {content.short_description && <p className="mt-5 text-lg leading-8 text-muted-foreground">{content.short_description}</p>}
             {family && <Link href={`/families/${family.slug}`} className="mt-4 inline-flex rounded-full bg-muted px-3 py-1.5 text-sm font-semibold text-primary">{family.name} family</Link>}

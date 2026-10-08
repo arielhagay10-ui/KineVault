@@ -26,6 +26,9 @@ export function useStudioDrag(object: React.RefObject<Object3D>, selection: Stud
     (event.target as HTMLElement).releasePointerCapture(event.pointerId);
     editor?.onDragEnd(cancel || !started.moved); invalidate();
   };
+  // R3F intersects registered pointer handlers before their callback guards.
+  // Keep completion handlers until an existing drag finishes.
+  if (!editor || (!editor.dragging && !canBeginStudioDrag(editor, selection, 0))) return {};
   return {
     onPointerDown: (event: ThreeEvent<PointerEvent>) => {
       if (!editor || !canBeginStudioDrag(editor, selection, event.button)) return;

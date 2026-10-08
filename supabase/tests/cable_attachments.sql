@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(17);
+select plan(18);
 insert into auth.users(id,email,aud,role) values
   ('00000000-0000-4000-8000-000000000081','cable-owner@example.test','authenticated','authenticated'),
   ('00000000-0000-4000-8000-000000000082','cable-other@example.test','authenticated','authenticated');
@@ -10,7 +10,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000081'
 select set_config('test.cable_payload','{"durationMs":3200,"cameraAngle":"front","equipment":null,"keyframes":[{"timeMs":0,"poses":{}},{"timeMs":3200,"poses":{}}],"studio":{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"objects":[{"id":"00000000-0000-4000-8000-000000000083","name":"Cable","slug":"cable-machine","x":1,"y":0,"z":1.2,"rotationX":0,"rotationY":30,"rotationZ":0,"scale":1.5,"attachment":"left","pulleyHeight":1.75,"cableAttachment":"rope"},{"id":"00000000-0000-4000-8000-000000000084","name":"Kettlebell","slug":"kettlebell","x":-0.45,"y":1.3,"z":0.4,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"right","pulleyHeight":1.5}]}}',true);
 select set_config('test.cable_private',public.create_workshop_exercise(current_setting('test.cable_payload')::jsonb)::text,true);
 select is((select studio_layout from public.exercise_scenes where content_id=(select content_id from public.private_exercises where id=current_setting('test.cable_private')::uuid)),current_setting('test.cable_payload')::jsonb->'studio','cable height, attachment and kettlebell save exactly');
-select lives_ok(format('select public.save_private_scene(%L::uuid,%L::jsonb)',current_setting('test.cable_private'),jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,0,cableAttachment}',to_jsonb(kind))::text),kind || ' saves') from unnest(array['d-handle','rope','straight-bar','angled-bar','v-bar']) kind;
+select lives_ok(format('select public.save_private_scene(%L::uuid,%L::jsonb)',current_setting('test.cable_private'),jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,0,cableAttachment}',to_jsonb(kind))::text),kind || ' saves') from unnest(array['d-handle','rope','straight-bar','angled-bar','lat-bar','v-bar']) kind;
 select throws_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,0,cableAttachment}','"unknown"'))$$,'23514',null,'unknown attachment rejected');
 select throws_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,1,cableAttachment}','"rope"'))$$,'23514',null,'weight cannot have a cable attachment');
 select throws_ok($$select public.save_private_scene(current_setting('test.cable_private')::uuid,jsonb_set(current_setting('test.cable_payload')::jsonb,'{studio,objects,0,pulleyHeight}','3.21'))$$,'23514',null,'excessive pulley height rejected');

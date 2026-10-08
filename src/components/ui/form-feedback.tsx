@@ -5,7 +5,7 @@ import { startTransition, useEffect, type FormEvent, type RefObject } from "reac
 /** Dispatch explicitly so returned validation errors do not reset uncontrolled fields. */
 export function submitPreservingValues(event: FormEvent<HTMLFormElement>, action: (data: FormData) => void) {
   event.preventDefault();
-  const data = new FormData(event.currentTarget);
+  const data = new FormData(event.currentTarget, (event.nativeEvent as SubmitEvent).submitter);
   startTransition(() => action(data));
 }
 

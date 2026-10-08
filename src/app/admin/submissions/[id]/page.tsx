@@ -70,7 +70,7 @@ export default async function SubmissionReviewPage({ params, searchParams }: {
   const defaultSlug = candidate?.slug ?? (editorial?.name ?? original.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 120);
 
   return <div className="space-y-8">
-    <Link href="/admin/submissions" className="text-sm font-semibold text-primary">← Review queue</Link>
+    <Link href="/admin/submissions" className="text-sm font-semibold text-primary">Review queue</Link>
     <header><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{humanLabel(submission.status)}</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">{original.name}</h1>
       <p className="mt-3 text-sm text-muted-foreground">{profile.data?.display_name || `Contributor ${submission.owner_id.slice(0, 8)}`} · {submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "Draft"} · Motion reuse {submission.allow_motion_reuse ? "allowed with attribution" : "not authorized"}</p>
@@ -79,7 +79,7 @@ export default async function SubmissionReviewPage({ params, searchParams }: {
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="text-lg font-semibold">Demonstration</h2>
-        {media?.webm || media?.mp4 ? <video controls muted loop playsInline poster={media.poster ?? undefined} className="mt-4 aspect-square max-h-[550px] w-full rounded-xl bg-muted object-contain">
+        {media?.webm || media?.mp4 ? <video controls muted loop playsInline preload="metadata" aria-label="Submitted motion demonstration" poster={media.poster ?? undefined} className="mt-4 aspect-square max-h-[550px] w-full rounded-xl bg-muted object-contain">
           {media.webm && <source src={media.webm} type="video/webm" />}{media.mp4 && <source src={media.mp4} type="video/mp4" />}
         </video> : <p className="mt-4 text-sm text-muted-foreground">Render: {renderJob?.status ?? "Not queued"}{renderJob?.error_code ? ` (${humanLabel(renderJob.error_code)})` : ""}.</p>}
         {scene && <details className="mt-5"><summary className="cursor-pointer text-sm font-semibold text-primary">Inspect motion source and camera views</summary><SharedMotion scene={scene} /></details>}
@@ -126,7 +126,7 @@ export default async function SubmissionReviewPage({ params, searchParams }: {
         {event.reason && <p className="mt-2 text-sm">{humanLabel(event.reason)}</p>}{event.comment && <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{event.comment}</p>}
         {event.moderation_field_changes.length > 0 && <dl className="mt-3 space-y-3 text-xs">{event.moderation_field_changes.map((change) => <div key={change.field_name}>
           <dt className="font-semibold">{reviewFieldLabels[change.field_name as ReviewField] ?? humanLabel(change.field_name)}</dt>
-          <dd className="mt-1 whitespace-pre-wrap"><del className="text-red-700 dark:text-red-300">{formatReviewValue(change.before_value)}</del><span className="mx-2">→</span><ins className="text-primary">{formatReviewValue(change.after_value)}</ins></dd>
+          <dd className="mt-1 whitespace-pre-wrap"><del className="text-red-700 dark:text-red-300">{formatReviewValue(change.before_value)}</del><span className="mx-2"></span><ins className="text-primary">{formatReviewValue(change.after_value)}</ins></dd>
         </div>)}</dl>}
       </li>)}</ol>
     </section>

@@ -10,7 +10,7 @@ export const clamp = (value: number, min: number, max: number) => Math.max(min, 
 export const maxPulleyHeight = 3.2;
 export function studioAttachmentSlots(object: StudioObject): string[] {
   const sides = object.attachment === "both" ? ["left", "right"] : object.attachment === "none" ? [] : [object.attachment];
-  const site = object.slug === "cable-machine" && object.cableAttachment === "cuff" ? object.cuffPosition ?? "wrist" : "hand";
+  const site = ["cable-machine", "cable-row-machine"].includes(object.slug) && object.cableAttachment === "cuff" ? object.cuffPosition ?? "wrist" : "hand";
   return sides.map(side => `${side}-${site}`);
 }
 const degrees = (radians: number) => Math.round(((radians * 180 / Math.PI + 180) % 360 + 360) % 360 - 180);
@@ -36,7 +36,7 @@ export function readJointAngles(slug: JointSlug, object: Object3D): JointAngles 
 
 export function createStudioObject(slug: StudioObject["slug"], id: string, index: number): StudioObject {
   return { ...identityTransform, id, slug, name: studioAssetNames[slug], x: 0.95 + index % 2 * 0.5, y: ["barbell", "dumbbell", "kettlebell"].includes(slug) ? 0.65 : 0, z: slug === "cable-machine" ? 1.2 : 0.3 - Math.floor(index / 2) * 0.5,
-    attachment: "none", pulleyHeight: 1.5 };
+    attachment: "none", pulleyHeight: 1.5, rotationY: slug === "cable-machine" ? Math.atan2(-(0.95 + index % 2 * 0.5), -1.2) * 180 / Math.PI : 0 };
 }
 
 export function sampleStudioObject(object: StudioObject, timeMs: number): StudioObject {

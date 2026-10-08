@@ -1,5 +1,7 @@
 "use client";
 
+
+import { Textarea } from "@/components/ui/textarea";
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { savePrivateExercise } from "@/app/my-exercises/actions";
@@ -84,7 +86,7 @@ function PrivateExerciseFields({ initial, options, metadata, scene, recoveryKey,
     <details className="rounded-2xl border border-border bg-card p-6">
       <summary className="min-h-11 cursor-pointer text-lg font-semibold">Description, equipment and classifications (optional)</summary>
       <label htmlFor="shortDescription" className="mt-5 block text-base font-semibold">Short description</label>
-      <textarea id="shortDescription" name="shortDescription" rows={3} maxLength={500} defaultValue={initial.shortDescription}
+      <Textarea id="shortDescription" name="shortDescription" rows={3} maxLength={500} defaultValue={initial.shortDescription}
         placeholder="Describe what makes this variation distinct." className={input} />
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <div>

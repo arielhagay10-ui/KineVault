@@ -54,16 +54,17 @@ export const studioLayoutSchema = z.object({
     if (object.machineGrip !== undefined && object.slug !== "lat-pulldown-machine") context.addIssue({ code: "custom", path: ["objects", index, "machineGrip"], message: "Grip selection requires a pulldown machine" });
     if ((object.machinePosition !== undefined || object.machineUse !== undefined || object.frames?.some(frame => frame.machinePosition !== undefined)) && !isStudioMachine(object.slug)) context.addIssue({ code: "custom", path: ["objects", index, "slug"], message: "Machine controls require a machine" });
     if (object.machineUse && layout.seating) context.addIssue({ code: "custom", path: ["objects", index, "machineUse"], message: "Stand up from the bench before using a machine" });
-    if (object.machineUse && layout.objects.some(item => item.attachment !== "none")) context.addIssue({ code: "custom", path: ["objects", index, "machineUse"], message: "Release held equipment before using a machine" });
+    if (object.machineUse && layout.objects.some(item => item.attachment !== "none" && !(item.id === object.id && item.slug === "cable-row-machine" && item.cableAttachment))) context.addIssue({ code: "custom", path: ["objects", index, "machineUse"], message: "Release held equipment before using a machine" });
     if (object.benchAngle !== undefined && object.slug !== "bench") context.addIssue({ code: "custom", path: ["objects", index, "benchAngle"], message: "Only benches have a pad angle" });
-    if (object.cableAttachment !== undefined && object.slug !== "cable-machine") context.addIssue({ code: "custom", path: ["objects", index, "cableAttachment"], message: "Only cable machines have cable attachments" });
-    if (object.cuffPosition !== undefined && object.slug !== "cable-machine") context.addIssue({ code: "custom", path: ["objects", index, "cuffPosition"], message: "Cuff placement requires a cable machine" });
+    if (object.cableAttachment !== undefined && !["cable-machine", "cable-row-machine"].includes(object.slug)) context.addIssue({ code: "custom", path: ["objects", index, "cableAttachment"], message: "Only cable machines have cable attachments" });
+    if (object.cuffPosition !== undefined && !["cable-machine", "cable-row-machine"].includes(object.slug)) context.addIssue({ code: "custom", path: ["objects", index, "cuffPosition"], message: "Cuff placement requires a cable machine" });
     if (object.shoulderAlignment !== undefined && object.slug !== "cable-machine") context.addIssue({ code: "custom", path: ["objects", index, "shoulderAlignment"], message: "Shoulder alignment requires a cable machine" });
     for (const side of ["left", "right"] as const) {
       if (object.elbowLocks?.[side] && (!["barbell", "dumbbell", "kettlebell"].includes(object.slug) || ![side, "both"].includes(object.attachment))) context.addIssue({ code: "custom", path: ["objects", index, "elbowLocks", side], message: "Elbow locks require a weight held by that hand" });
     }
-    if (object.attachment !== "none" && !["barbell", "dumbbell", "kettlebell", "cable-machine"].includes(object.slug)
-      || object.attachment === "both" && !["barbell", "kettlebell"].includes(object.slug) && !(object.slug === "cable-machine" && !["d-handle", "cuff"].includes(object.cableAttachment ?? "d-handle"))) context.addIssue({ code: "custom", path: ["objects", index, "attachment"], message: "This equipment cannot use that grip" });
+    if (object.attachment !== "none" && !["barbell", "dumbbell", "kettlebell", "cable-machine", "cable-row-machine"].includes(object.slug)
+      || object.slug === "cable-row-machine" && object.attachment !== "none" && !object.cableAttachment
+      || object.attachment === "both" && !["barbell", "kettlebell"].includes(object.slug) && !(["cable-machine", "cable-row-machine"].includes(object.slug) && !["d-handle", "cuff"].includes(object.cableAttachment ?? "d-handle"))) context.addIssue({ code: "custom", path: ["objects", index, "attachment"], message: "This equipment cannot use that grip" });
     for (const hand of studioAttachmentSlots(object)) {
       if (hands.has(hand)) context.addIssue({ code: "custom", path: ["objects", index, "attachment"], message: "A hand can hold one item at a time" });
       hands.add(hand);

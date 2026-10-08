@@ -23,7 +23,7 @@ export function AnatomyControls({ muscles, target, isolate, count, onTargetChang
   const selectedVisible = groups.some(item => `group:${item.id}` === target) || individual.some(item => item.id === target);
   const label = selected?.label ?? selectedGroup?.label ?? (target === "none" ? undefined : target);
   const fieldClass = "mt-1 min-h-11 w-full min-w-0 rounded-lg border border-border bg-card px-3 py-2 text-base font-normal";
-  return <div className="mt-4 space-y-2" aria-label={t("Muscle exploration")}>
+  return <div role="group" className="mt-4 space-y-2" aria-label={t("Muscle exploration")}>
     <div className="flex flex-wrap items-end gap-3">
       <label htmlFor={`${id}-search`} className="min-w-0 flex-1 basis-40 text-base font-semibold">{t("Find a body area or muscle")}
         <input id={`${id}-search`} type="search" value={search} onChange={event => setSearch(event.target.value)}

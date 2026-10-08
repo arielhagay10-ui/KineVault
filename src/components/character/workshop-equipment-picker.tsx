@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Star, X } from "lucide-react";
-import { equipmentGroup, equipmentPreferencesKey, readEquipmentPreferences, searchWorkshopEquipment, workshopEquipmentOptions, type EquipmentOption, type EquipmentPreferences } from "@/lib/motion/quick-create";
+import { Star, X } from "@/components/ui/icons";
+import { equipmentGroup, equipmentPreferencesKey, popularWorkshopEquipment, readEquipmentPreferences, searchWorkshopEquipment, workshopEquipmentOptions, type EquipmentOption, type EquipmentPreferences } from "@/lib/motion/quick-create";
 import { studioAssetSlugs } from "@/lib/motion/workshop";
 import { WorkshopEquipmentPicture } from "./workshop-equipment-picture";
 import { useWorkshopLanguage } from "./workshop-language";
 import { WorkshopGuidance } from "./workshop-guidance";
 
-export type WorkshopEquipmentPickerProps = { options: EquipmentOption[]; onSelect: (slug: string) => void; onClose: () => void; ownerKey: string };
+export type WorkshopEquipmentPickerProps = { options: EquipmentOption[]; onSelect: (slug: string) => void; onClose: () => void; ownerKey: string; initialView?: "popular" | "all" };
 const sessionPreferences = new Map<string, string>();
 const preferencesEvent = "kinevault-workshop-equipment";
 const subscribe = (notify: () => void) => {
@@ -16,12 +16,13 @@ const subscribe = (notify: () => void) => {
   return () => { window.removeEventListener("storage", notify); window.removeEventListener(preferencesEvent, notify); };
 };
 const serverSnapshot = () => null;
-const essentials = ["cable-machine", "dumbbell", "barbell"];
 
-export function WorkshopEquipmentPicker({ options, onSelect, onClose, ownerKey }: WorkshopEquipmentPickerProps) {
+export function WorkshopEquipmentPicker({ options, onSelect, onClose, ownerKey, initialView = "popular" }: WorkshopEquipmentPickerProps) {
   const { language, t, formatNumber } = useWorkshopLanguage();
   const id = useId(), dialog = useRef<HTMLDialogElement>(null), caller = useRef<HTMLElement | null>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  const [view, setView] = useState(initialView);
   const [storageError, setStorageError] = useState(false);
   const catalog = useMemo(() => workshopEquipmentOptions(options), [options]);
   const filtered = useMemo(() => {
@@ -48,6 +49,7 @@ export function WorkshopEquipmentPicker({ options, onSelect, onClose, ownerKey }
     caller.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const element = dialog.current;
     element?.showModal();
+    searchInput.current?.focus();
     return () => { element?.close(); if (caller.current?.isConnected) caller.current.focus(); };
   }, []);
   const choose = (option: EquipmentOption) => {
@@ -63,10 +65,10 @@ export function WorkshopEquipmentPicker({ options, onSelect, onClose, ownerKey }
         <WorkshopEquipmentPicture slug={option.slug} /><span className="block text-base font-semibold">{t(option.label)}</span>
         {!supported && <span className="mt-1 block text-sm text-muted-foreground">{t("No 3D model yet. Choose another item.")}</span>}
       </button>
-      {supported && <button type="button" aria-label={t("Favorite {equipment}", { equipment: option.label })} aria-pressed={preferences.favorites.includes(option.slug)} onClick={() => favorite(option.slug)} className={`${buttonClass} absolute bottom-2 end-2 border-transparent text-sm`}><Star size={18} fill={preferences.favorites.includes(option.slug) ? "currentColor" : "none"} /><span>{t("Favorite")}</span></button>}
+      {supported && <button type="button" aria-label={t("Favorite {equipment}", { equipment: option.label })} aria-pressed={preferences.favorites.includes(option.slug)} onClick={() => favorite(option.slug)} className={`${buttonClass} absolute bottom-2 end-2 border-transparent text-sm`}><Star size={18} className={preferences.favorites.includes(option.slug) ? "text-primary" : "opacity-40"} /><span>{t("Favorite")}</span></button>}
     </div>;
   })}</div>;
-  const recommended = query.trim() ? [] : essentials.flatMap(slug => filtered.find(option => option.slug === slug) ?? []);
+  const recommended = query.trim() ? [] : popularWorkshopEquipment.flatMap(slug => filtered.find(option => option.slug === slug) ?? []);
   const recent = preferences.recent.flatMap(slug => filtered.find(option => option.slug === slug) ?? []).filter(option => !recommended.includes(option));
   const favorites = preferences.favorites.flatMap(slug => filtered.find(option => option.slug === slug) ?? []).filter(option => !recommended.includes(option));
   return <dialog ref={dialog} lang={language} dir={language === "he" ? "rtl" : "ltr"} aria-labelledby={`${id}-title`} onKeyDownCapture={event => {
@@ -80,13 +82,17 @@ export function WorkshopEquipmentPicker({ options, onSelect, onClose, ownerKey }
     <div className="space-y-5 p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3"><h2 id={`${id}-title`} className="text-xl font-semibold">{t("Choose equipment")}</h2><button type="button" onClick={onClose} className={buttonClass}><X aria-hidden="true" size={18} /><span>{t("Close")}</span></button></div>
       <WorkshopGuidance className="text-sm text-muted-foreground">{t("Choose equipment for your scene.")}</WorkshopGuidance>
-      <label className="block space-y-2 text-base font-semibold"><span>{t("Search equipment")}</span><input autoFocus type="search" maxLength={160} value={query} onChange={event => setQuery(event.target.value)} placeholder={t("Try cable, bench or dumbbell")} className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-base font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" /></label>
-      <p role="status" className="text-sm text-muted-foreground">{filtered.length ? t("{count} equipment choices", { count: formatNumber(filtered.length) }) : t("No matching equipment. Try cable, bench or hand weights.")}</p>
+        <div role="group" className="flex flex-wrap gap-2" aria-label={t("Equipment list")}>
+        <button type="button" aria-pressed={view === "popular" && !query.trim()} onClick={() => { setView("popular"); setQuery(""); }} className={`${buttonClass} ${view === "popular" && !query.trim() ? "bg-primary text-primary-foreground" : ""}`}>{t("Popular equipment")}</button>
+        <button type="button" aria-pressed={view === "all" || !!query.trim()} onClick={() => setView("all")} className={`${buttonClass} ${view === "all" || query.trim() ? "bg-primary text-primary-foreground" : ""}`}>{t("View all equipment")}</button>
+      </div>
+      <label className="block space-y-2 text-base font-semibold"><span>{t("Search equipment")}</span><input ref={searchInput} type="search" maxLength={160} value={query} onChange={event => setQuery(event.target.value)} placeholder={t("Try cable, bench or dumbbell")} className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-base font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" /></label>
+      {(view === "all" || !!query.trim()) && <p role="status" className="text-sm text-muted-foreground">{filtered.length ? t("{count} equipment choices", { count: formatNumber(filtered.length) }) : t("No matching equipment. Try cable, bench or hand weights.")}</p>}
       {storageError && <p role="status" className="text-sm text-muted-foreground">{t("Favorites and recent choices are kept for this session. Browser storage is unavailable.")}</p>}
       {!!recommended.length && <section aria-label={t("Essentials")} className="space-y-3"><h3 className="text-base font-semibold">{t("Essentials")}</h3>{cards(recommended)}</section>}
       {!query.trim() && !!recent.length && <section aria-label={t("Recent equipment")} className="space-y-3"><h3 className="text-base font-semibold">{t("Recent equipment")}</h3>{cards(recent)}</section>}
       {!!favorites.length && <section aria-label={t("Favorite equipment")} className="space-y-3"><h3 className="text-base font-semibold">{t("Favorites")}</h3>{cards(favorites)}</section>}
-      {(["Machines", "Weights", "Supports"] as const).map(group => {
+      {(view === "all" || query.trim()) && (["Machines", "Weights", "Supports"] as const).map(group => {
         const grouped = filtered.filter(option => equipmentGroup(option.slug) === group && !recommended.includes(option));
         return grouped.length ? <section key={group} aria-label={t(group)} className="space-y-3"><h3 className="text-base font-semibold">{t(group)}</h3>{cards(grouped)}</section> : null;
       })}

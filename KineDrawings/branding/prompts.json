@@ -1,0 +1,29 @@
+{
+  "generator": "Built-in image_gen",
+  "date": "2026-10-01",
+  "assets": [
+    {
+      "file": "source/kine-icon.png",
+      "prompt": "Use case: logo-brand\nAsset type: production mobile app icon for KineVault Track, square 1024x1024.\nInput images: Image 1 blue Kine mascot celebrating is the character identity reference; Image 2 blue Kine mascot waving is the character identity reference; Image 3 Duolingo owl app icon is a composition and simplicity reference only.\nPrimary request: Create a polished, instantly recognizable close-up app icon of the BLUE Kine mascot in Images 1 and 2 using the big, bold face framing of Image 3. Preserve Kine's identity. It is a friendly rounded blue creature with two asymmetric rounded antennae capped in warm cream, two dark navy round/oval eyes with small white catchlights, and a simple curved happy smile. Keep the antennae and eyes, do not turn Kine into an owl, frog or animal. Reduce the heavy outline of the original to a clean, controlled dark navy contour. Friendly confident expression.\nScene/backdrop: warm ivory solid background #F8F2E3 extending all the way to all four edges.\nComposition/framing: perfectly square full bleed artwork. Kine's blue head and upper body fill the frame, centered and facing front. Antenna tips visible near the upper edge with comfortable inset. Face large, eyes around middle, smile beneath. Crop the body at the bottom edge, no arms or legs. Design readable at 32px. All important facial features inside the central 64 percent so it can work within circular launcher masks.\nStyle/medium: clean flat vector-like 2D app brand illustration, large simple shapes, high contrast, mostly flat muted cornflower blue #5D8FB5, warm cream #F8F2E3 and deep navy #192F43. Only a very restrained blue tonal change is permitted. Match attached mascot's silhouette.\nConstraints: No lettering, no logo text, no green, no orange beak, no owl wings, no device mockup, no rounded-square border, no outer padding or surrounding canvas, no 3D, no gloss, no drop shadows, no sparkles. Square icon background must be entirely opaque.",
+      "references": [
+        "User kine-review.png: character identity",
+        "User kine-welcome.png: character identity",
+        "User image.png: Duolingo framing reference"
+      ]
+    },
+    {
+      "file": "source/kine-head.png",
+      "prompt": "Use case: precise-object-edit\nAsset type: transparent Android adaptive launcher foreground and splash mark.\nInput image: the just generated Kine app icon, edit target.\nPrimary request: Extract the same smiling blue Kine head onto a genuinely transparent background, and scale it down into the CENTER of a 1024x1024 square. Preserve EXACT same blue head, navy outline, cream asymmetric antenna caps, navy eyes and white catchlights, smile. Preserve character and expression. The head must be a complete isolated silhouette, so gently round and close the blue neck/base below the smile rather than letting the body run to the edge. No hands or feet. The result is the recognizable head of the same Kine creature.\nComposition/framing: the entire opaque character silhouette including both antennae must fit within a central 620px by 620px area, approximately x=202..822 and y=202..822. Leave completely transparent generous margin on all four sides. Both antenna tips fully visible. No part of the subject may touch the canvas edges. Keep face centered optically. This precise safe inset is needed for Android circular and squircle masks.\nStyle: preserve same clean 2D blue illustration, navy outline, cream tips.\nConstraints: Change only background transparency, scale, placement, and close the cropped bottom of the head. No lettering, no framing shape, no shadow, no extra elements. Genuine alpha channel outside subject. Preserve cream colored antenna caps as opaque cream, do not remove those.",
+      "references": [
+        "source/kine-icon.png: edit target"
+      ]
+    }
+  ],
+  "exports": "node scripts/export-branding.mjs",
+  "splash": {
+    "mascot": "../mascot/2d/source/kine-welcome.png",
+    "typeface": "Comfortaa_700Bold",
+    "wordmark": "KineVault",
+    "descriptor": "TRACK"
+  }
+}

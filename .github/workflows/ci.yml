@@ -17,6 +17,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:worker
       - run: npm run build
 
   database:
@@ -29,7 +30,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx supabase start --exclude realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
-      - run: npm run db:test
+      - run: npm run db:test -- --migrations
+      - run: npm run db:load -- --rows=10000 --clients=2 --requests=5 --warmup=1
+      - run: npm run db:load:http -- --rows=1000 --clients=2 --requests=5 --warmup=1 --http-pool=1
+      - run: npm run recovery:database
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: catalog-load
+          path: |
+            .local-artifacts/catalog-load/
+            .local-artifacts/catalog-http-load/
+            .local-artifacts/operations/
+          include-hidden-files: true
 
   browser:
     runs-on: ubuntu-latest
@@ -44,7 +57,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox webkit
       - run: npx supabase start --exclude realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       - name: Configure local browser test environment
         run: |
@@ -53,6 +66,8 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(npx supabase status -o env | sed -n 's/^ANON_KEY=//p' | tr -d '"')" >> "$GITHUB_ENV"
           echo "SUPABASE_SERVICE_ROLE_KEY=$(npx supabase status -o env | sed -n 's/^SERVICE_ROLE_KEY=//p' | tr -d '"')" >> "$GITHUB_ENV"
           echo "RENDER_WORKER_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - run: npm run recovery:storage
+        if: matrix.shard == 1
       - run: npm run build
       - run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
         env:
@@ -73,3 +88,26 @@ jobs:
             test-results/**/error-context.md
             test-results/**/*.png
           retention-days: 7
+      - name: Start production app for readiness checks
+        if: matrix.shard == 1
+        run: |
+          npm start > /tmp/kinevault-readiness-server.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/api/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/kinevault-readiness-server.log
+          exit 1
+      - run: npm run test:readiness
+        if: matrix.shard == 1
+      - run: npm run test:performance
+        if: matrix.shard == 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-readiness-${{ matrix.shard }}
+          path: |
+            .local-artifacts/readiness/
+            .local-artifacts/efficiency-review/
+            .local-artifacts/operations/
+          include-hidden-files: true

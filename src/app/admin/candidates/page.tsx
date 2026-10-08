@@ -14,13 +14,13 @@ export default async function CatalogCandidatesPage({ searchParams }: { searchPa
   const { data, error, count } = await request.range(from, to);
   if (error) throw new Error("Catalog candidates could not be loaded");
   return <div className="space-y-7">
-    <header><p className="text-xs font-bold uppercase tracking-widest text-primary">Original catalog</p>
+    <header>
       <h1 className="mt-3 text-3xl font-semibold">Prepare catalog candidates</h1>
       <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">These original drafts await a demonstration and biomechanical review. Prepare a private copy, refine its classifications, create a motion, and submit it for review. Approval can publish the candidate using its existing identity, URL, and relationships.</p>
     </header>
     <form method="get" className="flex gap-3">
       <label className="sr-only" htmlFor="candidate-search">Search candidates</label>
-      <input id="candidate-search" name="q" defaultValue={query} placeholder="Search candidate names" className="min-h-11 min-w-0 flex-1 rounded-xl border bg-card px-4 text-sm" />
+      <input id="candidate-search" name="q" maxLength={100} defaultValue={query} placeholder="Search candidate names" className="min-h-11 min-w-0 flex-1 rounded-xl border bg-card px-4 text-sm" />
       <button className="min-h-11 rounded-xl border bg-card px-4 text-sm font-semibold hover:bg-muted">Search</button>
     </form>
     {data?.length ? <ul className="grid gap-4 sm:grid-cols-2">{data.map((item) => <li key={item.id} className="rounded-2xl border bg-card p-6">

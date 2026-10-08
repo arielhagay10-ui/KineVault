@@ -46,9 +46,9 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
 
   return <main className="min-h-screen bg-background px-6 py-10 text-foreground">
     <div className="mx-auto max-w-5xl">
-      <Link href="/submissions" className="text-sm font-medium text-primary hover:underline">← My submissions</Link>
+      <Link href="/submissions" className="text-sm font-medium text-primary hover:underline">My submissions</Link>
       <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
-        <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Submitted snapshot</p>
+        <div>
           <h1 className="mt-2 text-4xl font-semibold tracking-[-0.055em]">{content.data.name}</h1>
           <p className="mt-3 text-sm capitalize text-muted-foreground">{submission.status.replaceAll("_", " ")} · {submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : "Draft"}</p></div>
         <div className="flex flex-wrap gap-3">
@@ -87,7 +87,7 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
             {event.comment && <p className="mt-2 text-sm leading-6 text-muted-foreground">{event.comment}</p>}
             {event.moderation_field_changes.length > 0 && <dl className="mt-3 space-y-3 text-xs">{event.moderation_field_changes.map((change) => <div key={change.field_name}>
               <dt className="font-semibold">{reviewFieldLabels[change.field_name as ReviewField] ?? humanLabel(change.field_name)}</dt>
-              <dd className="mt-1 whitespace-pre-wrap"><del className="text-red-700 dark:text-red-300">{formatReviewValue(change.before_value)}</del><span className="mx-2">→</span><ins className="text-primary">{formatReviewValue(change.after_value)}</ins></dd>
+              <dd className="mt-1 whitespace-pre-wrap"><del className="text-red-700 dark:text-red-300">{formatReviewValue(change.before_value)}</del><span className="mx-2"></span><ins className="text-primary">{formatReviewValue(change.after_value)}</ins></dd>
             </div>)}</dl>}
           </li>)}</ol>
         </section>

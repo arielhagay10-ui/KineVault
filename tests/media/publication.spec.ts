@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { z } from "zod";
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 
 const run = promisify(execFile);
 
@@ -143,10 +144,14 @@ test("real motion renders stay private until approval and play publicly afterwar
   await page.locator("video").screenshot({ path: "test-results/published-demo.png" });
   } finally {
     // Keep immutable review history, but never leave test fixtures in Explore.
+    try {
     execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
       `update public.exercises set status = 'withdrawn' where created_by = '${userId}' and status = 'published';`], { stdio: "pipe" });
     const { data: leftovers, error: cleanupError } = await visitor.from("exercises").select("id").eq("created_by", userId);
     expect(cleanupError).toBeNull();
     expect(leftovers).toEqual([]);
+    } finally {
+      await cleanupLocalFixture({ admin: service, userId, email, password });
+    }
   }
 });

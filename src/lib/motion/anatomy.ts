@@ -1,5 +1,6 @@
 import { Bone, Box3, type BufferGeometry, Float32BufferAttribute, Group, Line3, Matrix4, Mesh, MeshStandardMaterial, Quaternion, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from "three";
 import type { JointSlug, RigPose } from "./workshop";
+import { createAnatomyBatches, prepareAnatomyBatch } from "./anatomy-batches";
 
 export const anatomyModelUrl = "/models/z-anatomy/model.meshopt.32c5dfc3.glb";
 export const muscleGroups = [
@@ -45,7 +46,7 @@ const smooth = (low: number, high: number, value: number) => {
 
 // Geometry data belongs to the loaded atlas, while GPU residency belongs to its viewers.
 // Keep the immutable CPU buffers reusable; release GPU buffers when the final rig closes.
-const preparedAtlases = new WeakMap<Group, { geometries: Map<Mesh, BufferGeometry>; viewers: number }>();
+const preparedAtlases = new WeakMap<Group, { geometries: Map<Mesh, BufferGeometry>; viewers: number; batch?: ReturnType<typeof prepareAnatomyBatch> }>();
 
 export function createAnatomyRig(source: Group) {
   let prepared = preparedAtlases.get(source);
@@ -209,17 +210,26 @@ export function createAnatomyRig(source: Group) {
     root.add(mesh); meshes.push(mesh);
     if (mesh.userData.system === "muscles") muscles.push({ id: `mesh:${mesh.name}`, label: muscleLabel(mesh.name) });
   });
+  prepared.batch ??= prepareAnatomyBatch(meshes);
+  const batches = createAnatomyBatches(prepared.batch, meshes, skeleton, Object.values(materials));
+  // Preserve named anatomy and exact CPU skinning for contacts and editor picks.
+  const parts = new Group(); parts.visible = false;
+  root.add(parts);
+  for (const mesh of meshes) parts.add(mesh);
+  root.add(...batches.meshes);
+  batches.update();
   muscles.sort((a, b) => a.label.localeCompare(b.label));
   root.scale.setScalar(0.85);
   let disposed = false, retained = false;
   const scratch = { vector: new Vector3(), target: new Vector3(), origin: new Vector3(), rotation: new Quaternion(), ankleRotation: new Quaternion() };
-  return { root, bones, shoulderCaps, footBones, forearmBones, handBones, fingerSegments, skeleton, meshes, muscles, materials, scratch,
+  return { root, bones, shoulderCaps, footBones, forearmBones, handBones, fingerSegments, skeleton, meshes, muscles, materials, scratch, batches,
     retain() { if (!retained) { prepared.viewers++; retained = true; disposed = false; } },
     dispose() {
     if (disposed) return;
     disposed = true;
     if (retained) { prepared.viewers--; retained = false; }
     if (!prepared.viewers) for (const geometry of prepared.geometries.values()) geometry.dispose();
+    for (const mesh of batches.meshes) mesh.geometry.dispose();
     for (const material of Object.values(materials)) material.dispose();
     skeleton.dispose();
   } };
@@ -379,5 +389,6 @@ export function highlightAnatomyRig(rig: AnatomyRig, target: string, isolate: bo
     mesh.material = selected ? rig.materials.selected : mesh.userData.system === "skeleton" ? rig.materials.bone : rig.materials.tissue;
     if (selected) count++;
   }
+  rig.batches.update();
   return count;
 }

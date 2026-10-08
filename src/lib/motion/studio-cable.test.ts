@@ -10,6 +10,26 @@ import { cableAttachmentSlugs, blankWorkshopScene, identityTransform, type RigPo
 const id = "00000000-0000-4000-8000-000000000001";
 const handleKinds = cableAttachmentSlugs.filter(kind => kind !== "cuff");
 describe("workshop cable attachments and kettlebells", () => {
+  it("keeps the wide lat bar rigid and both palms attached through an overhead pull", () => {
+    const rig = createAnatomyRig(new Group()), body = new Group(), tower = new Group(); body.add(rig.root);
+    tower.position.set(.95, 0, 1.2);
+    try {
+      for (let step = 0; step <= 16; step++) {
+        const pull = Math.sin(step / 16 * Math.PI);
+        const pose: RigPose = {
+          "left-shoulder": { x: -145 + 60 * pull, y: 0, z: 0 }, "right-shoulder": { x: -145 + 60 * pull, y: 0, z: 0 },
+          "left-elbow": { x: 20 + 70 * pull, y: 0, z: 0 }, "right-elbow": { x: 20 + 70 * pull, y: 0, z: 0 },
+        };
+        poseAnatomyRig(rig, pose, true);
+        const frame = studioCableFrame(rig, { ...createStudioObject("cable-machine", id, 0), cableAttachment: "lat-bar", attachment: "both", pulleyHeight: 2.8 }, tower, pose);
+        expect(frame.reachable, `overhead sample ${step}`).toBe(true);
+        for (const side of ["left", "right"] as const) {
+          const target = new Vector3(side === "left" ? .5 : -.5, -.08, 0).applyQuaternion(frame.rotation).add(frame.center);
+          expect(rig.handBones[side].localToWorld(studioGripOffset(side)).distanceTo(target)).toBeLessThan(1e-5);
+        }
+      }
+    } finally { rig.dispose(); }
+  });
   it("preserves attachment choices and height and rejects incompatible grips/settings", () => {
     const cable = createStudioObject("cable-machine", id, 0);
     for (const kind of handleKinds) {

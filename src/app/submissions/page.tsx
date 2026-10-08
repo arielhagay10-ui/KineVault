@@ -21,16 +21,12 @@ export default async function SubmissionsPage({ searchParams }: { searchParams: 
 
   return <main className="min-h-screen bg-background px-6 py-10 text-foreground">
     <div className="mx-auto max-w-4xl">
-      <header className="flex items-center justify-between border-b border-border pb-6">
-        <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-        <Link href="/dashboard" className="text-sm font-medium text-primary">Dashboard</Link>
-      </header>
-      <p className="mt-10 text-xs font-bold uppercase tracking-[0.18em] text-primary">Community contributions</p>
+
       <h1 className="mt-2 text-4xl font-semibold tracking-[-0.055em]">My submissions</h1>
       <p className="mt-3 text-sm text-muted-foreground">Track review progress and requests for changes.</p>
       <form method="get" className="mt-6 flex gap-3">
         <label className="sr-only" htmlFor="submission-search">Search submissions</label>
-        <input id="submission-search" name="q" defaultValue={query} placeholder="Search by exercise name" className="min-h-11 min-w-0 flex-1 rounded-xl border bg-card px-4 text-sm" />
+        <input id="submission-search" name="q" maxLength={100} defaultValue={query} placeholder="Search by exercise name" className="min-h-11 min-w-0 flex-1 rounded-xl border bg-card px-4 text-sm" />
         <button className="min-h-11 rounded-xl border bg-card px-4 text-sm font-semibold hover:bg-muted">Search</button>
       </form>
       {error ? <p role="alert" className="mt-8 text-destructive">Submissions could not be loaded.</p>

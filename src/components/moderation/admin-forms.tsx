@@ -1,24 +1,36 @@
 "use client";
 
-import { useActionState } from "react";
+
+import { Textarea } from "@/components/ui/textarea";
+import { useActionState, useEffect, useRef } from "react";
+import { submitPreservingValues } from "@/components/ui/form-feedback";
 import { assignRole, saveTaxonomy, toggleLibraryAsset, type AdminActionState } from "@/app/admin/manage-actions";
 import { Constants } from "@/lib/database.types";
 import { describedTaxonomies, parentTaxonomies, type TaxonomyName, type TaxonomyRecord } from "@/lib/moderation/taxonomies";
 
 type Choice = { id: string; name: string };
+
+function useAdminFormReset(state: AdminActionState, enabled = true) {
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (enabled && state.message && !state.error) form.current?.reset();
+  }, [state, enabled]);
+  return form;
+}
 const inputClass = "mt-2 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm";
 
 export function TaxonomyForm({ table, record, parents, joints, categories }: {
   table: TaxonomyName; record: TaxonomyRecord | null; parents: Choice[]; joints: Choice[]; categories: Choice[];
 }) {
   const [state, action, pending] = useActionState(saveTaxonomy, { error: null });
-  return <form action={action} className="space-y-4">
+  const form = useAdminFormReset(state, !record);
+  return <form ref={form} action={action} onSubmit={event => submitPreservingValues(event, action)} aria-busy={pending} className="space-y-4">
     <input type="hidden" name="table" value={table} /><input type="hidden" name="id" value={record?.id ?? ""} />
     <label className="block text-sm font-semibold">Name<input name="name" required minLength={2} maxLength={120} defaultValue={record?.name ?? ""} className={inputClass} /></label>
     <label className="block text-sm font-semibold">Slug<input name="slug" required readOnly={!!record} pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={120} defaultValue={record?.slug ?? ""} className={inputClass} />
       {record && <span className="mt-2 block text-xs font-normal text-muted-foreground">The saved slug stays fixed so bookmarks keep working.</span>}
     </label>
-    {describedTaxonomies.includes(table) && <label className="block text-sm font-semibold">Description<textarea name="description" maxLength={2000} rows={3} defaultValue={record?.description ?? ""} className={inputClass} /></label>}
+    {describedTaxonomies.includes(table) && <label className="block text-sm font-semibold">Description<Textarea name="description" maxLength={2000} rows={3} defaultValue={record?.description ?? ""} className={inputClass} /></label>}
     {parentTaxonomies.includes(table) && <TaxonomySelect name="parentId" label="Parent" choices={parents.filter((item) => item.id !== record?.id)} value={record?.parent_id ?? ""} />}
     {table === "joint_actions" && <TaxonomySelect name="jointId" label="Anatomical joint" choices={joints} value={record?.joint_id ?? ""} required />}
     {table === "equipment" && <TaxonomySelect name="categoryId" label="Equipment category" choices={categories} value={record?.category_id ?? ""} required />}
@@ -47,12 +59,13 @@ export function AssetAvailabilityForm({ table, id, active }: { table: "rigs" | "
 
 export function RoleForm({ userId }: { userId: string }) {
   const [state, action, pending] = useActionState(assignRole, { error: null });
-  return <form action={action} className="space-y-4">
+  const form = useAdminFormReset(state);
+  return <form ref={form} action={action} onSubmit={event => submitPreservingValues(event, action)} aria-busy={pending} className="space-y-4">
     <label className="block text-sm font-semibold">Account ID<input name="userId" required defaultValue={userId} className={inputClass} /></label>
     <label className="block text-sm font-semibold">Role<select name="role" className={inputClass} defaultValue="reviewer">
       {Constants.public.Enums.app_role.map((role) => <option key={role} value={role}>{role}</option>)}
     </select></label>
-    <label className="block text-sm font-semibold">Reason<textarea name="comment" required minLength={5} maxLength={1000} rows={2} className={inputClass} /></label>
+    <label className="block text-sm font-semibold">Reason<Textarea name="comment" required minLength={5} maxLength={1000} rows={2} className={inputClass} /></label>
     <button disabled={pending} className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">{pending ? "Saving…" : "Assign role"}</button><ActionFeedback state={state} />
   </form>;
 }

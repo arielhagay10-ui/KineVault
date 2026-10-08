@@ -1,4 +1,5 @@
-import { setWorkshopMode, setWorkshopLanguage, selectWorkshopObject } from "./workshop-menu.helpers";
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { inspectMachineMoment, setWorkshopMode, setWorkshopLanguage, selectWorkshopObject, openWorkshopRecovery } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -16,10 +17,11 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
   const email = `shortcuts-${randomUUID()}@example.test`, password = "WorkshopKeyboard2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  const errors: string[] = [];
-  page.on("pageerror", error => errors.push(error.message));
+
   try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
     await owner.auth.signInWithPassword({ email, password });
     const created = await owner.rpc("save_workshop_draft", { p_scene: createQuickScene("cable-row-machine"), p_name: "Keyboard fixture" });
     if (created.error) throw created.error;
@@ -31,7 +33,8 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
     const workshop = page.locator('[data-workshop="studio"]');
-    const finish = page.getByLabel("Finish Row pull percent", { exact: true });
+    await inspectMachineMoment(page, "Cable row", "Finish");
+    const finish = page.getByLabel("Row pull percent", { exact: true });
     await finish.fill("65"); await finish.press("Enter");
     await page.locator("canvas").click({ position: { x: 20, y: 200 } });
     await page.keyboard.press("Control+z");
@@ -45,6 +48,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(page.getByRole("button", { name: "Redo", exact: true }).filter({ visible: true }).first()).toBeDisabled();
     await page.keyboard.press("Control+y"); await expect(finish).toHaveValue("72");
     // Space activates a focused button once, and toggles playback from the viewport.
+    await page.getByRole("region", { name: "Playback controls" }).getByRole("button", { name: "View start", exact: true }).click();
     await page.getByRole("button", { name: "Play", exact: true }).focus();
     await page.keyboard.press("Space"); await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
     await workshop.focus(); await page.keyboard.press("Space");
@@ -64,7 +68,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await name.focus(); await page.keyboard.press("End"); await page.keyboard.type(" revised");
     await page.keyboard.press("Control+z");
     await expect(name).toHaveValue("Keyboard fixture");
-    await setWorkshopMode(page, "quick");
+    await inspectMachineMoment(page, "Cable row", "Finish");
     await expect(finish).toHaveValue("72");
     await setWorkshopMode(page, "advanced");
     await name.fill("Keyboard fixture saved");
@@ -83,8 +87,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
     await page.reload(); await setWorkshopMode(page, "advanced");
     await expect(name).toHaveValue("Keyboard fixture saved");
-    await selectWorkshopObject(page, "Cable row");
-    await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+    await inspectMachineMoment(page, "Cable row", "Finish");
     await expect(travel).toHaveValue("31");
     await page.getByRole("tab", { name: "Equipment", exact: true }).click();
     await workshop.focus(); await page.keyboard.press("Control+d");
@@ -104,7 +107,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await page.getByRole("dialog").getByRole("searchbox").press("Control+z");
     await page.getByRole("dialog").getByRole("searchbox").press("Escape");
     await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toBeVisible();
-    await page.getByText("Recovery and shortcuts", { exact: true }).click();
+    await openWorkshopRecovery(page);
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
     mkdirSync(".local-artifacts/workshop/shortcuts", { recursive: true });
     await page.screenshot({ path: ".local-artifacts/workshop/shortcuts/desktop.png", fullPage: true });
@@ -113,5 +116,5 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: ".local-artifacts/workshop/shortcuts/mobile-hebrew.png", fullPage: true });
     expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

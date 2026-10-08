@@ -1,0 +1,30 @@
+{
+  "device": "LENOVO 83F5 / Windows 11 10.0.26300 / Intel Graphics",
+  "scenario": "playback",
+  "workload": "public-home-defaultScene-lateral-raise",
+  "renderer": "ANGLE (Intel, Intel(R) Graphics (0x00007D67) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "runs": 3,
+  "observedP95Ms": 8.600000000093132,
+  "p95Ms": 11,
+  "needsLodEvaluation": false,
+  "status": "approved",
+  "build": "jBg8SM83aCEG1ZEahX2qY",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+  "viewport": {
+    "width": 1440,
+    "height": 1000,
+    "pixelRatio": 1
+  },
+  "canvas": {
+    "width": 611,
+    "height": 500,
+    "pixelRatio": 1
+  },
+  "sources": [
+    ".local-artifacts/readiness/devices/local-intel-workload/playback-1.json",
+    ".local-artifacts/readiness/devices/local-intel-workload/playback-2.json",
+    ".local-artifacts/readiness/devices/local-intel-workload/playback-3.json"
+  ],
+  "scope": "Public home defaultScene lateral-raise playback only; hardware-accelerated headless Chrome over Parsec; uncontrolled power/thermal conditions; excludes workshop comparison and physical phone interactions.",
+  "checkedAt": "2026-10-07"
+}

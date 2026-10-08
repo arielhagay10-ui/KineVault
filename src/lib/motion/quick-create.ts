@@ -3,6 +3,7 @@ import { isStudioMachine, rowHandleHeight } from "./studio-machines";
 import { blankWorkshopScene, identityTransform, jointLimits, jointSlugs, studioAssetSlugs, type JointSlug, type RigPose, type SceneTransform, type StudioObject, type WorkshopScene } from "./workshop";
 
 export interface EquipmentOption { slug: string; label: string; active?: boolean }
+export const popularWorkshopEquipment = ["dumbbell", "barbell", "kettlebell", "cable-machine", "bench", "squat-rack"] as const;
 export function workshopDemonstrationCaption(object: Pick<StudioObject, "slug" | "machineMode">, timeMs: number, durationMs: number) {
   if (timeMs < durationMs / 4) return "Start: check hands, feet and supports.";
   if (timeMs >= durationMs * .65) return "Return slowly to the start; keep the same contacts.";

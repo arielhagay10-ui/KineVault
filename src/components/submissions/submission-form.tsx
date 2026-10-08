@@ -1,5 +1,7 @@
 "use client";
 
+
+import { Textarea } from "@/components/ui/textarea";
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { submitPrivateExercise } from "@/app/my-exercises/[id]/submit/actions";
@@ -56,7 +58,7 @@ export function SubmissionForm({ privateId, revisionOfId, candidates, motionRead
           </label>
         </div>
         <label className="mt-3 block text-xs font-semibold">Why is it needed?
-          <textarea value={suggestion.explanation} onChange={(event) => updateSuggestion(index, { explanation: event.target.value })} maxLength={1000} rows={2} className="mt-1 w-full rounded-lg border border-border bg-card p-2.5 text-sm" />
+          <Textarea value={suggestion.explanation} onChange={(event) => updateSuggestion(index, { explanation: event.target.value })} maxLength={1000} rows={2} className="mt-1 w-full rounded-lg border border-border bg-card p-2.5 text-sm" />
         </label>
       </div>)}
       <button type="button" disabled={suggestions.length >= 8} onClick={() => setSuggestions((current) => [...current, { taxonomyName: "exercise_families", suggestedName: "", explanation: "" }])} className="mt-4 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">Add suggestion</button>
@@ -67,7 +69,7 @@ export function SubmissionForm({ privateId, revisionOfId, candidates, motionRead
       <div className="mt-5 space-y-3">
         {candidates.map((candidate) => <div key={candidate.exercise_id} className="rounded-xl border border-border bg-background p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Link href={`/exercises/${candidate.slug}`} target="_blank" className="font-semibold text-primary underline">{candidate.name} ↗</Link>
+            <Link href={`/exercises/${candidate.slug}`} target="_blank" className="font-semibold text-primary underline">{candidate.name} </Link>
             <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-primary">{candidate.score}% match estimate</span>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">{[

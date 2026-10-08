@@ -21,7 +21,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
       <div className="w-full max-w-md">
         <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
         <div className="mt-8 rounded-3xl border border-border bg-card p-7 shadow-sm sm:p-9">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Your exercise library</p>
+
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em]">{title}</h1>
           {mode === "sign-up" && <p className="mt-2 text-sm leading-6 text-muted-foreground">Save favorites, create private exercises, and contribute reviewed movements.</p>}
           <form ref={form} action={formAction} onSubmit={event => submitPreservingValues(event, formAction)} aria-busy={pending} onInvalid={(event) => {

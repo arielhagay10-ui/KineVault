@@ -1,0 +1,31 @@
+{
+  "device": "LENOVO 83F5 / Windows 11 Home 10.0.26300",
+  "scenario": "camera",
+  "workload": "workshop-shoulder-abduction-static-dumbbell-v1-camera-single",
+  "renderer": "ANGLE (Intel, Intel(R) Graphics (0x00007D67) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "runs": 3,
+  "observedP95Ms": 7.400000002235174,
+  "p95Ms": 9,
+  "needsLodEvaluation": false,
+  "status": "approved",
+  "build": "sTYX3FV488yr_1JEbSIDl",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+  "viewport": {
+    "width": 1440,
+    "height": 1000,
+    "pixelRatio": 1
+  },
+  "canvas": {
+    "width": 1064,
+    "height": 585,
+    "pixelRatio": 1
+  },
+  "approvalScope": "Local installed-headless-Chrome hardware regression only",
+  "graphicsDriver": "32.0.101.8331",
+  "conditions": "Parsec virtual display; power/thermal conditions uncontrolled",
+  "sources": [
+    ".local-artifacts/readiness/devices/workshop-default/2026-10-07T17-14-39-048Z/camera/canvas-1-run-1.json",
+    ".local-artifacts/readiness/devices/workshop-default/2026-10-07T17-14-39-048Z/camera/canvas-1-run-2.json",
+    ".local-artifacts/readiness/devices/workshop-default/2026-10-07T17-14-39-048Z/camera/canvas-1-run-3.json"
+  ]
+}

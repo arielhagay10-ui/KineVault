@@ -1,3 +1,4 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -6,7 +7,7 @@ import { PerspectiveCamera, Vector3 } from "three";
 import { createStudioObject } from "../../src/lib/motion/studio";
 import { fitWorkshopCamera } from "../../src/lib/motion/workshop-camera";
 import { blankWorkshopScene } from "../../src/lib/motion/workshop";
-import { setWorkshopLanguage, selectWorkshopObject, setWorkshopMode, expandWorkshopControls } from "./workshop-menu.helpers";
+import { setWorkshopLanguage, selectWorkshopObject, setWorkshopMode, expandWorkshopControls, openWorkshopRecovery, openWorkshopTool } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
@@ -20,10 +21,11 @@ test("essentials come first and double-click selects equipment for safe keyboard
   const email = `equipment-selection-${randomUUID()}@example.test`, password = "EquipmentFixture2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  const errors: string[] = [];
-  page.on("pageerror", error => errors.push(error.message));
+
   try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
     await owner.auth.signInWithPassword({ email, password });
     const weight = { ...createStudioObject("dumbbell", randomUUID(), 0), x: 1.4, y: 1.1, z: 0, attachment: "none" as const };
     const scene = { ...blankWorkshopScene, studio: { ...blankWorkshopScene.studio!, objects: [weight] } };
@@ -39,10 +41,37 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     const workshop = page.getByLabel("Workshop editor", { exact: true });
     const objects = page.getByLabel("Scene objects", { exact: true });
+    await page.getByRole("button", { name: "Choose equipment", exact: true }).click();
+    const quick = page.getByRole("region", { name: "Quick create", exact: true });
+    await expect(quick.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
+    await expect(quick.getByRole("heading", { name: "Create your own movement", exact: true })).toHaveCount(0);
+    await expect(quick.getByRole("button", { name: /start to finish/ })).toHaveCount(0);
+    await quick.getByRole("button", { name: "Barbell", exact: true }).click();
+    await openWorkshopTool(page, "Equipment");
+    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
+    await expect(objects.getByRole("button", { name: "Barbell", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(objects.getByRole("button", { name: "Barbell", exact: true })).toHaveCount(0);
+    await setWorkshopMode(page, "quick");
+    await page.getByRole("button", { name: "Choose equipment", exact: true }).click();
+    mkdirSync(".local-artifacts/workshop/equipment-selection", { recursive: true });
+    await page.screenshot({ path: ".local-artifacts/workshop/equipment-selection/quick-equipment.png" });
+    await expect(page.getByText("Recovery and shortcuts", { exact: true })).not.toBeVisible();
+    await openWorkshopRecovery(page);
+    await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
+    await page.screenshot({ path: ".local-artifacts/workshop/equipment-selection/more.png" });
+    await page.locator("[data-workshop-menu] > summary").click();
+    await quick.getByRole("button", { name: "View all equipment", exact: true }).click();
+    await expect(page.getByRole("dialog").getByRole("button", { name: "Pec deck", exact: true })).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
     const openPicker = () => page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
     await openPicker();
     const dialog = page.getByRole("dialog"), essentials = dialog.getByRole("region", { name: "Essentials", exact: true });
-    await expect(essentials.getByRole("button", { name: /^(Cable machine|Dumbbell|Barbell)$/ })).toHaveText(["Cable machine", "Dumbbell", "Barbell"]);
+    await expect(essentials.getByRole("button", { name: /^(Dumbbell|Barbell|Kettlebell|Cable machine|Adjustable bench|Squat rack)$/ })).toHaveText(["Dumbbell", "Barbell", "Kettlebell", "Cable machine", "Adjustable bench", "Squat rack"]);
+    await expect(dialog.getByRole("button", { name: "Pec deck", exact: true })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "View all equipment", exact: true }).click();
+    await expect(dialog.getByRole("button", { name: "Pec deck", exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Popular equipment", exact: true }).click();
     await expect(dialog.getByRole("region").first()).toHaveAccessibleName("Essentials");
     await essentials.getByRole("button", { name: "Favorite Dumbbell", exact: true }).click();
     await expect(dialog.getByRole("button", { name: "Dumbbell", exact: true })).toHaveCount(1);
@@ -119,5 +148,5 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await page.getByRole("button", { name: "הוספת ציוד", exact: true }).filter({ visible: true }).click();
     await expect(dialog.getByRole("region").first()).toHaveAccessibleName("ציוד בסיסי");
     expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

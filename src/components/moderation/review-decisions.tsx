@@ -1,5 +1,7 @@
 "use client";
 
+
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { decideSubmission } from "@/app/admin/submissions/actions";
@@ -44,7 +46,7 @@ export function ReviewDecisions({ submissionId, status, defaultSlug, targets, re
       {(decision === "reject" || decision === "request_changes") && <label className="block text-sm font-semibold">Reason<select name="reason" defaultValue="other" className={inputClass}>
         {Constants.public.Enums.moderation_reason.map((item) => <option key={item} value={item}>{humanLabel(item)}</option>)}
       </select></label>}
-      {!["begin", "retry"].includes(decision) && <label className="block text-sm font-semibold">Review comment<textarea name="comment" maxLength={2000} minLength={decision === "approve" ? undefined : 5} required={decision !== "approve"} rows={3} className={inputClass} /></label>}
+      {!["begin", "retry"].includes(decision) && <label className="block text-sm font-semibold">Review comment<Textarea name="comment" maxLength={2000} minLength={decision === "approve" ? undefined : 5} required={decision !== "approve"} rows={3} className={inputClass} /></label>}
       {decision === "merge" && <p className="text-xs leading-5 text-muted-foreground">Merge adds the submitted name as an alias. The existing classifications and motion remain the canonical version, with submission history preserved.</p>}
       <button className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">{pending ? "Saving…" : "Record decision"}</button>
     </fieldset>

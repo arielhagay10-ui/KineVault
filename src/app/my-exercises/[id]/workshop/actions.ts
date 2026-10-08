@@ -11,7 +11,7 @@ export async function saveWorkshopScene(privateId: string | null, sceneValue: un
   const parsed = workshopSceneSchema.safeParse(sceneValue);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    return { error: `${issue?.path.map(part => typeof part === "number" ? part + 1 : part).join(" → ") || "Scene"}: ${issue?.message ?? "Check the scene."}` };
+    return { error: `${issue?.path.map(part => typeof part === "number" ? part + 1 : part).join(" ") || "Scene"}: ${issue?.message ?? "Check the scene."}` };
   }
   const supabase = await createClient();
   if (name !== undefined) {

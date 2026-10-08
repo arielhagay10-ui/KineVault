@@ -50,7 +50,7 @@ export default async function EditPrivateExercisePage({ params, searchParams }: 
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto max-w-5xl">
-        <Link href="/my-exercises" className="text-sm font-medium text-primary hover:underline">← My exercises</Link>
+        <Link href="/my-exercises" className="text-sm font-medium text-primary hover:underline">My exercises</Link>
         <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Private draft</p>
@@ -63,8 +63,8 @@ export default async function EditPrivateExercisePage({ params, searchParams }: 
         {record.catalog_candidate_id && <p className="mt-4 rounded-xl border bg-muted p-4 text-sm">Preparing an original catalog candidate. Save its classifications, create a clear motion, then submit for review. Approval preserves the candidate’s identity.</p>}
         {!record.catalog_candidate_id && sourceExercise && <p className="mt-4 text-sm text-muted-foreground">Copied from <Link href={`/exercises/${sourceExercise.slug}`} className="font-semibold text-primary underline">the public exercise</Link>. Your edits are independent.</p>}
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link href={`/my-exercises/${record.id}/workshop`} className="inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary">Open motion workshop →</Link>
-          <Link href={`/my-exercises/${record.id}/submit`} className="inline-flex rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-primary hover:bg-muted">Submit for review →</Link>
+          <Link href={`/my-exercises/${record.id}/workshop`} className="inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary">Open motion workshop</Link>
+          <Link href={`/my-exercises/${record.id}/submit`} className="inline-flex rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-primary hover:bg-muted">Submit for review</Link>
           <DuplicatePrivateButton privateId={record.id} />
         </div>
         <div className="mt-8"><PrivateExerciseForm key={JSON.stringify(metadata)} ownerId={identity.userId} initial={initial} options={options} metadata={metadata} scene={scene} /></div>

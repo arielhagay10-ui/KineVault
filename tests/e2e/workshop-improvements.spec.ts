@@ -1,3 +1,4 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { setWorkshopMode, openWorkshopMenu } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -16,10 +17,11 @@ test("workshop history, inspector, focus, comparison and personal setups", async
   const email = `improvements-${randomUUID()}@example.test`, password = "WorkshopImprove2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  const errors: string[] = [];
-  page.on("pageerror", error => errors.push(error.message));
+
   try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
     await owner.auth.signInWithPassword({ email, password });
     const initial = createQuickScene("cable-row-machine");
     initial.studio!.presentation = { ...initial.studio!.presentation!, isolate: true, highlight: "group:lats" };
@@ -122,7 +124,12 @@ test("workshop history, inspector, focus, comparison and personal setups", async
     await expect(slider).toBeInViewport();
     await expect(page.getByRole("tablist", { name: "Workshop tools", exact: true })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole("tab", { name: "View", exact: true }).click();
+    await page.getByRole("button", { name: "Compare start and finish", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Finish pose comparison" })).toBeVisible();
+    await page.getByRole("button", { name: "Close comparison", exact: true }).click({ timeout: 10_000 });
+    await expect(page.getByRole("region", { name: "Start and finish comparison" })).toHaveCount(0);
     await page.screenshot({ path: ".local-artifacts/workshop/improvements/mobile.png", fullPage: true });
     expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

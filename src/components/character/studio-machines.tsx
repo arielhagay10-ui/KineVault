@@ -4,9 +4,11 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { Group, Mesh, Quaternion, Vector3 } from "three";
 import { machineCarriagePoint, machineHandlePoint, rowFootplate, rowPulleyPoint, reversePecDeckSeatZ } from "@/lib/motion/studio-machines";
-import type { StudioObject } from "@/lib/motion/workshop";
+import type { RigPose, StudioObject } from "@/lib/motion/workshop";
+import type { AnatomyRig } from "@/lib/motion/anatomy";
 import type { StudioEditor } from "./studio-controls";
 import { StudioMachineDrag } from "./studio-machine-drag";
+import { StudioCable } from "./studio-cable";
 
 const steel = "#697d83", dark = "#243439", chrome = "#bdc9cc", pad = "#18282b";
 type Point = { x: number; y: number; z: number };
@@ -56,8 +58,10 @@ function Feet({ width, front, back }: { width: number; front: number; back: numb
   </group>);
 }
 
-export function StudioMachine({ object, currentObject, editor }: { object: StudioObject; currentObject?: React.RefObject<StudioObject>; editor?: StudioEditor }) {
-  return <><MachineGeometry object={object} currentObject={currentObject} />{editor?.interactionEnabled !== false && editor && !editor.playing && editor.tool === "select" && editor.onMachineHandleChange && <>
+export function StudioMachine({ object, currentObject, editor, rig, group, pose }: { object: StudioObject; currentObject?: React.RefObject<StudioObject>; editor?: StudioEditor; rig: AnatomyRig; group: React.RefObject<Group>; pose: RigPose }) {
+  return <><MachineGeometry object={object} currentObject={currentObject} />
+    {object.slug === "cable-row-machine" && object.cableAttachment && <StudioCable object={object} currentObject={currentObject} rig={rig} group={group} pose={pose} editor={editor} showTower={false} />}
+    {editor?.interactionEnabled !== false && editor && !editor.playing && editor.tool === "select" && editor.onMachineHandleChange && (object.slug !== "cable-row-machine" || object.machineUse) && <>
     <StudioMachineDrag object={object} currentObject={currentObject} editor={editor} />
     {object.slug === "pec-deck" && <StudioMachineDrag object={object} currentObject={currentObject} editor={editor} side="right" />}
   </>}</>;
@@ -81,13 +85,13 @@ function MachineGeometry({ object, currentObject }: { object: StudioObject; curr
     {Array.from({ length: 10 }, (_, index) => <MovingBlock key={index} size={[0.46, 0.05, 0.24]}  getAt={() => [0, 0.2 + index * 0.063 + getTravel() * 0.66, 1.6]} />)}
     <MovingBeam radius={0.008} color={dark}  getEndpoints={() => ({ from: [0, 0.82 + getTravel() * 0.66, 1.6], to: [0, 2.4, 1.6] })} />
     <Beam from={[0, 2.4, 1.6]} to={[0, rowPulleyPoint.y, rowPulleyPoint.z]} radius={0.008} color={dark} />
-    <MovingBeam radius={0.008} color={dark}  getEndpoints={() => ({ from: [0, rowPulleyPoint.y, rowPulleyPoint.z], to: [0, getPoint().y, getPoint().z + 0.08] })} />
+    {!object.cableAttachment && <MovingBeam radius={0.008} color={dark} getEndpoints={() => ({ from: [0, rowPulleyPoint.y, rowPulleyPoint.z], to: [0, getPoint().y, getPoint().z + 0.08] })} />}
     {[1.6, rowPulleyPoint.z].map(z => <mesh key={z} position={[0, z === 1.6 ? 2.4 : rowPulleyPoint.y, z]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.075, 0.075, 0.04, 32]} /><meshStandardMaterial color={dark} /></mesh>)}
-    <MovingGroup getPosition={getPoint}>
+    {!object.cableAttachment && <MovingGroup getPosition={getPoint}>
       <Beam from={[-0.15, -0.14, 0]} to={[0, 0, 0.08]} radius={0.017} color={chrome} />
       <Beam from={[0.15, -0.14, 0]} to={[0, 0, 0.08]} radius={0.017} color={chrome} />
       {[-0.15, 0.15].map(x => <Beam key={x} from={[x, -0.14, 0]} to={[x, 0.14, 0]} radius={0.023} color={dark} />)}
-    </MovingGroup>
+    </MovingGroup>}
   </>;
   if (object.slug === "pec-deck") return <>
     <Feet width={0.56} front={0.85} back={-1.4} />

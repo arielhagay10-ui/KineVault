@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, Dumbbell, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, Dumbbell, RotateCcw, Search, SlidersHorizontal } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { ExerciseCards } from "@/components/catalog/exercise-cards";
 import { FilterSection } from "@/components/catalog/filter-section";
@@ -35,7 +35,7 @@ export default async function ExplorePage({ searchParams }: Props) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-24">
         <h1 className="text-3xl font-semibold">Invalid search filters</h1>
-        <p className="mt-3 text-muted-foreground">Check the URL parameters and try again.</p>
+        <p className="mt-3 text-muted-foreground">Use a search of 100 characters or fewer and valid filters, or reset your search.</p>
         <Link className="mt-6 inline-block underline" href="/exercises">Reset filters</Link>
       </main>
     );
@@ -100,16 +100,10 @@ export default async function ExplorePage({ searchParams }: Props) {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3.5 lg:px-10">
-          <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-          <Link href="/dashboard" className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-[8px] border border-input px-4 py-2 text-sm font-semibold text-primary hover:bg-muted"><BookOpen size={17} aria-hidden />My library</Link>
-        </div>
-      </header>
 
       <div className="mx-auto max-w-7xl px-6 pb-20 pt-7 sm:pt-8 lg:px-10">
         <div className="mb-7 max-w-2xl">
-          <p className="text-[0.8125rem] font-medium text-primary">Explore the database</p>
+
           <h1 className="mt-2 text-[1.9375rem] font-semibold leading-[1.16] tracking-[-0.035em] sm:text-[2.375rem] sm:leading-[1.15]">Find the movement you mean.</h1>
           <p className="mt-3 text-[0.9375rem] leading-[1.65] text-muted-foreground">Search exercises and combine anatomical, equipment, and resistance filters.</p>
         </div>
@@ -118,7 +112,7 @@ export default async function ExplorePage({ searchParams }: Props) {
           <aside>
             <MobileFilters count={activeFilterCount}>
             <form action="/exercises" method="get" className="flex flex-col rounded-[12px] border border-border bg-card shadow-[0_2px_5px_rgb(36_58_78/0.025)] lg:sticky lg:top-6 lg:max-h-[max(20rem,calc(100dvh-300px))]">
-              <div className="min-h-0 max-h-[52dvh] overflow-y-auto p-5 [scrollbar-gutter:stable] lg:max-h-none lg:flex-1">
+              <div className="min-h-0 max-h-[52dvh] overflow-y-auto p-5 lg:max-h-none lg:flex-1">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal size={18} /> Filters</h2>
                 {activeFilterCount > 0 && <Link href="/exercises" className="text-xs font-medium text-primary">Clear all</Link>}
@@ -127,7 +121,7 @@ export default async function ExplorePage({ searchParams }: Props) {
               <label className="mb-2 block text-sm font-semibold" htmlFor="exercise-search">Search</label>
               <div className="relative mb-5">
                 <Search size={17} className="absolute left-3 top-3 text-muted-foreground" />
-                <input id="exercise-search" name="q" defaultValue={params.query} placeholder="Name or alias"
+                <input id="exercise-search" name="q" maxLength={100} defaultValue={params.query} placeholder="Name or alias"
                   className="min-h-11 w-full rounded-[8px] border border-input bg-card py-2.5 pl-10 pr-3 text-sm placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring" />
               </div>
 

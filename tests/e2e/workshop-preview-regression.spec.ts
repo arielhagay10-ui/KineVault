@@ -1,6 +1,9 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
+import { addWorkshopEquipment } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
@@ -13,25 +16,28 @@ test("recipe preview reaches ready and survives Strict Mode initialization", asy
   const email = `preview-regression-${Date.now()}@example.test`, password = "PrivateWorkshop2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
+
   const logs: string[] = [];
-  page.on("console", message => logs.push(`${message.type()}: ${message.text()}`));
-  page.on("pageerror", error => logs.push(`pageerror: ${error.stack}`));
-  page.on("response", response => { if (response.url().includes("/models/")) logs.push(`model-response: ${response.status()} ${response.url()}`); });
-  page.on("requestfailed", request => { if (request.url().includes("/models/")) logs.push(`model-failure: ${request.failure()?.errorText}`); });
   const output = ".local-artifacts/workshop/simplification/browser";
-  mkdirSync(output, { recursive: true });
   try {
+    page.on("console", message => logs.push(`${message.type()}: ${message.text()}`));
+    page.on("pageerror", error => logs.push(`pageerror: ${error.stack}`));
+    page.on("response", response => { if (response.url().includes("/models/")) logs.push(`model-response: ${response.status()} ${response.url()}`); });
+    page.on("requestfailed", request => { if (request.url().includes("/models/")) logs.push(`model-failure: ${request.failure()?.errorText}`); });
+    mkdirSync(output, { recursive: true });
     await page.goto("/sign-in");
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
-    await page.getByRole("button", { name: /^Cable row start to finish/ }).click();
+    await dismissWorkshopTutorial(page);
+    await addWorkshopEquipment(page, "Cable row");
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByRole("button", { name: "Use 2D preview", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Fit scene", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "Choose equipment", exact: true }).click();
-    await page.getByRole("button", { name: /Pec deck/ }).filter({ visible: true }).first().click();
+    await addWorkshopEquipment(page, "Pec deck");
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 30000 });
     // Exercise the real graphics guard rather than the canvas's hidden HTML fallback.
     await page.addInitScript(() => {
@@ -53,6 +59,6 @@ test("recipe preview reaches ready and survives Strict Mode initialization", asy
     logs.push(JSON.stringify(await page.locator("[data-anatomy-state]").evaluateAll(elements => elements.map(element => ({ state: element.getAttribute("data-anatomy-state"), highlightCount: element.getAttribute("data-highlight-count"), canvases: [...element.querySelectorAll("canvas")].map(canvas => ({ width: canvas.width, height: canvas.height, style: canvas.getAttribute("style") })) })))));
     writeFileSync(`${output}/preview-regression-console.txt`, logs.join("\n"));
     await page.screenshot({ path: `${output}/preview-regression.png` });
-    await admin.auth.admin.deleteUser(account.data.user.id);
+    await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password });
   }
 });

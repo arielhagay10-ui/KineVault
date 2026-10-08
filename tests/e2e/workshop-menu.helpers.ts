@@ -2,16 +2,60 @@ import { expect, type Page } from "@playwright/test";
 import { cableAttachmentNames } from "../../src/lib/motion/studio-cable";
 import type { CableAttachment } from "../../src/lib/motion/workshop";
 
+export async function dismissWorkshopTutorial(page: Page) {
+  const editor = page.locator('[data-workshop="studio"]');
+  await editor.waitFor({ state: "visible" });
+  if (await editor.getAttribute("data-tutorial-open") === "true") {
+    await page.getByRole("button", { name: "Close tutorial", exact: true }).click();
+  }
+}
+
 export async function openWorkshopMenu(page: Page) {
   const menu = page.locator("[data-workshop-menu]");
-  if (!await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator("summary").click();
+  if (!await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator(":scope > summary").click();
+}
+
+export async function openWorkshopRecovery(page: Page) {
+  await openWorkshopMenu(page);
+  const recovery = page.locator("[data-workshop-menu] details").filter({ hasText: "Recovery and shortcuts" });
+  if (!await recovery.evaluate(element => (element as HTMLDetailsElement).open)) await recovery.locator("summary").click();
+}
+
+export async function addWorkshopEquipment(page: Page, name: string) {
+  await page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("searchbox").fill(name);
+  await dialog.getByRole("button", { name, exact: true }).click();
 }
 
 export async function setWorkshopMode(page: Page, mode: "quick" | "advanced") {
   const button = page.getByRole("button", { name: mode === "quick" ? "Quick create" : "Advanced editing", exact: true });
   if (await button.getAttribute("aria-pressed") !== "true") await button.click();
   const menu = page.locator("[data-workshop-menu]");
-  if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator("summary").click();
+  if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator(":scope > summary").click();
+}
+
+export async function inspectMachineMoment(page: Page, name: string, moment: "Start" | "Finish") {
+  await setWorkshopMode(page, "advanced");
+  await page.getByLabel("Selected equipment", { exact: true }).selectOption({ label: name });
+  await openWorkshopTool(page, "Timeline");
+  await page.getByRole("region", { name: "Playback controls" }).getByRole("button", { name: `View ${moment.toLowerCase()}`, exact: true }).click();
+}
+
+export async function editRowTravel(page: Page, value: string) {
+  await inspectMachineMoment(page, "Cable row", "Finish");
+  const animate = page.getByRole("button", { name: "Animate selected item", exact: true });
+  if (await animate.isVisible()) await animate.click();
+  const field = page.getByLabel("Row pull percent", { exact: true });
+  await field.fill(value);
+  await field.press("Enter");
+  await setWorkshopMode(page, "quick");
+}
+
+export async function expectRowTravel(page: Page, value: string) {
+  await inspectMachineMoment(page, "Cable row", "Finish");
+  await expect(page.getByLabel("Row pull percent", { exact: true })).toHaveValue(value);
+  await setWorkshopMode(page, "quick");
 }
 
 export async function openWorkshopTool(page: Page, name: string) {

@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { SharedMotion } from "@/components/character/shared-motion";
@@ -44,10 +43,6 @@ export default async function SharedExercisePage({ params }: { params: Promise<{
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-4xl px-6 pb-20 pt-8">
-        <header className="flex items-center justify-between border-b border-border pb-6">
-          <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-          <span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground">Private shared exercise</span>
-        </header>
         <div className="pt-12">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Shared by link</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">{exercise.name}</h1>

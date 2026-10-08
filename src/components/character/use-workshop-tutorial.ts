@@ -5,7 +5,7 @@ import { readWorkshopTutorial, tutorialStorageKey, type WorkshopTutorialState } 
 
 const sessionProgress = new Map<string, string>();
 export function useWorkshopTutorial(ownerId: string, eligible: boolean) {
-  const [state, setState] = useState<WorkshopTutorialState>({ open: false, step: 0 });
+  const [state, setState] = useState<WorkshopTutorialState>(() => readWorkshopTutorial(null, eligible));
   const revision = useRef(0);
   const key = tutorialStorageKey(ownerId);
   useEffect(() => {

@@ -1,4 +1,5 @@
-import { setWorkshopLanguage, selectWorkshopObject, expandWorkshopControls } from "./workshop-menu.helpers";
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { setWorkshopLanguage, selectWorkshopObject, expandWorkshopControls, openWorkshopRecovery } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -17,11 +18,13 @@ test("workshop tools are directly accessible without scrolling through unrelated
   const email = `tools-${randomUUID()}@example.test`, password = "WorkshopTools2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
-  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
-  page.on("console", message => { if (message.type() === "error" && message.text().includes('unique "key"')) errors.push(message.text()); });
+
   try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    page.on("console", message => { if (message.type() === "error" && message.text().includes('unique "key"')) errors.push(message.text()); });
     const bench = { ...createStudioObject("bench", randomUUID(), 0), ...identityTransform };
     const cable = createStudioObject("cable-machine", randomUUID(), 1);
     const created = await owner.rpc("save_workshop_draft", { p_scene: { ...blankWorkshopScene,
@@ -45,11 +48,37 @@ test("workshop tools are directly accessible without scrolling through unrelated
     expect((await page.locator('[data-workshop="studio"]').boundingBox())!.y).toBe(0);
     await page.getByRole("button", { name: "Full screen", exact: true }).click();
     await expect.poll(() => page.locator('[data-workshop="studio"]').evaluate(element => document.fullscreenElement === element)).toBe(true);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    // Entering fullscreen resizes a real browser; it must stay open afterward.
+    await page.waitForTimeout(750);
+    expect(await page.locator('[data-workshop="studio"]').evaluate(element => document.fullscreenElement === element)).toBe(true);
+    mkdirSync(".local-artifacts/workshop/tools", { recursive: true });
+    await page.screenshot({ path: ".local-artifacts/workshop/tools/fullscreen.png" });
+    await page.getByRole("button", { name: "Exit full screen", exact: true }).click();
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+    // Embedded browsers can leave the Fullscreen API promise pending indefinitely.
+    const fullscreenMethod = await page.evaluateHandle(() => Element.prototype.requestFullscreen);
+    await page.evaluate(() => {
+      Element.prototype.requestFullscreen = () => new Promise<void>(() => {});
+    });
+    await page.getByRole("button", { name: "Full screen", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Use F11" })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("button", { name: "Full screen", exact: true })).toBeEnabled();
+    await page.evaluate(() => { Element.prototype.requestFullscreen = () => Promise.reject(new TypeError("Blocked")); });
+    await page.getByRole("button", { name: "Full screen", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Use F11" })).toBeVisible();
+    await page.evaluate(method => { Element.prototype.requestFullscreen = method; }, fullscreenMethod);
+    await fullscreenMethod.dispose();
+    await page.getByRole("button", { name: "Full screen", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Exit full screen", exact: true })).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "Use F11" })).toHaveCount(0);
     await page.getByRole("button", { name: "Exit full screen", exact: true }).click();
     expect(quickBounds.x).toBeGreaterThan(canvasBounds.x + canvasBounds.width);
-    await page.getByText("Recovery and shortcuts", { exact: true }).click();
+    await openWorkshopRecovery(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByText("Recovery and shortcuts", { exact: true }).click();
+    await page.locator("[data-workshop-menu] > summary").click();
     await page.setViewportSize({ width: 1440, height: 1000 });
     const tools = page.getByRole("tablist", { name: "Workshop tools", exact: true });
     const open = async (name: string) => {
@@ -104,7 +133,10 @@ test("workshop tools are directly accessible without scrolling through unrelated
     expect(preview.height).toBeGreaterThan(550);
     expect(preview.y + preview.height).toBeLessThan(1000);
     await page.setViewportSize({ width: 390, height: 844 });
-    await tools.scrollIntoViewIfNeeded(); await open("Contacts");
+    await tools.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: ".local-artifacts/workshop/tools/mobile-before-contacts.png" });
+    expect(await page.locator('[data-workshop="studio"]').evaluate(element => element.clientHeight)).toBe(844);
+    await open("Contacts");
     await page.getByRole("button", { name: "Lie face down", exact: true }).click();
     await expect(page.getByRole("button", { name: "Lie face down", exact: true })).toHaveAttribute("aria-pressed", "true");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -116,5 +148,5 @@ test("workshop tools are directly accessible without scrolling through unrelated
     await expect(hebrewTools.getByRole("tab").nth(1)).toBeFocused();
     await expect(hebrewTools.getByRole("tab").nth(1)).toHaveAttribute("aria-selected", "true");
     expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

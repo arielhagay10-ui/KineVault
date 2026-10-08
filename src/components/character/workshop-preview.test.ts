@@ -8,7 +8,8 @@ it.each(["loading", "unsupported", "error"] as const)("offers retry and a text a
   const html = renderToStaticMarkup(createElement(WorkshopPreviewFallback, { state, onRetry: () => undefined }));
   expect(html).toContain('type="button"');
   expect(html).toContain("Retry preview");
-  expect(html).toMatch(/summary|editing below/);
+  expect(html).toMatch(/keep editing|editing controls remain available/);
+  expect(html).not.toContain("2D");
   expect(html).toContain(state === "error" ? 'role="alert"' : 'role="status"');
 });
 

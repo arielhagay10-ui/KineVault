@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Plus } from "@/components/ui/icons";
 import { getIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { loadWorkshopScene } from "@/lib/motion/load-scene";
@@ -29,13 +29,9 @@ export default async function MyExercisesPage({ searchParams }: { searchParams: 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-5xl px-6 pb-20 pt-8">
-        <header className="flex items-center justify-between border-b border-border pb-6">
-          <Link href="/" className="text-xl font-bold tracking-[-0.05em]">KineVault</Link>
-          <Link href="/dashboard" className="inline-flex min-h-11 items-center gap-2 rounded-[8px] border border-input bg-card px-4 py-2 text-sm font-semibold text-primary hover:bg-muted"><ArrowLeft size={16} aria-hidden /> Dashboard</Link>
-        </header>
         <div className="flex flex-wrap items-end justify-between gap-5 py-8">
           <div>
-            <p className="text-[0.8125rem] font-medium text-primary">Private library</p>
+
             <h1 className="mt-2 text-[1.9375rem] font-semibold leading-[1.16] tracking-[-0.035em] sm:text-[2.375rem] sm:leading-[1.15]">My exercises</h1>
             <p className="mt-3 text-[0.9375rem] leading-[1.65] text-muted-foreground">Your drafts stay private until you decide to share or submit them.</p>
           </div>
@@ -44,9 +40,9 @@ export default async function MyExercisesPage({ searchParams }: { searchParams: 
         {error ? <p role="alert" className="text-red-700 dark:text-red-300">Private exercises could not be loaded.</p>
           : exercises?.length ? <div className="grid gap-4 sm:grid-cols-2">
             {drafts.map((item) => (
-              <article key={item.id} className="rounded-[12px] border border-border bg-card p-6">
+              <article key={item.id} className="min-w-0 rounded-[12px] border border-border bg-card p-6">
                 <p className="text-xs font-medium text-primary">Private draft</p>
-                <h2 className="mt-2 text-xl font-semibold">{item.exercise_content?.name ?? "Untitled exercise"}</h2>
+                <h2 className="mt-2 break-words text-xl font-semibold">{item.exercise_content?.name ?? "Untitled exercise"}</h2>
                 {item.exercise_content?.short_description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{item.exercise_content.short_description}</p>}
                 <p className="mt-3 text-sm text-muted-foreground">Updated <time dateTime={item.updated_at}>{new Date(item.updated_at).toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })}</time></p>
                 {item.scene && <PrivateDraftPreview scene={item.scene} name={item.exercise_content?.name ?? "Untitled exercise"} />}

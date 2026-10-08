@@ -1,8 +1,11 @@
-import { Euler, Quaternion, Vector3 } from "three";
+import { Euler, Object3D, Quaternion, Vector3 } from "three";
 import type { AnatomyRig } from "./anatomy";
-import { reachStudioGrip } from "./studio-grip";
+import { reachStudioGrip, studioGripOffset } from "./studio-grip";
+import { cableLocalGrip, studioCableFrame } from "./studio-cable";
+import { rowCarriagePoint, rowHandleHeight } from "./studio-row";
+export { rowHandleHeight, rowPulleyPoint } from "./studio-row";
 import { sampleStudioObject, studioAssetNames, studioPointToWorld } from "./studio";
-import { identityTransform, type StudioObject, type WorkshopScene } from "./workshop";
+import { identityTransform, sampleWorkshopPose, type StudioObject, type WorkshopScene } from "./workshop";
 
 export const machineSlugs = ["lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck"] as const;
 export type MachineSlug = typeof machineSlugs[number];
@@ -23,8 +26,6 @@ export function setMachineGripChoices(scene: WorkshopScene, id: string, choices:
 }
 
 export const rowFootplate = { angle: -Math.PI / 4, y: 0.24, z: 1.12, length: 0.5, width: 0.25, thickness: 0.05 };
-export const rowHandleHeight = { min: 0.7, max: 1.85, standard: 1.23 };
-export const rowPulleyPoint = { x: 0, y: 1.23, z: 1.35 };
 export const reversePecDeckSeatZ = 0.136;
 export function rowFootPoint(side: "left" | "right") {
   // Sole height is 0.14 atlas units below the ankle. Center the sole on the plate.
@@ -38,7 +39,7 @@ export function machineCarriagePoint(object: StudioObject) {
   const travel = object.machinePosition ?? 0.5;
   if (object.slug === "lat-pulldown-machine") return new Vector3(0, object.machineGrip === "pronated" ? 2.53 - travel * 0.93 : 2.58 - travel * 0.98, 0.22);
   if (object.slug === "smith-machine") return new Vector3(0, 1.53 + travel * 0.65, -0.12);
-  if (object.slug === "cable-row-machine") return new Vector3(0, object.machineHandleHeight ?? rowHandleHeight.standard, 0.88 - travel * 0.58);
+  if (object.slug === "cable-row-machine") return rowCarriagePoint(object);
   if (object.slug === "pec-deck") return machineHandlePoint(object, "left");
   return new Vector3(0, 1.1 + travel * 0.4, 0.24 + travel * 0.4);
 }
@@ -154,11 +155,18 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
     if (object.slug === "cable-row-machine") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), rowFootplate.angle));
     if (object.slug === "leg-press") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -3 * Math.PI / 4));
     plantMachineFoot(rig, side, studioPointToWorld(footPoint, object), bodyFacing, footRotation);
+    if (object.slug === "cable-row-machine" && object.cableAttachment) continue;
     const grip = machineHandlePoint(object, side);
     if (object.slug === "lat-pulldown-machine" && object.machineGrip === "pronated") reachFrontalPulldownGrip(rig, side, studioPointToWorld(grip, object), facing);
     else if (object.slug === "smith-machine") reachSmithBar(rig, side, studioPointToWorld(grip, object), facing);
     else if (object.slug === "cable-row-machine" || object.slug === "pec-deck") reachSeatedMachineGrip(rig, side, studioPointToWorld(grip, object), bodyFacing, object);
     else reachStudioGrip(rig, side, studioPointToWorld(grip, object), bodyFacing);
+  }
+  let cableFrame: ReturnType<typeof studioCableFrame> | undefined;
+  if (object.slug === "cable-row-machine" && object.cableAttachment) {
+    const tower = new Object3D();
+    tower.position.set(object.x, object.y, object.z); tower.quaternion.copy(facing); tower.scale.setScalar(object.scale);
+    cableFrame = studioCableFrame(rig, object, tower, sampleWorkshopPose(scene.keyframes, timeMs));
   }
   if (object.slug === "smith-machine" || object.slug === "cable-row-machine" || object.slug === "pec-deck" || (object.slug === "lat-pulldown-machine" && object.machineGrip === "pronated")) {
     const curls: Record<string, number[]> = { second: [90, 75, 95], third: [90, 115, 30], fourth: [85, 115, 45], fifth: [70, 110, 65] };
@@ -179,8 +187,13 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
   const report: MachineReachReport = { objectId: object.id, timeMs, hands: [], warnings: [] };
   const inverseFacing = bodyFacing.clone().invert();
   for (const side of ["left", "right"] as const) {
+    if (cableFrame && ![side, "both"].includes(object.attachment)) continue;
+    if (cableFrame?.kind === "cuff") continue;
     const hand = rig.handBones[side], elbow = rig.bones[`${side}-elbow`], shoulder = rig.bones[`${side}-shoulder`];
-    const contactError = hand.localToWorld(new Vector3(side === "left" ? 0.03 : -0.03, -0.11, 0.12)).distanceTo(studioPointToWorld(machineHandlePoint(object, side), object));
+    const cableGrip = cableFrame?.kind === "rope" ? cableFrame.ropeGrips.find(grip => grip.side === side)?.point
+      : cableFrame ? cableLocalGrip(cableFrame.kind, side).point.multiplyScalar(cableFrame.scale).applyQuaternion(cableFrame.rotation).add(cableFrame.center) : undefined;
+    const contactError = cableGrip ? hand.localToWorld(studioGripOffset(side)).distanceTo(cableGrip)
+      : hand.localToWorld(new Vector3(side === "left" ? 0.03 : -0.03, -0.11, 0.12)).distanceTo(studioPointToWorld(machineHandlePoint(object, side), object));
     const wristBendDegrees = new Vector3(0, -1, 0).applyQuaternion(hand.getWorldQuaternion(new Quaternion()))
       .angleTo(hand.getWorldPosition(new Vector3()).sub(elbow.getWorldPosition(new Vector3()))) * 180 / Math.PI;
     const relativeElbow = elbow.getWorldPosition(new Vector3()).sub(shoulder.getWorldPosition(new Vector3())).applyQuaternion(inverseFacing);
@@ -188,7 +201,7 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
     report.hands.push({ side, contactError, wristBendDegrees, elbowPathDeviation });
     if (contactError > 0.005 * object.scale) report.warnings.push({ side, kind: "reach", message: `${side === "left" ? "Left" : "Right"} hand cannot reach the handle.`, repair: "Shorten the start or finish range until the hand touches the handle." });
     if (wristBendDegrees > 45) report.warnings.push({ side, kind: "wrist", message: `${side === "left" ? "Left" : "Right"} wrist bends ${Math.round(wristBendDegrees)}° to keep hold.`, repair: "Shorten the range, change the palm choice, or try the other elbow path." });
-    if (elbowPathDeviation > 0.025 * object.scale) report.warnings.push({ side, kind: "elbow-path", message: `${side === "left" ? "Left" : "Right"} elbow leaves the chosen path to reach the handle.`, repair: "Shorten the range or try the other elbow path." });
+    if (!cableFrame && elbowPathDeviation > 0.025 * object.scale) report.warnings.push({ side, kind: "elbow-path", message: `${side === "left" ? "Left" : "Right"} elbow leaves the chosen path to reach the handle.`, repair: "Shorten the range or try the other elbow path." });
   }
   return report;
 }

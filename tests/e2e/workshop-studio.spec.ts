@@ -1,3 +1,5 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { openWorkshopTool, selectWorkshopObject, selectWorkshopJoint, jointField, openWorkshopMenu, expandWorkshopControls, cableAttachmentButton } from "./workshop-menu.helpers";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -93,7 +95,7 @@ test("shoulder alignment, plane lock and cuff preferences survive bench edits an
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(errors).toEqual([]);
-  } finally { await fixture.admin.auth.admin.deleteUser(fixture.userId); }
+  } finally { await cleanupLocalFixture(fixture); }
 });
 
 test("seating and cuffs make a chest-supported Keenan flaps rep that survives save and reload", async ({ page }) => {
@@ -210,7 +212,7 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     expect(errors).toEqual([]);
-  } finally { await fixture.admin.auth.admin.deleteUser(fixture.userId); }
+  } finally { await cleanupLocalFixture(fixture); }
 });
 
 async function createOwner() {
@@ -221,7 +223,13 @@ async function createOwner() {
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
   const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
+  try {
+    const signedIn = await owner.auth.signInWithPassword({ email, password });
+    if (signedIn.error) throw signedIn.error;
+  } catch (error) {
+    await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password });
+    throw error;
+  }
   return { admin, owner, email, password, userId: account.data.user!.id };
 }
 
@@ -237,6 +245,7 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
     await page.goto("/sign-in"); await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password").fill(fixture.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
+    await dismissWorkshopTutorial(page);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Add equipment", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Kettlebell", exact: true }).click();
@@ -330,7 +339,7 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
     await page.setViewportSize({ width: 390, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(errors).toEqual([]);
-  } finally { await fixture.admin.auth.admin.deleteUser(fixture.userId); }
+  } finally { await cleanupLocalFixture(fixture); }
 });
 
 test("support controls, explicit animation and presentation survive saving without hiding the preview", async ({ page }) => {
@@ -345,6 +354,7 @@ test("support controls, explicit animation and presentation survive saving witho
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
+    await dismissWorkshopTutorial(page);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Add equipment", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Adjustable bench", exact: true }).click();
@@ -417,12 +427,15 @@ test("support controls, explicit animation and presentation survive saving witho
     await expect(jointField(page, "x")).toBeEnabled();
     await page.setViewportSize({ width: 390, height: 844 });
     await jointField(page, "x").fill("80");
+    await expect(jointField(page, "x")).toHaveValue("80");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await canvas.scrollIntoViewIfNeeded();
+    await expect(canvas).toBeInViewport({ ratio: 1 });
     const mobileBounds = (await canvas.boundingBox())!;
     expect(mobileBounds.y).toBeGreaterThanOrEqual(0);
     expect(mobileBounds.y + mobileBounds.height).toBeLessThanOrEqual(844);
     expect(errors).toEqual([]);
-  } finally { await fixture.admin.auth.admin.deleteUser(fixture.userId); }
+  } finally { await cleanupLocalFixture(fixture); }
 });
 
 test("ankles and positive knee bends can be posed and saved", async ({ page }) => {
@@ -435,6 +448,7 @@ test("ankles and positive knee bends can be posed and saved", async ({ page }) =
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
+    await dismissWorkshopTutorial(page);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Pose");
     await selectWorkshopJoint(page, "Left knee");
@@ -468,7 +482,7 @@ test("ankles and positive knee bends can be posed and saved", async ({ page }) =
     await selectWorkshopJoint(page, "Left ankle");
     await expect(jointField(page, "y")).toHaveValue("10");
     await expect(jointField(page, "z")).toHaveValue("-15");
-  } finally { await fixture.admin.auth.admin.deleteUser(fixture.userId); }
+  } finally { await cleanupLocalFixture(fixture); }
 });
 
 test("wrist poses and slower movement controls work and survive reloading", async ({ page }) => {
@@ -483,6 +497,7 @@ test("wrist poses and slower movement controls work and survive reloading", asyn
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
+    await dismissWorkshopTutorial(page);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     const sensitivity = page.getByLabel("Movement sensitivity");
     await openWorkshopTool(page, "Position");
@@ -556,7 +571,7 @@ test("wrist poses and slower movement controls work and survive reloading", asyn
     await expect(page.getByRole("button", { name: "Palm down", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(errors).toEqual([]);
-  } finally { await fixture.admin.auth.admin.deleteUser(fixture.userId); }
+  } finally { await cleanupLocalFixture(fixture); }
 });
 
 test("creation starts with a simple workshop, supports dragging and holding a bar, then saves details", async ({ page }) => {
@@ -571,6 +586,7 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
+    await dismissWorkshopTutorial(page);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Choose equipment", exact: true })).toBeVisible();
@@ -650,7 +666,7 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
     await page.setViewportSize({ width: 390, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     expect(errors).toEqual([]);
-  } finally { await fixture.admin.auth.admin.deleteUser(fixture.userId); }
+  } finally { await cleanupLocalFixture(fixture); }
 });
 
 test("existing demo barbells become selectable and movable", async ({ page }) => {
@@ -678,5 +694,5 @@ test("existing demo barbells become selectable and movable", async ({ page }) =>
     await selectWorkshopObject(page, "Barbell");
     await openWorkshopTool(page, "Position");
     await expect(page.getByLabel("Position Y meters", { exact: true })).toHaveValue("1.12");
-  } finally { await fixture.admin.auth.admin.deleteUser(fixture.userId); }
+  } finally { await cleanupLocalFixture(fixture); }
 });

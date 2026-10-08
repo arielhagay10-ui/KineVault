@@ -18,7 +18,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     .eq("user_id", identity.userId).order("created_at", { ascending: false }).order("id").range((page - 1) * 20, page * 20);
   if (error) throw new Error("Your review updates could not be loaded");
   return <main className="min-h-screen bg-background px-6 py-10 text-foreground"><div className="mx-auto max-w-3xl">
-    <Link href="/dashboard" className="text-sm font-semibold text-primary">← My account</Link>
+    <Link href="/dashboard" className="text-sm font-semibold text-primary">My account</Link>
     <h1 className="mt-8 text-3xl font-semibold tracking-tight">Review updates</h1><p className="mt-3 text-sm text-muted-foreground">Decisions about your community contributions.</p>
     <ol className="mt-7 space-y-4">{data?.slice(0, 20).map((item) => <li key={item.id} className={`rounded-2xl border bg-card p-5 ${item.read_at ? "border-border" : "border-primary"}`}>
       <p className="text-xs font-semibold uppercase tracking-wide text-primary">{outcomeLabels[item.action as keyof typeof outcomeLabels]}{!item.read_at ? " · Unread" : ""}</p>
@@ -29,8 +29,8 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     </li>)}</ol>
     {!data?.length && <p className="mt-7 rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">No review updates yet.</p>}
     <nav className="mt-6 flex justify-between text-sm font-semibold text-primary" aria-label="Review update pages">
-      {page > 1 ? <Link href={`/notifications?page=${page - 1}`}>← Previous</Link> : <span />}
-      {(data?.length ?? 0) > 20 && <Link href={`/notifications?page=${page + 1}`}>Next →</Link>}
+      {page > 1 ? <Link href={`/notifications?page=${page - 1}`}>Previous</Link> : <span />}
+      {(data?.length ?? 0) > 20 && <Link href={`/notifications?page=${page + 1}`}>Next</Link>}
     </nav>
   </div></main>;
 }

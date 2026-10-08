@@ -1,3 +1,4 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { openWorkshopTool, selectWorkshopObject, jointField, selectWorkshopJoint } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -16,9 +17,11 @@ test("keyframe pose, timing, deletion and undo persist without losing machine co
   const email = `timeline-${randomUUID()}@example.test`, password = "TimelineFixture2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+
   try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
     await owner.auth.signInWithPassword({ email, password });
     const scene = machineDemoScene("smith-machine", randomUUID());
     scene.keyframes = [scene.keyframes[0], scene.keyframes[8], scene.keyframes[16]];
@@ -108,5 +111,5 @@ test("keyframe pose, timing, deletion and undo persist without losing machine co
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

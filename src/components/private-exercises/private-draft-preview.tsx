@@ -18,7 +18,7 @@ export function PrivateDraftPreview({ scene, name }: { scene: WorkshopScene; nam
       {open ? "Close preview" : "Preview saved motion"}
     </button>
     {open && <div className="mt-3 min-w-0 rounded-xl border border-border p-3">
-      <p className="mb-2 text-sm text-muted-foreground">{name}. Saved motion, {(scene.durationMs / 1000).toFixed(1)} seconds. Playback starts when you choose Play.</p>
+      <p className="mb-2 break-words text-sm text-muted-foreground">{name}. Saved motion, {(scene.durationMs / 1000).toFixed(1)} seconds. Playback starts when you choose Play.</p>
       <MotionCanvas scene={scene} timeMs={timeMs} playback={clock} className="h-64" />
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button type="button" onClick={() => setPlaying(!playing)} className="min-h-11 rounded-lg bg-primary px-4 text-base font-semibold text-primary-foreground">

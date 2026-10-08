@@ -1,3 +1,4 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -78,7 +79,7 @@ test("metadata warns only for actual edits and keeps them after cancelled naviga
     await page.getByLabel("Aliases", { exact: true }).fill("Recovered valid alias");
     await page.getByRole("button", { name: "Save privately", exact: true }).click();
     await expect(page).toHaveURL(/saved=1/);
-  } finally { await service.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin: service, userId: account.data.user.id, email, password }); }
 });
 
 test("share copy failure is announced and replacing a copied link resets feedback", async ({ page, context }) => {
@@ -109,7 +110,7 @@ test("share copy failure is announced and replacing a copied link resets feedbac
     await page.evaluate(() => { Object.defineProperty(navigator.clipboard, "writeText", { configurable: true, value: () => Promise.reject(new Error("denied")) }); });
     await page.getByRole("button", { name: "Copy link", exact: true }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Could not copy" })).toBeVisible();
-  } finally { await service.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin: service, userId: account.data.user.id, email, password }); }
 });
 
 test("mobile navigation and detail title remain visible in both themes", async ({ page, publishedCableRaise }) => {
@@ -117,8 +118,10 @@ test("mobile navigation and detail title remain visible in both themes", async (
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   for (const theme of ["light", "dark"]) {
+    await page.getByRole("button", { name: "Site menu", exact: true }).click();
     await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
-    await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeInViewport();
+    await page.getByRole("button", { name: "Close menu", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Site menu", exact: true })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `.local-artifacts/efficiency-review/home-mobile-${theme}.png`, fullPage: true });
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addWorkshopEquipment, createFreeCableSetup, editWorkshopMoment } from "./workshop-freedom";
+import { addWorkshopEquipment, cableTowerPlacement, createFreeCableSetup, editWorkshopMoment, freeWorkshopBody } from "./workshop-freedom";
 import { createQuickScene } from "./quick-create";
 import { blankWorkshopScene } from "./workshop";
 import { workshopSceneSchema } from "./scene-schema";
@@ -8,6 +8,37 @@ import { limbPoseBlock } from "./limb-pose";
 const itemId = "e84c556e-13a0-4b02-8fbe-5bc19bf85ccf";
 
 describe("free workshop equipment", () => {
+  it("releases seated support and conflicting weights while keeping the row, poses and chosen attachment", () => {
+    const weights = createQuickScene("dumbbell-pair"), scene = addWorkshopEquipment(weights, "cable-row-machine", itemId);
+    const free = freeWorkshopBody(scene, itemId);
+    expect(free.keyframes).toEqual(scene.keyframes); expect(free.studio!.body).toEqual(scene.studio!.body);
+    expect(free.studio!.objects.slice(0, 2).map(item => item.attachment)).toEqual(["none", "none"]);
+    expect(free.studio!.objects[2]).toMatchObject({ slug: "cable-row-machine", machineUse: false, cableAttachment: "straight-bar", attachment: "both" });
+    expect(workshopSceneSchema.safeParse(free).success).toBe(true);
+    const row = { ...free.studio!.objects[2], cableAttachment: "lat-bar" as const, machineUse: true };
+    const seated = { ...free, studio: { ...free.studio!, objects: [row] } };
+    expect(freeWorkshopBody(seated, itemId).studio!.objects[0]).toMatchObject({ cableAttachment: "lat-bar", attachment: "both", machineUse: false });
+  });
+  it("faces new cable pulleys toward the figure and places a held tower behind a turned figure", () => {
+    const scene = structuredClone(blankWorkshopScene);
+    scene.studio!.body = { ...scene.studio!.body, x: 2, z: -1, rotationY: 90 };
+    const added = addWorkshopEquipment(scene, "cable-machine", itemId);
+    const cable = { ...added.studio!.objects[0], attachment: "both" as const, cableAttachment: "straight-bar" as const };
+    const body = scene.studio!.body;
+    const facing = (tower: typeof cable) => {
+      const yaw = tower.rotationY * Math.PI / 180;
+      const dx = body.x - tower.x, dz = body.z - tower.z;
+      return (Math.sin(yaw) * dx + Math.cos(yaw) * dz) / Math.hypot(dx, dz);
+    };
+    expect(facing(cable)).toBeCloseTo(1, 6);
+    const second = addWorkshopEquipment(added, "cable-machine", "00000000-0000-4000-8000-000000000008").studio!.objects[1];
+    expect([second.x, second.z]).not.toEqual([cable.x, cable.z]);
+    const behind = { ...cable, ...cableTowerPlacement(body, cable, "behind") };
+    expect(behind.x).toBeLessThan(body.x);
+    expect(facing(behind)).toBeCloseTo(1, 6);
+    expect(behind.attachment).toBe("both");
+    expect(workshopSceneSchema.safeParse({ ...added, studio: { ...added.studio!, objects: [behind] } }).success).toBe(true);
+  });
   it("creates an editable finish for drafts without a midpoint and preserves surrounding poses", () => {
     const scene = structuredClone(blankWorkshopScene);
     scene.keyframes = [{ timeMs: 0, poses: { torso: { x: 10, y: 0, z: 0 } } }, { timeMs: 3200, poses: { torso: { x: 30, y: 0, z: 0 } } }];

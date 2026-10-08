@@ -9,7 +9,7 @@ import { Canvas, createPortal, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Component, Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal as createControlsPortal } from "react-dom";
-import { Group, PerspectiveCamera, Vector3 } from "three";
+import { Group, MOUSE, TOUCH, PerspectiveCamera, Vector3 } from "three";
 import { createCableGeometry, updateCableGeometry } from "@/lib/motion/cable-geometry";
 import type { OrbitControls as OrbitControlsInstance } from "three-stdlib";
 import type { AnatomyRig } from "@/lib/motion/anatomy";
@@ -29,7 +29,7 @@ import { cameraDistanceForPoints, studioCameraPoints } from "@/lib/motion/studio
 import { fadeWorkshopEquipment, fitWorkshopCamera, oppositeCameraPosition, workshopCameraView, zoomCameraPosition, type WorkshopCameraAction, type WorkshopCameraCommand } from "@/lib/motion/workshop-camera";
 import { workshopEditorForInteraction } from "@/lib/motion/workshop-interaction";
 import { muscleGroups } from "@/lib/motion/anatomy";
-import { ZoomIn, ZoomOut, Scan } from "lucide-react";
+import { ZoomIn, ZoomOut, Scan } from "@/components/ui/icons";
 import { WorkshopCameraControls, WorkshopPreviewFallback, type WorkshopInteractionMode } from "./workshop-camera-controls";
 import { useWorkshopLanguage } from "./workshop-language";
 
@@ -204,7 +204,7 @@ class AnatomyBoundary extends Component<{ children: ReactNode; onRetry: () => vo
   }
 }
 
-class PreviewGraphicsGuard extends Component<{ children: ReactNode; onUnsupported: () => void; onRetry: () => void }, { supported: boolean | null }> {
+class PreviewGraphicsGuard extends Component<{ children: ReactNode; onUnsupported: () => void; fallback: ReactNode }, { supported: boolean | null }> {
   state: { supported: boolean | null } = { supported: null };
   componentDidMount() {
     let supported = false;
@@ -217,7 +217,7 @@ class PreviewGraphicsGuard extends Component<{ children: ReactNode; onUnsupporte
     if (!supported) this.props.onUnsupported();
   }
   render() {
-    return this.state.supported === null ? null : this.state.supported ? this.props.children : <WorkshopPreviewFallback state="unsupported" onRetry={this.props.onRetry} />;
+    return this.state.supported === null ? null : this.state.supported ? this.props.children : this.props.fallback;
   }
 }
 
@@ -300,7 +300,7 @@ function LinkedCamera({ value, onChange }: { value?: WorkshopLinkedCamera | null
   return null;
 }
 
-export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]", showMuscleControls = true, editor, simplifiedControls = false, interactionMode, onInteractionModeChange, onMachineReachChange, compact = false, linkedCamera, onCameraChange, controlsTarget, fillViewport = false, onMetrics }: {
+export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]", showMuscleControls = true, editor, simplifiedControls = false, interactionMode, onInteractionModeChange, onMachineReachChange, compact = false, linkedCamera, onCameraChange, controlsTarget, fillViewport = false, onMetrics, canvasOverlay }: {
   scene: WorkshopScene; timeMs: number; playback?: MotionPlaybackClock; className?: string; showMuscleControls?: boolean;
   editor?: StudioEditor;
   simplifiedControls?: boolean; interactionMode?: WorkshopInteractionMode;
@@ -311,12 +311,18 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
   controlsTarget?: HTMLElement | null;
   fillViewport?: boolean;
   onMetrics?: (sample: MotionRenderMetrics) => void;
+  canvasOverlay?: ReactNode;
 }) {
   const { t } = useWorkshopLanguage();
   const solvesRef = useRef(0);
   const wrapper = useRef<HTMLDivElement>(null), rigRef = useRef<AnatomyRig | null>(null);
   const [localMode, setLocalMode] = useState<WorkshopInteractionMode>("camera");
   const mode = interactionMode ?? (simplifiedControls ? localMode : "edit");
+  const changeMode = (value: WorkshopInteractionMode) => { setLocalMode(value); onInteractionModeChange?.(value); };
+  const canvasEditor = editor && { ...editor, onRequestMove: mode === "camera" ? (selection: StudioEditor["selection"]) => {
+    changeMode("edit");
+    editor.onSelect(selection);
+  } : undefined };
   const [command, setCommand] = useState<WorkshopCameraCommand | null>(null);
   const [faded, setFaded] = useState(false), [fullscreen, setFullscreen] = useState(false);
   const [failure, setFailure] = useState<"error" | "unsupported" | null>(null);
@@ -390,25 +396,26 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
   const selectedHighlight = muscleGroups.find(item => `group:${item.id}` === target)?.label ?? muscles.find(item => item.id === target)?.label ?? target;
   const equipmentNames = scene.studio?.objects.map(object => object.name).join(", ") || scene.equipment?.slug.replaceAll("-", " ") || "No equipment";
   return (<div ref={wrapper} className={`min-w-0 ${fullscreen ? "h-full overflow-y-auto bg-background p-4" : fillViewport ? "flex min-h-0 flex-1 flex-col" : ""}`} data-anatomy-state={failure ?? (muscles.length ? "ready" : "loading")} data-highlight-count={count} data-isolated={isolate}>
-    <div className={`relative overflow-hidden rounded-2xl bg-muted ${fullscreen ? "h-[60vh] min-h-52" : className}`} aria-label={t("3D exercise preview")} aria-busy={!failure && !muscles.length}>
+    <div role="group" className={`relative overflow-hidden rounded-2xl bg-muted ${fullscreen ? "h-[60vh] min-h-52" : className}`} aria-label={t("3D exercise preview")} aria-busy={!failure && !muscles.length}>
       <AnatomyBoundary key={attempt} onRetry={retryPreview} onError={() => setFailure("error")}>
-        <PreviewGraphicsGuard onUnsupported={onUnsupported} onRetry={retryPreview}>
+        <PreviewGraphicsGuard onUnsupported={onUnsupported} fallback={<WorkshopPreviewFallback state="unsupported" onRetry={retryPreview} />}>
         <Canvas camera={camera} frameloop="demand" dpr={[1, 1.75]} fallback={<span aria-hidden="true" />}>
           <color attach="background" args={["#f7f8f8"]} />
           <hemisphereLight args={["#ffffff", "#85989b", 0.95]} />
           <directionalLight position={[-3, 5, 6]} color="#fff4e7" intensity={2.4} />
           <directionalLight position={[4, 3, -4]} color="#dce9f8" intensity={1.1} />
           {editor && <gridHelper args={[20, 100, "#adbfc0", "#dce5e5"]} />}
-          <Suspense fallback={null}><Figure pose={pose} scene={scene} target={target} isolate={isolate} onLoaded={setMuscles} onHighlight={setCount} editor={editor} timeMs={timeMs} playback={playback} solvesRef={solvesRef} interactive={mode === "edit"} faded={faded} onRigReady={onRigReady} onMachineReachChange={onMachineReachChange} /></Suspense>
+          <Suspense fallback={null}><Figure pose={pose} scene={scene} target={target} isolate={isolate} onLoaded={setMuscles} onHighlight={setCount} editor={canvasEditor} timeMs={timeMs} playback={playback} solvesRef={solvesRef} interactive={mode === "edit"} faded={faded} onRigReady={onRigReady} onMachineReachChange={onMachineReachChange} /></Suspense>
           <MotionMetrics wrapper={wrapper} solvesRef={solvesRef} onMetrics={onMetrics} />
-          <OrbitControls makeDefault enabled={!editor?.dragging && (!simplifiedControls || mode === "camera")} enableDamping={!onCameraChange} rotateSpeed={editor?.sensitivity ?? 1} panSpeed={editor?.sensitivity ?? 1} zoomSpeed={editor?.sensitivity ?? 1} target={[0, 1.38, 0]} enablePan={!!editor || !!onCameraChange} minDistance={simplifiedControls ? 1 : 2.5} maxDistance={simplifiedControls ? 100 : editor ? 25 : 12} />
+          <OrbitControls makeDefault enabled={!editor?.dragging} enableDamping={!onCameraChange} rotateSpeed={editor?.sensitivity ?? 1} panSpeed={editor?.sensitivity ?? 1} zoomSpeed={editor?.sensitivity ?? 1} mouseButtons={{ LEFT: simplifiedControls && mode === "edit" ? undefined : MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: simplifiedControls && mode === "edit" ? MOUSE.ROTATE : MOUSE.PAN }} touches={{ ONE: simplifiedControls && mode === "edit" ? undefined : TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }} target={simplifiedControls ? undefined : [0, 1.38, 0]} enablePan={!!editor || !!onCameraChange} minDistance={simplifiedControls ? 1 : 2.5} maxDistance={simplifiedControls ? 100 : editor ? 25 : 12} />
           {simplifiedControls ? <WorkshopCameraDriver scene={scene} view={view} command={command} getFocus={getFocus} /> : <CameraView view={view} overhead={overhead} bench={scene.motionStyle === "bench-press"} scene={scene} contentHeight={Math.max(2.75 * (scene.studio?.body.scale ?? 1) + (scene.studio?.body.y ?? 0), ...(scene.studio?.objects.filter(object => object.slug === "cable-machine").map(object => object.y + (maxPulleyHeight + 0.15) * object.scale) ?? []))} />}
           {onCameraChange && <LinkedCamera value={linkedCamera} onChange={onCameraChange} />}
         </Canvas>
         </PreviewGraphicsGuard>
         {(!failure && (editor || simplifiedControls) && !muscles.length) && <div className="absolute inset-0 bg-muted/90"><WorkshopPreviewFallback state="loading" onRetry={retryPreview} /></div>}
       </AnatomyBoundary>
-      {fillViewport && !fullscreen && <div className="absolute end-2 top-16 z-10 flex flex-col gap-1 rounded-lg bg-card/95 p-1" aria-label={t("Camera actions")}>{([['zoom-in', "Zoom in", ZoomIn], ['zoom-out', "Zoom out", ZoomOut], ['fit', "Fit scene", Scan]] as const).map(([action, label, Icon]) => <button key={action} type="button" aria-label={t(label)} title={t(label)} disabled={!muscles.length || !!failure} onClick={() => cameraAction(action)} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border bg-card disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"><Icon size={18} /></button>)}</div>}
+      {canvasOverlay}
+      {fillViewport && !fullscreen && !failure && <div role="group" className="absolute end-2 top-2 z-10 flex flex-col gap-1 rounded-lg bg-card/95 p-1" aria-label={t("Camera actions")}>{([['zoom-in', "Zoom in", ZoomIn], ['zoom-out', "Zoom out", ZoomOut], ['fit', "Fit scene", Scan]] as const).map(([action, label, Icon]) => <button key={action} type="button" aria-label={t(label)} title={t(label)} disabled={!muscles.length} onClick={() => cameraAction(action)} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border bg-card disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"><Icon size={18} /></button>)}</div>}
       {showMuscleControls || compact
         ? <div className="absolute bottom-2 right-2 rounded bg-card/90 px-2 py-1 text-[9px] text-muted-foreground">{t("Z-Anatomy · BodyParts3D · CC BY-SA")}</div>
         : <div className="absolute inset-x-2 bottom-2 rounded bg-card/90 px-2 py-1 text-[8px] leading-tight text-muted-foreground">
@@ -417,7 +424,7 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
           {t("creativecommons.org/licenses/by-sa/4.0/ · creativecommons.org/licenses/by-sa/2.1/jp/")}</div>}
     </div>
     {simplifiedControls && !compact && <>
-      <WorkshopCameraControls viewsOnly={!!controlsTarget && !fullscreen} view={view} mode={mode} editable={!!editor} ready={!!muscles.length && !failure} selectionLabel={selectionLabel} faded={faded} fullscreen={fullscreen} onViewChange={changeView} onModeChange={value => { setLocalMode(value); onInteractionModeChange?.(value); }} onAction={cameraAction} onFadeChange={setFaded} onFullscreen={toggleFullscreen} />
+      <WorkshopCameraControls viewsOnly={!!controlsTarget && !fullscreen} view={view} mode={mode} editable={!!editor} ready={!!muscles.length && !failure} selectionLabel={selectionLabel} faded={faded} fullscreen={fullscreen} onViewChange={changeView} onModeChange={changeMode} onAction={cameraAction} onFadeChange={setFaded} onFullscreen={toggleFullscreen} />
       <p role="status" className={fillViewport ? "mt-2 min-h-5 shrink-0 text-sm" : "mt-2 text-sm"}>{previewMessage}</p>
       <details hidden={!!controlsTarget && !failure && !fullscreen} className="mt-3 text-base" open={!!failure}><summary className="min-h-11 cursor-pointer py-2">{t("Text scene summary")}</summary><div className="space-y-2 py-2 text-sm">
         <p><span data-workshop-translate="false">{scene.studio?.objects.length ? equipmentNames : t(equipmentNames)}</span>. {t("{count} poses over {duration} seconds. Current preview time: {time} seconds.", { count: scene.keyframes.length, duration: scene.durationMs / 1000, time: Math.round(timeMs / 100) / 10 })}</p>
@@ -427,7 +434,7 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
       </div></details>
     </>}
     {showMuscleControls && (!controlsTarget || fullscreen) && <>
-      {!simplifiedControls && <div className="mt-3 flex flex-wrap gap-2" aria-label={t("Model view")}>{([
+      {!simplifiedControls && <div role="group" className="mt-3 flex flex-wrap gap-2" aria-label={t("Model view")}>{([
         ["front", "Front"], ["three_quarter", "Three-quarter"], ["side", "Side"], ["back", "Back"],
       ] as const).map(([angle, label]) => <button key={angle} type="button" aria-pressed={view === angle}
         onClick={() => changeView(angle)}

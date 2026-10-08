@@ -21,7 +21,7 @@ export default async function EditPublishedExercise({ params }: { params: Promis
   if (!content) notFound();
   if (versions.error) throw new Error("Version history could not be loaded");
   return <div className="space-y-7">
-    <header><Link href="/admin/exercises" className="text-sm font-semibold text-primary">← Published exercises</Link>
+    <header><Link href="/admin/exercises" className="text-sm font-semibold text-primary">Published exercises</Link>
       <h1 className="mt-4 text-3xl font-semibold">{content.name}</h1>
       <p className="mt-3 text-sm text-muted-foreground">Save a new version with a recorded reason. The reviewed motion and media are preserved.</p>
       <Link href={`/exercises/${exercise.slug}`} className="mt-3 inline-block text-sm underline">View exercise</Link>

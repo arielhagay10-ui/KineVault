@@ -1,3 +1,4 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -12,17 +13,17 @@ test("production route transfer, lazy anatomy and workshop resource baseline", a
   const account = await service.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
   const errors: string[] = [];
-  page.on("pageerror", error => errors.push(error.message));
   const result: Record<string, unknown> = { measuredAt: new Date().toISOString(), viewport: "1440×1000", renderer: "Chrome / SwiftShader", production: true };
-  const cdp = await context.newCDPSession(page);
-  await cdp.send("Network.enable");
-  await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
-  const network = new Map<string, { url: string; mime: string; bytes: number }>();
-  cdp.on("Network.responseReceived", event => network.set(event.requestId, { url: event.response.url, mime: event.response.mimeType, bytes: 0 }));
-  cdp.on("Network.loadingFinished", event => { const item = network.get(event.requestId); if (item) item.bytes = event.encodedDataLength; });
-  mkdirSync(".local-artifacts/efficiency-review", { recursive: true });
-  const routes = ["/", "/exercises", "/exercises/cable-lateral-raise"];
   try {
+    page.on("pageerror", error => errors.push(error.message));
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Network.enable");
+    await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
+    const network = new Map<string, { url: string; mime: string; bytes: number }>();
+    cdp.on("Network.responseReceived", event => network.set(event.requestId, { url: event.response.url, mime: event.response.mimeType, bytes: 0 }));
+    cdp.on("Network.loadingFinished", event => { const item = network.get(event.requestId); if (item) item.bytes = event.encodedDataLength; });
+    mkdirSync(".local-artifacts/efficiency-review", { recursive: true });
+    const routes = ["/", "/exercises", "/exercises/cable-lateral-raise"];
     for (const route of routes) {
       network.clear();
       await page.goto(route, { waitUntil: "networkidle" });
@@ -48,7 +49,9 @@ test("production route transfer, lazy anatomy and workshop resource baseline", a
       expect(transfer.requests, `${route} bounded initial requests`).toBeLessThan(65);
       for (const theme of ["light", "dark"]) for (const mobile of [false, true]) {
         await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 });
+        await page.getByRole("button", { name: "Site menu", exact: true }).click();
         await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
+        await page.getByRole("button", { name: "Close menu", exact: true }).click();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         const label = route === "/" ? "home" : route.split("/").filter(Boolean).join("-");
         await page.screenshot({ path: `.local-artifacts/efficiency-review/${label}-${mobile ? "mobile" : "desktop"}-${theme}.png`, fullPage: true });
@@ -57,7 +60,7 @@ test("production route transfer, lazy anatomy and workshop resource baseline", a
     }
     await page.goto("/");
     const modelStart = Date.now();
-    await page.getByRole("button", { name: "Open interactive 3D preview", exact: true }).click();
+    await page.getByRole("button", { name: "Try the movement viewer", exact: true }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     result.previewReadyMs = Date.now() - modelStart;
     await cdp.send("Performance.enable");
@@ -83,6 +86,14 @@ test("production route transfer, lazy anatomy and workshop resource baseline", a
     await page.getByRole("button", { name: "Preview", exact: true }).click();
     const play = page.getByRole("button", { name: "Play", exact: true });
     if (await play.isVisible()) await play.click();
+    const profileDownload = page.waitForEvent("download", { timeout: 45_000 });
+    await page.locator('[data-anatomy-state="ready"]').first().evaluate(element => {
+      element.dispatchEvent(new CustomEvent("kinevault:profile", { detail: {
+        device: "Automated software-renderer smoke", physical: false, scenario: "playback",
+        workload: "blank-workshop-playback",
+        build: "automation-smoke", durationMs: 30_000,
+      } }));
+    });
     const commitsBefore = await page.locator('[data-workshop-commits]').getAttribute("data-workshop-commits");
     const playbackStarted = Date.now();
     result.playbackFrames = await page.evaluate(() => new Promise(resolve => {
@@ -92,6 +103,18 @@ test("production route transfer, lazy anatomy and workshop resource baseline", a
         else { samples.sort((a, b) => a - b); resolve({ medianMs: samples[60], p95Ms: samples[114], maximumMs: samples[119] }); }
       }; requestAnimationFrame(frame);
     }));
+    const downloadedProfile = await profileDownload;
+    await downloadedProfile.saveAs(".local-artifacts/efficiency-review/device-profile-smoke.json");
+    const deviceProfile = JSON.parse((await page.locator('[data-device-profile]').first().getAttribute("data-device-profile"))!);
+    expect(deviceProfile.physical).toBe(false);
+    expect(deviceProfile.scenario).toBe("playback");
+    expect(deviceProfile.workload).toBe("blank-workshop-playback");
+    expect(deviceProfile.renderer).toBeTruthy();
+    const renderSize = await page.locator("canvas").evaluate((canvas: HTMLCanvasElement) => ({ width: canvas.width, height: canvas.height }));
+    expect(deviceProfile.canvas).toMatchObject(renderSize);
+    expect(deviceProfile.frames.frames).toBeGreaterThanOrEqual(120);
+    expect(deviceProfile.valid).toBe(true);
+    result.deviceProfileSmoke = deviceProfile;
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     const commitsAfter = await page.locator('[data-workshop-commits]').getAttribute("data-workshop-commits");
     const commitsPerSecond = (Number(commitsAfter) - Number(commitsBefore)) * 1000 / (Date.now() - playbackStarted);
@@ -101,7 +124,8 @@ test("production route transfer, lazy anatomy and workshop resource baseline", a
       calls: element.getAttribute("data-render-calls"), geometries: element.getAttribute("data-render-geometries"),
       textures: element.getAttribute("data-render-textures"), solves: element.getAttribute("data-pose-solves"),
     }));
-    expect(Number((result.renderer as { calls: string }).calls)).toBeLessThan(900);
+    expect(Number((result.renderer as { calls: string }).calls)).toBeLessThanOrEqual(4);
+    expect(Number((result.renderer as { geometries: string }).geometries)).toBeLessThanOrEqual(4);
     // Demand canvases stop before the 250 ms metrics interval can publish the
     // final pause solve. Render a settled camera frame before the baseline.
     await page.getByRole("button", { name: "Zoom out", exact: true }).click();
@@ -137,7 +161,15 @@ test("production route transfer, lazy anatomy and workshop resource baseline", a
     expect(Number(result.afterComparisonHeapBytes) - Number(result.beforeComparisonHeapBytes)).toBeLessThan(3_000_000);
     for (const theme of ["light", "dark"]) for (const mobile of [false, true]) {
       await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 });
+      await page.goto("/my-exercises");
+      await page.getByRole("button", { name: "Site menu", exact: true }).click();
       await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
+      await page.getByRole("button", { name: "Close menu", exact: true }).click();
+      await page.goto("/my-exercises/new?metrics=1");
+      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+      if (await closeTutorial.isVisible()) await closeTutorial.click();
+      await setWorkshopLanguage(page, "en");
+      await openWorkshopTool(page, "View");
       for (const language of ["en", "he"] as const) {
         await setWorkshopLanguage(page, language);
         if (language === "he") {
@@ -154,5 +186,5 @@ test("production route transfer, lazy anatomy and workshop resource baseline", a
   } catch (error) {
     writeFileSync(".local-artifacts/efficiency-review/browser-performance.json", JSON.stringify({ ...result, errors, failure: String(error) }, null, 2));
     throw error;
-  } finally { await service.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin: service, userId: account.data.user.id, email, password }); }
 });

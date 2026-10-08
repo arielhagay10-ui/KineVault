@@ -1,3 +1,5 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -15,9 +17,10 @@ test("adding a cable exposes attachments and grips; precise placement stays clos
   const email = `cable-controls-${randomUUID()}@example.test`, password = "CableControls2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const errors: string[] = [];
-  page.on("pageerror", error => errors.push(error.message));
+
   try {
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/sign-in");
     await page.getByLabel("Email", { exact: true }).fill(email);
@@ -25,9 +28,12 @@ test("adding a cable exposes attachments and grips; precise placement stays clos
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
+    await dismissWorkshopTutorial(page);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Add equipment", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Cable machine", exact: true }).click();
+    await page.getByRole("button", { name: "Start and finish", exact: true }).click();
+    await page.getByText("Grip and equipment options", { exact: true }).click();
     const cable = page.getByRole("region", { name: "Cable attachment and grip", exact: true });
     await expect(cable).toBeVisible();
     for (const name of ["D handle", "Rope", "Straight bar", "Angled bar", "V bar", "Cuff"]) {
@@ -81,5 +87,5 @@ test("adding a cable exposes attachments and grips; precise placement stays clos
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(errors).toEqual([]);
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

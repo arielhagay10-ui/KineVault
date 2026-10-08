@@ -1,3 +1,4 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { openWorkshopTool, selectWorkshopObject, selectWorkshopJoint, jointField } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -46,7 +47,11 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       await openWorkshopTool(page, "Contacts");
       await page.getByRole("button", { name: "Use this machine", exact: true }).click();
       await openWorkshopTool(page, "Timeline");
-      if (slug === "lat-pulldown-machine") await expect(page.getByLabel("Pulldown grip", { exact: true })).toHaveValue(grip);
+      if (slug === "lat-pulldown-machine") {
+        await openWorkshopTool(page, "Contacts");
+        await expect(page.getByLabel("Pulldown grip", { exact: true })).toHaveValue(grip);
+        await openWorkshopTool(page, "Timeline");
+      }
       const artifacts = `.local-artifacts/machines/review/${slug}${slug === "lat-pulldown-machine" ? `-${grip}` : ""}`; mkdirSync(artifacts, { recursive: true });
       for (const view of grip === "pronated" ? ["Front", "Three-quarter", "Side"] : ["Three-quarter", "Side"]) {
         await page.getByRole("button", { name: view, exact: true }).click();
@@ -70,6 +75,7 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       await openWorkshopTool(page, "Timeline");
       await expect(page.getByLabel(`${machineTravelLabels[slug]} percent`, { exact: true })).toHaveValue("42");
       if (slug === "lat-pulldown-machine") {
+        await openWorkshopTool(page, "Contacts");
         await expect(page.getByLabel("Pulldown grip", { exact: true })).toHaveValue(grip);
         await openWorkshopTool(page, "Contacts");
         await page.getByLabel("Pulldown grip", { exact: true }).selectOption(grip === "supinated" ? "pronated" : "supinated");
@@ -77,6 +83,7 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
         await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
         await page.reload();
         await selectWorkshopObject(page, studioAssetNames[slug]);
+        await openWorkshopTool(page, "Contacts");
         await expect(page.getByLabel("Pulldown grip", { exact: true })).toHaveValue(grip === "supinated" ? "pronated" : "supinated");
         await page.getByLabel("Pulldown grip", { exact: true }).selectOption(grip);
       }
@@ -110,6 +117,6 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       expect(frozen.data.studio_layout).toEqual(expect.objectContaining({ objects: [expect.objectContaining({ slug, machineUse: true,
         ...(slug === "lat-pulldown-machine" ? { machineGrip: grip } : {}) })] }));
       expect(errors).toEqual([]);
-    } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+    } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
   });
 }

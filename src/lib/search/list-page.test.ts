@@ -15,6 +15,10 @@ describe("bounded list pages", () => {
     expect(listPageUrl("/submissions", 2, "a&b")).toBe("/submissions?page=2&q=a%26b");
     expect(listPageUrl("/submissions", 1)).toBe("/submissions");
   });
+  it("bounds excessive search text while preserving its search intent", () => {
+    expect(parseListPage({ q: "x".repeat(101) }).query).toBe("x".repeat(100));
+    expect(parseListPage({ q: [" shoulder ", "ignored"] }).query).toBe("shoulder");
+  });
   it("treats LIKE wildcards and escapes literally", () => {
     expect(substringPattern("50%_\\")).toBe("%50\\%\\_\\\\%");
   });

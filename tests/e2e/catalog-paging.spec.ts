@@ -1,3 +1,4 @@
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
@@ -13,6 +14,7 @@ test("submission pages expose records beyond 50 and search the whole owned histo
   const password = "LocalPagingPassphrase2026!";
   const account = await service.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
+
   const ownerId = z.uuid().parse(account.data.user!.id);
   const sql = (query: string) => execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", query], { stdio: "pipe" });
   const contents = Array.from({ length: 55 }, (_, index) => ({
@@ -49,9 +51,11 @@ test("submission pages expose records beyond 50 and search the whole owned histo
     await expect(page.getByRole("heading", { name: "History fixture 55" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Next page" })).toHaveCount(0);
   } finally {
+    try {
     sql(`begin; delete from public.exercise_submissions where owner_id='${ownerId}';
       delete from public.exercise_content where id in (${contents.map(content => `'${content.id}'`).join(",")}); commit;`);
-    const user = await service.auth.admin.deleteUser(ownerId);
-    if (user.error) throw user.error;
+    } finally {
+      await cleanupLocalFixture({ admin: service, userId: ownerId, email, password });
+    }
   }
 });

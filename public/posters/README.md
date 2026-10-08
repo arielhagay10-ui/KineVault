@@ -1,4 +1,14 @@
-# Home anatomy poster
+# Home posters
+
+`home-mascot.png` is the current home image, supplied by the user on 5 October
+2026. The original 1254 × 1254 PNG is preserved, including transparency. It shows
+a blue mascot with glasses, a pencil, and a notebook.
+
+`home-goblet-squat.webp` is the previous home image. It is an original AI-generated
+KineVault editorial image created on 5 October 2026, encoded as WebP at quality 85.
+It shows a goblet squat and links to the separate movement viewer.
+
+The previous anatomy poster is retained below for provenance.
 
 `home-anatomy.webp` is an original KineVault capture of `defaultScene` in
 `src/lib/motion/workshop.ts`, at 1467 ms with the deltoid group highlighted.

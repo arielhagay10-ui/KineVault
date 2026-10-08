@@ -1,7 +1,7 @@
 # KineVault design guide
 
 Design reference for a companion app that should feel like part of KineVault.
-Based on the working source on **3 October 2026**. Measurements assume a
+Based on the working source on **5 October 2026**. Measurements assume a
 16px root font size; preserve scalable text in implementation.
 
 **Current** means implemented in this repository. **Companion guidance** means
@@ -112,9 +112,8 @@ Current behavior:
 - Apply the theme to the root. Web uses the `.dark` class and matching `color-scheme`.
 - Persist the explicit preference; the web cookie is `kv-theme`, valid for one year.
 - System mode follows OS changes. Bootstrap appearance before first paint.
-- A slim full-width appearance strip sits above page content: card background,
-  bottom border, 24px horizontal / 8px vertical padding, 12px muted text.
-- Its select uses a card fill, 8px radius, and 8px horizontal / 4px vertical padding.
+- Page topbars are removed. A floating Site menu provides navigation and Appearance.
+- Scrollbars overlay content, with transparent tracks and slate-blue handles.
 
 **Companion guidance:** a native app can place Appearance in settings. Keep the
 same three choices and persistence behavior. Theme all surfaces and controls;
@@ -125,12 +124,12 @@ The surrounding controls follow the app theme.
 
 ## 4. Typography
 
-Current font: **Geist**, loaded through `next/font/google`, Latin subset.
+Current font: **Comfortaa**, loaded through `next/font/google`, Latin subset.
 Headings and body share the same sans-serif family. There is no separate display font.
 
-**Companion guidance:** bundle Geist when supported. Fallback to
+**Companion guidance:** bundle Comfortaa when supported. Fallback to
 `ui-sans-serif, system-ui, sans-serif`. Native platform fonts are a fallback when
-Geist cannot be used; match weight, scale, and spacing as closely as possible.
+Comfortaa cannot be used; match weight, scale, and spacing as closely as possible.
 
 | Role | Size / line height | Weight | Tracking |
 | --- | --- | --- | --- |
@@ -240,37 +239,25 @@ Maximum width includes container padding. Use centered containers and
 
 ### Navigation
 
-- Explore header: wordmark left, outlined My library action with a BookOpen icon
-  right, card fill, bottom border, 14px vertical padding.
-- Other public content headers retain their contextual navigation and spacing.
-- Home header: no enclosing panel; 28px vertical padding, logo tile + wordmark,
-  outlined “My library” action and outlined pill “Explore exercises”.
-- Account header: wordmark left, Explore exercises and sign-out right, bottom divider.
-  Community submission/update links use outlined actions with 44px hit areas.
+- Pages use the floating Site menu for navigation, account actions and appearance.
+- The dashboard explains Explore, Create and Share with direct actions.
 - Detail pages offer a back link with a 16px left-arrow icon.
-- Admin header wraps its text navigation and labels the area “Review”.
-- Headers are not globally sticky. Sticky behavior is used for filters and the workshop preview.
-- The repository has no established persistent bottom navigation, app-wide sidebar,
-  generic modal system, or tab bar.
+- Admin destinations appear in the Site menu for authorized reviewers.
+- Sticky behavior is used for filters and the workshop preview.
+- The full-screen workshop keeps its editing toolbar and an exit link.
 
 **Companion guidance:** use a compact top bar with a clear title/back action.
 If persistent native navigation is needed, use a small set of labeled destinations
-from the companion's actual features. Reuse Lucide outline icons, primary active
+from the companion's actual features. Reuse Font Awesome Free solid icons, primary active
 color, muted inactive text, card surface, and a 1px divider. Respect safe areas.
 
 ## 7. Brand and icons
 
-Current home mark is the **Lucide Orbit** icon, not a custom image logo:
+The wordmark is KineVault. Navigation lives in the floating Site menu.
 
-- Tile: 40 × 40px, 14px radius, primary fill, primary-foreground icon.
-- Orbit: 23px, stroke width 1.7.
-- Gap to wordmark: 12px. Wordmark text: **KineVault**.
-- Most interior pages use the wordmark alone.
-
-Icon family: **Lucide** (`lucide-react` on web). Use consistent outlined icons.
-Typical sizes: 14–18px in controls, 20–22px in feature panels, 30–42px in empty/media states.
-Use the library's normal stroke unless a specific existing element overrides it.
-The missing-poster Dumbbell icon is 42px with a thin 1.2 stroke.
+Icon family: **Font Awesome Free Solid**, rendered locally through
+`src/components/ui/icons.tsx`. Use 14–18px icons in controls and 20–22px in panels.
+Keep icons filled with currentColor and pair them with clear labels.
 
 Useful existing meanings: Search = search, SlidersHorizontal = filters,
 Heart = favorite, Plus = add, ArrowLeft = back, ArrowRight = continue,
@@ -555,7 +542,7 @@ Back link / exercise name / one-line instruction
   background fill; numeric joint fields are 64px wide.
 - Desktop: flexible preview + 280px control column; preview padding 12px;
   control column padding 16px and left divider.
-- Preview is sticky at 12px on desktop, 0px on mobile; controls scroll independently.
+- Desktop keeps the preview visible while controls scroll independently. Mobile scrolls the preview and controls together so playback and focused fields remain accessible.
 - Canvas height: mobile `clamp(220px,35dvh,360px)`;
   desktop `clamp(260px,calc(100dvh - 460px),620px)`.
 - Controls max-height: mobile `55dvh`; desktop `calc(100dvh - 240px)`.
@@ -665,7 +652,7 @@ reduced-motion support, and responsive layouts.
 For a matching app, implement in this order:
 
 1. Copy the semantic palette into light/dark theme objects and add System preference.
-2. Install/bundle Geist and the Lucide icon family for the chosen platform.
+2. Install/bundle Comfortaa and the Font Awesome Free icon family for the chosen platform.
 3. Define spacing and the overridden radius scale from this guide.
 4. Build primitives: text, panel, button, field, tag, divider, disclosure, feedback.
 5. Build exercise cards and a 4:3 demonstration component.
@@ -697,7 +684,7 @@ Do not depend on Next.js, Supabase, or Tailwind to reproduce the visual design.
 ### Quick visual acceptance checklist
 
 - [ ] Slate blue primary actions; correct light and dark foreground pairings.
-- [ ] Geist or a deliberately matched fallback; restrained uppercase labels.
+- [ ] Comfortaa or a deliberately matched fallback; restrained uppercase labels.
 - [ ] Correct 14px field / 18px panel radius, rather than default Tailwind radii.
 - [ ] Flat bordered panels with selective shadows and consistent spacing.
 - [ ] Large, contained demonstrations; figure and equipment remain in frame.
@@ -732,7 +719,7 @@ viewport), desktop around 1440px, and widths immediately around layout breakpoin
 | Anatomy colors and highlighting | [anatomy.ts](src/lib/motion/anatomy.ts), [AnatomyControls](src/components/character/anatomy-controls.tsx) |
 | Workshop structure and direct manipulation | [MotionWorkshop](src/components/character/motion-workshop.tsx), [StudioControls](src/components/character/studio-controls.tsx) |
 | Review comparisons and actions | [ReviewComparison](src/components/moderation/review-comparison.tsx), [ReviewDecisions](src/components/moderation/review-decisions.tsx) |
-| UI scaffold configuration | [components.json](components.json) — Radix Nova, neutral base, CSS variables, Lucide |
+| UI scaffold configuration | [components.json](components.json) — Radix Nova, neutral base, CSS variables, Font Awesome Free |
 | Existing theme/mobile verification | [appearance.spec.ts](tests/e2e/appearance.spec.ts) |
 | Product intent | [SPEC.md](SPEC.md), DESIGN and FILTER UI sections |
 

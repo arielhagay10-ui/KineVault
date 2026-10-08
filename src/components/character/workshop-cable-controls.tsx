@@ -1,5 +1,6 @@
 "use client";
 
+import { TriangleAlert } from "@/components/ui/icons";
 import { cableAttachmentNames } from "@/lib/motion/studio-cable";
 import { cableAttachmentSlugs, type CableAttachment, type JointSlug, type StudioObject } from "@/lib/motion/workshop";
 import { useWorkshopLanguage } from "./workshop-language";
@@ -17,16 +18,19 @@ export function WorkshopCableControls({ object, onAttachment, onHold, onCuffPosi
   reachable: boolean;
 }) {
   const { t } = useWorkshopLanguage();
-  const attachment = object.cableAttachment ?? "d-handle";
+  const attachment = object.cableAttachment ?? (object.slug === "cable-row-machine" ? "v-bar" : "d-handle");
   const cuff = attachment === "cuff";
   const both = !["d-handle", "cuff"].includes(attachment);
   const sides = (["left", "right"] as const).filter(side => object.attachment === side || object.attachment === "both");
   return <section aria-label={t("Cable attachment and grip")} className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
-    <h2 className="font-semibold">{t("Cable attachment and grip")}</h2>
+    <div className="flex items-start justify-between gap-2"><h2 className="font-semibold">{t("Cable attachment and grip")}</h2>
+      <span role="img" aria-label={t("Attachment outside reach. Bring the hands closer together or adjust the arm poses.")}
+        title={t("Attachment outside reach. Bring the hands closer together or adjust the arm poses.")} className={`shrink-0 text-amber-600 ${reachable ? "invisible" : ""}`}><TriangleAlert aria-hidden="true" size={20} /></span>
+    </div>
     <fieldset className="space-y-2">
       <legend className="text-sm font-semibold">{t("Cable attachment")}</legend>
       <div className="grid grid-cols-2 gap-2">{cableAttachmentSlugs.map(kind => <button type="button" key={kind}
-        aria-pressed={attachment === kind} onClick={() => onAttachment(kind)} className={buttonClass}>{t(cableAttachmentNames[kind])}</button>)}</div>
+        aria-pressed={attachment === kind && (object.slug !== "cable-row-machine" || !!object.cableAttachment)} onClick={() => onAttachment(kind)} className={buttonClass}>{t(cableAttachmentNames[kind])}</button>)}</div>
     </fieldset>
     {cuff && <label className="block text-sm font-semibold">{t("Cuff placement")}<select aria-label={t("Cuff placement")}
       value={object.cuffPosition ?? "wrist"} onChange={event => onCuffPosition(event.target.value as "wrist" | "upper-arm")}
@@ -51,7 +55,6 @@ export function WorkshopCableControls({ object, onAttachment, onHold, onCuffPosi
         <button type="button" onClick={() => onHold("none")} className={buttonClass}>{t("Release")}</button>
       </div>
       <p className="text-sm text-muted-foreground">{t(cuff ? "The cuff follows the arm. Pose the shoulder and elbow freely." : "The cable follows the hand as you pose the body.")}</p>
-      {!reachable && <p role="alert" className="text-sm text-amber-700">{t("Attachment outside reach. Bring the hands closer together or adjust the arm poses.")}</p>}
     </>}
   </section>;
 }

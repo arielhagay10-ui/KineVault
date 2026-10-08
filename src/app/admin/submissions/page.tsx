@@ -42,9 +42,9 @@ export default async function ReviewQueuePage({ searchParams }: {
       </tr>)}</tbody>
     </table>{!rows.length && <p className="p-8 text-sm text-muted-foreground">No submissions match this queue.</p>}</div>
     <nav className="mt-6 flex items-center justify-between text-sm" aria-label="Queue pages">
-      {page > 1 ? <Link href={url(page - 1)} className="font-semibold text-primary">← Previous</Link> : <span />}
+      {page > 1 ? <Link href={url(page - 1)} className="font-semibold text-primary">Previous</Link> : <span />}
       <span className="text-muted-foreground">Page {page}</span>
-      {(data?.length ?? 0) > 20 ? <Link href={url(page + 1)} className="font-semibold text-primary">Next →</Link> : <span />}
+      {(data?.length ?? 0) > 20 ? <Link href={url(page + 1)} className="font-semibold text-primary">Next</Link> : <span />}
     </nav>
   </>;
 }

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell } from "@/components/ui/icons";
 import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { mediaObjectKey, signMediaObjects } from "@/lib/media/signed-media";

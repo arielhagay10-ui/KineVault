@@ -18,10 +18,9 @@ export function ThemeControl({ initial }: { initial: Theme }) {
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
   }, [theme]);
-  return <div className="flex justify-end border-b bg-card px-6 py-2 text-xs text-muted-foreground">
-    <a href="#main-content" className="sr-only focus:not-sr-only focus:mr-auto">Skip to content</a>
+  return <div className="border-t pt-4 text-sm text-muted-foreground">
     <label className="flex items-center gap-2">Appearance
-      <select aria-label="Appearance" value={theme} disabled={!hydrated} className="rounded-md border bg-card px-2 py-1 text-foreground"
+      <select aria-label="Appearance" value={theme} disabled={!hydrated} className="min-h-11 rounded-md border bg-card px-3 py-2 text-foreground"
         onChange={(event) => {
           const value = event.target.value as Theme;
           document.cookie = `kv-theme=${value}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;

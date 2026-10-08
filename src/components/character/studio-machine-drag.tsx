@@ -2,7 +2,7 @@
 
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Move } from "lucide-react";
+import { Move } from "@/components/ui/icons";
 import { useRef, type PointerEvent } from "react";
 import { Group, Matrix4, Plane, Raycaster, Vector2, Vector3 } from "three";
 import { machineCarriagePoint, machineHandlePoint } from "@/lib/motion/studio-machines";

@@ -11,7 +11,7 @@ export type SceneTransform = { x: number; y: number; z: number; rotationX: numbe
 export type ScenePoint = { x: number; y: number; z: number };
 export type ScenePresentation = { highlight: string; isolate: boolean; view: "front" | "side" | "three_quarter" | "back" };
 export const studioAssetSlugs = ["cable-machine", "bench", "squat-rack", "barbell", "dumbbell", "kettlebell", "lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck"] as const;
-export const cableAttachmentSlugs = ["d-handle", "rope", "straight-bar", "angled-bar", "v-bar", "cuff"] as const;
+export const cableAttachmentSlugs = ["d-handle", "rope", "straight-bar", "angled-bar", "lat-bar", "v-bar", "cuff"] as const;
 export type CableAttachment = typeof cableAttachmentSlugs[number];
 export type StudioObject = SceneTransform & {
   id: string; name: string; slug: typeof studioAssetSlugs[number];

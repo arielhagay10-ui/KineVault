@@ -1,4 +1,6 @@
-import { setWorkshopMode, setWorkshopLanguage, openWorkshopTool, expandWorkshopControls } from "./workshop-menu.helpers";
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
+import { editRowTravel, expectRowTravel, setWorkshopMode, setWorkshopLanguage, openWorkshopTool, expandWorkshopControls, openWorkshopRecovery, addWorkshopEquipment } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
@@ -18,12 +20,13 @@ test("guided private creation, recovery, picker, RTL and mobile controls", async
   const email = `quick-workshop-${Date.now()}@example.test`, password = "PrivateWorkshop2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
-  const errors: string[] = [];
-  page.on("pageerror", error => errors.push(error.message));
-  mkdirSync(".local-artifacts/workshop/simplification/browser", { recursive: true });
+
   try {
+    const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    mkdirSync(".local-artifacts/workshop/simplification/browser", { recursive: true });
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in");
     await page.getByLabel("Email", { exact: true }).fill(email);
@@ -31,16 +34,24 @@ test("guided private creation, recovery, picker, RTL and mobile controls", async
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
+    await dismissWorkshopTutorial(page);
     await expect(page.getByRole("button", { name: "Quick create", exact: true, includeHidden: true })).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("button", { name: /^Cable row start to finish/ }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60000 });
-    await expect(page.locator('[data-highlight-count]')).toHaveAttribute("data-highlight-count", "0");
-    await expect(page.getByLabel("Start Row pull percent", { exact: true })).toHaveValue("0");
-    await page.getByLabel("Finish Row pull percent", { exact: true }).fill("");
-    await page.getByRole("heading", { name: "Handle near torso", exact: true }).click();
-    await expect(page.getByText("Enter a number from 0 to 100.", { exact: true })).toBeVisible();
-    await page.getByLabel("Finish Row pull percent", { exact: true }).fill("65");
-    await page.getByLabel("Finish Row pull percent", { exact: true }).press("Enter");
+    const highlightCount = await page.locator('[data-highlight-count]').getAttribute("data-highlight-count");
+    await addWorkshopEquipment(page, "Cable row");
+    await openWorkshopTool(page, "Contacts");
+    await page.getByRole("button", { name: "Use this machine", exact: true }).click();
+    await setWorkshopMode(page, "quick");
+    await page.getByRole("button", { name: "Edit finish", exact: true }).click();
+    const movementControls = page.getByRole("region", { name: "Quick create", exact: true });
+    await expect(movementControls.getByRole("button", { name: "Edit start", exact: true })).toBeVisible();
+    await expect(movementControls.getByRole("button", { name: "Match return to start", exact: true })).toBeVisible();
+    await expect(movementControls.getByRole("textbox")).toHaveCount(0);
+    await expect(movementControls.getByText(/percent|Grip options|Small range|Full range|Adjust fit/)).toHaveCount(0);
+    await page.screenshot({ path: ".local-artifacts/workshop/simplification/browser/generic-movement-controls.png", fullPage: true });
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60000 });
+    await expect(page.locator('[data-highlight-count]')).toHaveAttribute("data-highlight-count", highlightCount!);
+    await editRowTravel(page, "65");
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await page.getByLabel("Preview speed", { exact: true }).selectOption("0.25");
     await page.getByRole("button", { name: "Play", exact: true }).click();
@@ -58,8 +69,7 @@ test("guided private creation, recovery, picker, RTL and mobile controls", async
     await page.screenshot({ path: ".local-artifacts/workshop/simplification/browser/desktop-saved.png", fullPage: true });
     await page.getByRole("button", { name: "Start and finish", exact: true }).click();
     await context.setOffline(true);
-    await page.getByLabel("Finish Row pull percent", { exact: true }).fill("70");
-    await page.getByLabel("Finish Row pull percent", { exact: true }).press("Enter");
+    await editRowTravel(page, "70");
     await expect(page.getByText(/Offline.*draft kept/)).toBeVisible();
     await context.setOffline(false);
     // Failed saves keep the local recovery snapshot; reloading offers it rather than overwriting silently.
@@ -67,17 +77,16 @@ test("guided private creation, recovery, picker, RTL and mobile controls", async
     await expect(page.getByRole("button", { name: "Restore recovered draft", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Restore recovered draft", exact: true }).click();
     await page.getByRole("button", { name: "Start and finish", exact: true }).click();
-    await expect(page.getByLabel("Finish Row pull percent", { exact: true })).toHaveValue("70");
+    await expectRowTravel(page, "70");
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20000 });
     const sameLibrary = await owner.from("private_exercises").select("id");
     expect(sameLibrary.data).toHaveLength(1);
     // Returning to the server baseline must discard the older local recovery.
     await context.setOffline(true);
-    await page.getByLabel("Finish Row pull percent", { exact: true }).fill("75");
-    await page.getByLabel("Finish Row pull percent", { exact: true }).press("Enter");
-    await page.getByText("Recovery and shortcuts", { exact: true }).click();
+    await editRowTravel(page, "75");
+    await openWorkshopRecovery(page);
     await page.getByRole("button", { name: "Restore last saved", exact: true }).click();
-    await expect(page.getByLabel("Finish Row pull percent", { exact: true })).toHaveValue("70");
+    await expectRowTravel(page, "70");
     await context.setOffline(false);
     await page.reload();
     await expect(page.getByRole("button", { name: "Restore recovered draft", exact: true })).not.toBeVisible();
@@ -102,7 +111,7 @@ test("guided private creation, recovery, picker, RTL and mobile controls", async
     expect(errors).toEqual([]);
   } finally {
     await context.setOffline(false);
-    await admin.auth.admin.deleteUser(account.data.user.id);
+    await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password });
   }
 });
 
@@ -114,9 +123,10 @@ test("finish inspection keeps the editing pose and animated placement locked", a
   const email = `endpoints-workshop-${Date.now()}@example.test`, password = "PrivateWorkshop2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
+
   try {
+    const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
     const scene = machineDemoScene("cable-row-machine", randomUUID());
     scene.keyframes = [scene.keyframes[0], scene.keyframes.at(-1)!];
     const created = await owner.rpc("create_workshop_exercise", { p_scene: scene });
@@ -127,6 +137,8 @@ test("finish inspection keeps the editing pose and animated placement locked", a
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
+    await openWorkshopTool(page, "Contacts");
+    await page.getByLabel("Selected equipment", { exact: true }).selectOption({ label: "Cable row" });
     await page.getByRole("button", { name: "Check both hands at finish", exact: true }).press("Enter");
     await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue(String(scene.durationMs / 2));
     await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("0");
@@ -148,7 +160,7 @@ test("finish inspection keeps the editing pose and animated placement locked", a
     await expandWorkshopControls(page, "Precise placement");
     await expect(page.getByLabel("Position X meters", { exact: true })).toBeDisabled();
     await expect(page.getByRole("tab", { name: "Timeline", exact: true })).toBeVisible();
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });
 
 test("a committed first save survives a lost response and reload without duplicating", async ({ page }) => {
@@ -159,16 +171,18 @@ test("a committed first save survives a lost response and reload without duplica
   const email = `uncertain-workshop-${Date.now()}@example.test`, password = "PrivateWorkshop2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
+
   try {
+    const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
     await page.goto("/sign-in");
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
-    await page.getByRole("button", { name: /^Pec deck start to finish/ }).press("Enter");
+    await dismissWorkshopTutorial(page);
+    await addWorkshopEquipment(page, "Pec deck");
     await page.getByRole("button", { name: "Name and save", exact: true }).press("Enter");
     let lost = false;
     await page.route("**/my-exercises/new", async route => {
@@ -198,7 +212,7 @@ test("a committed first save survives a lost response and reload without duplica
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Lost response pec deck");
   } finally {
     await page.unroute("**/my-exercises/new");
-    await admin.auth.admin.deleteUser(account.data.user.id);
+    await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password });
   }
 });
 
@@ -219,17 +233,28 @@ test.describe("touch and enlarged text", () => {
       await page.getByRole("button", { name: "Sign in", exact: true }).tap();
       await expect(page).toHaveURL(/\/dashboard$/);
       await page.goto("/my-exercises/new");
-      await page.getByRole("button", { name: /^Reverse pec deck start to finish/ }).tap();
+    await dismissWorkshopTutorial(page);
+      await page.getByRole("button", { name: "Add equipment", exact: true }).tap();
+      await page.getByRole("dialog").getByRole("searchbox").fill("Pec deck");
+      await page.getByRole("dialog").getByRole("button", { name: "Pec deck", exact: true }).tap();
+      await openWorkshopTool(page, "Contacts");
+      await page.getByLabel("Pec deck mode", { exact: true }).selectOption("reverse");
+      await setWorkshopMode(page, "quick");
+      await page.getByRole("button", { name: "Start and finish", exact: true }).tap();
+      await expect(page.getByRole("button", { name: "Edit finish", exact: true })).toBeVisible();
+      await openWorkshopTool(page, "Contacts");
+      await page.getByLabel("Selected equipment", { exact: true }).selectOption({ label: "Pec deck" });
       await expect(page.getByRole("button", { name: "Palms outward", exact: true })).toHaveAttribute("aria-pressed", "true");
       await page.getByRole("button", { name: "Check both hands at finish", exact: true }).tap();
       await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("1600");
+      await setWorkshopMode(page, "quick");
       await page.getByRole("button", { name: "Next", exact: true }).tap();
       await page.getByRole("button", { name: "Next", exact: true }).tap();
       await page.getByLabel("Exercise name", { exact: true }).fill("Touch reverse pec deck");
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20000 });
       await page.getByRole("button", { name: "Start and finish", exact: true }).tap();
       await setWorkshopLanguage(page, "he");
-      await expect(page.getByRole("button", { name: "כפות ידיים החוצה", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "עריכת סיום", exact: true })).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: ".local-artifacts/workshop/simplification/browser/touch-rtl.png", fullPage: true });
       await page.setViewportSize({ width: 640, height: 900 });
@@ -238,7 +263,7 @@ test.describe("touch and enlarged text", () => {
       await page.screenshot({ path: ".local-artifacts/workshop/simplification/browser/text-200-percent.png", fullPage: true });
       await page.getByRole("button", { name: "הבא", exact: true }).tap();
       await expect(page.getByRole("button", { name: "הבא", exact: true })).toBeVisible();
-    } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+    } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
   });
 });
 
@@ -250,10 +275,10 @@ test("a late save response cannot erase a newer resumed draft", async ({ page, c
   const email = `late-workshop-${Date.now()}@example.test`, password = "PrivateWorkshop2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
   let release: (() => void) | undefined;
   try {
+    const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
     const created = await owner.rpc("create_workshop_exercise", { p_scene: machineDemoScene("cable-row-machine", randomUUID()) });
     expect(created.error).toBeNull();
     await page.goto("/sign-in");
@@ -270,20 +295,18 @@ test("a late save response cannot erase a newer resumed draft", async ({ page, c
         await route.fulfill({ response }).catch(() => {});
       } else await route.continue();
     });
-    await page.getByLabel("Finish Row pull percent", { exact: true }).fill("65");
-    await page.getByLabel("Finish Row pull percent", { exact: true }).press("Enter");
+    await editRowTravel(page, "65");
     await expect.poll(() => !!release).toBe(true);
     // Client navigation keeps the old component's pending completion in this document.
-    await page.getByRole("link", { name: "← Exercise details", exact: true }).click();
+    await page.getByRole("link", { name: "Exercise details", exact: true }).click();
     await expect(page).toHaveURL(/\/edit$/, { timeout: 60_000 });
-    await page.getByRole("link", { name: "Open motion workshop →", exact: true }).click();
+    await page.getByRole("link", { name: "Open motion workshop", exact: true }).click();
     await expect(page).toHaveURL(/\/workshop$/, { timeout: 60_000 });
     if (await page.getByRole("button", { name: "Keep server version", exact: true }).isVisible()) {
       await page.getByRole("button", { name: "Keep server version", exact: true }).click();
     }
     await context.setOffline(true);
-    await page.getByLabel("Finish Row pull percent", { exact: true }).fill("70");
-    await page.getByLabel("Finish Row pull percent", { exact: true }).press("Enter");
+    await editRowTravel(page, "70");
     const key = `kinevault.workshop.draft.${account.data.user.id}.${created.data}`;
     await expect.poll(() => page.evaluate(key => localStorage.getItem(key), key)).toContain('"machinePosition":0.7');
     release!();
@@ -294,12 +317,12 @@ test("a late save response cannot erase a newer resumed draft", async ({ page, c
     await page.goto(`/my-exercises/${created.data}/workshop`);
     expect(await page.evaluate(key => localStorage.getItem(key), key)).toContain('"machinePosition":0.7');
     await page.getByRole("button", { name: "Restore recovered draft", exact: true }).click();
-    await expect(page.getByLabel("Finish Row pull percent", { exact: true })).toHaveValue("70");
+    await expectRowTravel(page, "70");
   } finally {
     release?.();
     await context.setOffline(false);
     await page.unrouteAll({ behavior: "ignoreErrors" });
-    await admin.auth.admin.deleteUser(account.data.user.id);
+    await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password });
   }
 });
 
@@ -311,9 +334,10 @@ test("expired sign-in provides a repair and preserves the latest unsaved name", 
   const email = `session-workshop-${Date.now()}@example.test`, password = "PrivateWorkshop2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
+
   try {
+    const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
     const created = await owner.rpc("create_workshop_exercise", { p_scene: machineDemoScene("pec-deck", randomUUID()) });
     expect(created.error).toBeNull();
     await page.goto("/sign-in");
@@ -336,7 +360,7 @@ test("expired sign-in provides a repair and preserves the latest unsaved name", 
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await expect(page.getByLabel("Exercise name", { exact: true })).toHaveValue("Recovered after sign-in");
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20000 });
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });
 
 test("opposite-side and zoom inspection survive playback rerenders", async ({ page }) => {
@@ -347,9 +371,11 @@ test("opposite-side and zoom inspection survive playback rerenders", async ({ pa
   const email = `camera-workshop-${Date.now()}@example.test`, password = "PrivateWorkshop2026!";
   const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (account.error) throw account.error;
-  const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  await owner.auth.signInWithPassword({ email, password });
-  const difference = async (a: Buffer, b: Buffer) => {
+
+  try {
+    const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const difference = async (a: Buffer, b: Buffer) => {
     const left = await sharp(a).ensureAlpha().raw().toBuffer();
     const right = await sharp(b).ensureAlpha().raw().toBuffer();
     expect(right.length).toBe(left.length);
@@ -357,7 +383,6 @@ test("opposite-side and zoom inspection survive playback rerenders", async ({ pa
     for (let i = 0; i < left.length; i++) sum += Math.abs(left[i] - right[i]);
     return sum / left.length;
   };
-  try {
     const created = await owner.rpc("create_workshop_exercise", { p_scene: machineDemoScene("cable-row-machine", randomUUID()) });
     expect(created.error).toBeNull();
     await page.setViewportSize({ width: 1500, height: 1000 });
@@ -386,5 +411,5 @@ test("opposite-side and zoom inspection survive playback rerenders", async ({ pa
       expect(await difference(before, after)).toBeLessThan(.3);
     }
     await page.screenshot({ path: ".local-artifacts/workshop/simplification/browser/camera-persistence.png", fullPage: true });
-  } finally { await admin.auth.admin.deleteUser(account.data.user.id); }
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

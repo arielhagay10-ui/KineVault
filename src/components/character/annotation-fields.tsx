@@ -1,5 +1,7 @@
 "use client";
 
+
+import { Textarea } from "@/components/ui/textarea";
 import type { MotionAnnotation } from "@/lib/motion/workshop";
 
 export function AnnotationFields({ annotations, durationMs, actions, onChange }: {
@@ -22,7 +24,7 @@ export function AnnotationFields({ annotations, durationMs, actions, onChange }:
       <label className="block text-xs">Joint action<select value={item.jointAction ?? ""} onChange={(event) => change(index, { jointAction: event.target.value || null })} className={input}>
         <option value="">General movement note</option>{actions.map((action) => <option key={action.slug} value={action.slug}>{action.name}</option>)}
       </select></label>
-      <label className="block text-xs">Explanation<textarea value={item.note ?? ""} maxLength={500} rows={2} onChange={(event) => change(index, { note: event.target.value || null })} className={input} /></label>
+      <label className="block text-xs">Explanation<Textarea value={item.note ?? ""} maxLength={500} rows={2} onChange={(event) => change(index, { note: event.target.value || null })} className={input} /></label>
       <button type="button" onClick={() => onChange(annotations.filter((_, at) => at !== index))} className="text-xs font-semibold text-destructive">Remove note {index + 1}</button>
     </fieldset>)}
     <button type="button" disabled={annotations.length >= 24} onClick={() => onChange([...annotations, {

@@ -28,6 +28,8 @@ export type StudioEditor = {
   blockedLimbs?: PoseLimb[];
   onLimbDragStart?: () => void;
   onLimbPoseChange?: (limb: PoseLimb, poses: RigPose, error: number) => void;
+  onCableDragStart?: (id: string) => void;
+  onCablePoseChange?: (id: string, poses: RigPose, error: number) => void;
   interactionEnabled?: boolean;
   dragPlane?: StudioDragPlane;
   onMachineDragStart?: (id: string) => void;
@@ -39,6 +41,7 @@ export type StudioEditor = {
   frontalPlane?: boolean;
   selection: StudioSelection; tool: "select" | "translate" | "rotate" | "scale"; snap: boolean; sensitivity: number; playing: boolean; dragging: boolean; posing: boolean;
   onSelect: (selection: StudioSelection) => void;
+  onRequestMove?: (selection: StudioSelection) => void;
   onActivate?: (selection: StudioSelection) => void;
   onBodyChange: (transform: SceneTransform) => void;
   onObjectChange: (id: string, transform: SceneTransform) => void;
@@ -102,6 +105,7 @@ export function StudioBody({ transform, rig, editor, children }: { transform: Sc
   return <>
     <group ref={group} {...dragEvents} position={[transform.x, transform.y, transform.z]} rotation={[transform.rotationX, transform.rotationY, transform.rotationZ].map(value => value * Math.PI / 180) as [number, number, number]} scale={transform.scale}
       onClick={editor && editor.interactionEnabled !== false ? event => { event.stopPropagation(); if (event.delta < 3) editor.onSelect({ kind: "body" }); } : undefined}
+      onContextMenu={editor?.onRequestMove ? event => { event.stopPropagation(); event.nativeEvent.preventDefault(); editor.onRequestMove?.({ kind: "body" }); } : undefined}
       onDoubleClick={editor?.onActivate ? event => { event.stopPropagation(); if (event.delta < 3) editor.onActivate?.({ kind: "body" }); } : undefined}>
       {children}
     </group>
@@ -225,8 +229,9 @@ function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: 
   return <>
     <group ref={group} {...dragEvents} position={[object.x, object.y, object.z]} rotation={[object.rotationX, object.rotationY, object.rotationZ].map(value => value * Math.PI / 180) as [number, number, number]} scale={object.scale}
       onClick={editor && editor.interactionEnabled !== false ? event => { event.stopPropagation(); if (event.delta < 3) editor.onSelect({ kind: "object", id: object.id }); } : undefined}
+      onContextMenu={editor?.onRequestMove ? event => { event.stopPropagation(); event.nativeEvent.preventDefault(); editor.onRequestMove?.({ kind: "object", id: object.id }); } : undefined}
       onDoubleClick={editor?.onActivate ? event => { event.stopPropagation(); if (event.delta < 3) editor.onActivate?.({ kind: "object", id: object.id }); } : undefined}>
-      <group ref={onGeometry}>{isStudioMachine(object.slug) ? <StudioMachine object={object} currentObject={currentObject} editor={editor} /> : object.slug === "cable-machine" ? <StudioCable object={object} currentObject={currentObject} rig={rig} group={group} pose={pose} editor={editor} />
+      <group ref={onGeometry}>{isStudioMachine(object.slug) ? <StudioMachine object={object} currentObject={currentObject} editor={editor} rig={rig} group={group} pose={pose} /> : object.slug === "cable-machine" ? <StudioCable object={object} currentObject={currentObject} rig={rig} group={group} pose={pose} editor={editor} />
         : object.slug === "kettlebell" ? <Kettlebell both={object.attachment === "both"} />
         : object.slug === "bench" ? <AdjustableBench angle={object.benchAngle} />
         : object.slug === "squat-rack" ? <>

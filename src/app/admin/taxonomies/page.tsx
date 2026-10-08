@@ -26,14 +26,14 @@ export default async function TaxonomiesPage({ searchParams }: { searchParams: P
     <p className="mt-3 text-sm text-muted-foreground">Keep anatomical joints, actions, muscles, and movement concepts separate. Referenced classifications cannot be deleted.</p>
     <nav className="mt-6 flex flex-wrap gap-2" aria-label="Taxonomies">{taxonomyNames.map((name) => <Link key={name} href={`/admin/taxonomies?table=${name}`}
       className={`rounded-lg border px-3 py-2 text-xs capitalize ${name === table ? "border-primary bg-muted" : "border-border bg-card"}`}>{humanLabel(name)}</Link>)}</nav>
-    <div className="mt-7 grid gap-6 lg:grid-cols-[1fr_380px]">
-      <section className="rounded-2xl border border-border bg-card p-5"><h2 className="text-lg font-semibold capitalize">{humanLabel(table)} ({rows.length})</h2>
+    <div className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <section className="min-w-0 rounded-2xl border border-border bg-card p-5"><h2 className="text-lg font-semibold capitalize">{humanLabel(table)} ({rows.length})</h2>
         <ul className="mt-4 divide-y divide-[#edf1eb]">{rows.map((item) => <li key={item.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-          <div><p className="font-medium">{item.name}</p><p className="mt-1 text-xs text-muted-foreground">{item.slug}</p></div>
-          <Link href={`/admin/taxonomies?table=${table}&edit=${item.id}`} className="font-semibold text-primary">Edit</Link>
+          <div className="min-w-0"><p className="break-words font-medium">{item.name}</p><p className="mt-1 break-all text-xs text-muted-foreground">{item.slug}</p></div>
+          <Link href={`/admin/taxonomies?table=${table}&edit=${item.id}`} className="shrink-0 font-semibold text-primary">Edit</Link>
         </li>)}</ul>
       </section>
-      <section className="h-fit rounded-2xl border border-border bg-card p-5"><div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-semibold">{record ? "Edit classification" : "New classification"}</h2>
+      <section className="h-fit min-w-0 rounded-2xl border border-border bg-card p-5"><div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-semibold">{record ? "Edit classification" : "New classification"}</h2>
         {record && <Link href={`/admin/taxonomies?table=${table}`} className="text-xs font-semibold text-primary">Add new</Link>}</div>
         <TaxonomyForm key={`${table}-${record?.id ?? "new"}`} table={table} record={record} parents={rows} joints={joints.data ?? []} categories={categories.data ?? []} />
       </section>
