@@ -401,7 +401,11 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
   const save = (continueToDetails = false) => {
     if (captureElbow || dragging) return;
     setPlaying(false);
-    void draft.saveNow().then(result => { if (continueToDetails && result?.privateId && !result.error && result.current) router.push(`/my-exercises/${result.privateId}/edit?sceneSaved=1`); });
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && workshopRoot.current?.contains(active)) active.blur();
+    requestAnimationFrame(() => {
+      void draft.saveNow().then(result => { if (continueToDetails && result?.privateId && !result.error && result.current) router.push(`/my-exercises/${result.privateId}/edit?sceneSaved=1`); });
+    });
   };
   const editor: StudioEditor = {
     limbPosing: limbPosing && Math.round(timeMs) === current.timeMs,
@@ -496,11 +500,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
       case "undo": undo(); break;
       case "redo": redo(); break;
       case "save":
-        if (!pending) {
-          // Numeric controls commit on blur. Save after React has applied that edit.
-          target.blur();
-          requestAnimationFrame(() => save());
-        }
+        save();
         break;
       case "duplicate": duplicate(); break;
       case "remove": removeObject(); break;
@@ -602,7 +602,8 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
       </div>
       {(activeMachine || studio.seating) && <button type="button" onClick={leaveEquipment} disabled={dragging} className={`${buttonClass} border-primary/40 bg-primary/10 text-primary`}><UserRound size={16} />{activeMachine ? t("Leave machine") : t("Stand up")}</button>}
       <div role="group" className="flex flex-wrap gap-2" aria-label={t("Editor mode")}>{(["quick", "advanced"] as const).map(value => <button key={value} type="button" aria-pressed={mode === value} onClick={() => setMode(value)} className={`${buttonClass} ${mode === value ? "bg-muted" : ""}`}>{value === "quick" ? t("Quick create") : t("Advanced editing")}</button>)}</div>
-      {(mode === "advanced" || focusMode) && <button type="button" onClick={() => save()} disabled={pending || dragging || !!captureElbow || name.trim().length < 2} className={`${buttonClass} ms-auto bg-primary text-primary-foreground`}><Save size={16} />{t("Save")}</button>}
+      {/* The draft queue serializes manual saves with background autosave. */}
+      {(mode === "advanced" || focusMode) && <button type="button" onClick={() => save()} disabled={dragging || !!captureElbow || name.trim().length < 2} className={`${buttonClass} ms-auto bg-primary text-primary-foreground`}><Save size={16} />{t("Save")}</button>}
     </div>
     </div>
 

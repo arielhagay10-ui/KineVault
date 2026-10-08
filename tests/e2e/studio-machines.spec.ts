@@ -68,7 +68,10 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       await page.getByRole("button", { name: "Pause", exact: true }).click();
       await page.getByRole("button", { name: /^Start ·/ }).click();
       await page.getByLabel(`${machineTravelLabels[slug]} percent`, { exact: true }).fill("42");
+      const savedEdit = page.waitForResponse(response => response.request().method() === "POST"
+        && (response.request().postData() ?? "").includes('"machinePosition":0.42') && response.ok());
       await page.getByRole("button", { name: "Save", exact: true }).click();
+      await savedEdit;
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await selectWorkshopObject(page, studioAssetNames[slug]);
