@@ -8,14 +8,22 @@ async function saveDuringAutosave(page: Page, draftId: string, trigger: "button"
   test.setTimeout(120_000);
   let releaseFirst!: () => void;
   let markStarted!: () => void;
+  let releaseEdited!: () => void;
+  let markEdited!: () => void;
   const firstReleased = new Promise<void>(resolve => { releaseFirst = resolve; });
   const firstStarted = new Promise<void>(resolve => { markStarted = resolve; });
+  const editedReleased = new Promise<void>(resolve => { releaseEdited = resolve; });
+  const editedStarted = new Promise<void>(resolve => { markEdited = resolve; });
+  const hasEditedPosition = (body: string) => /"body":\{[^}]*"x":0\.45(?:,|\})/.test(body);
   let holdFirst = true;
   await page.route(`**/my-exercises/${draftId}/workshop`, async route => {
     if (route.request().method() === "POST" && holdFirst) {
       holdFirst = false;
       markStarted();
       await firstReleased;
+    } else if (route.request().method() === "POST" && hasEditedPosition(route.request().postData() ?? "")) {
+      markEdited();
+      await editedReleased;
     }
     await route.continue();
   });
@@ -33,10 +41,15 @@ async function saveDuringAutosave(page: Page, draftId: string, trigger: "button"
     const save = page.getByRole("button", { name: trigger === "quick create" ? /^(Save privately|Saving…)$/ : "Save", exact: true });
     await expect(save).toBeEnabled();
     const saved = page.waitForResponse(response => response.request().method() === "POST"
-      && /"body":\{[^}]*"x":0\.45(?:,|\})/.test(response.request().postData() ?? "") && response.ok());
+      && hasEditedPosition(response.request().postData() ?? "") && response.ok());
     if (trigger === "keyboard") await position.press("Control+s");
     else await save.click();
     releaseFirst();
+    await editedStarted;
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(page.getByText("Saving…", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Saved at.*Private/)).toHaveCount(0);
+    releaseEdited();
     await saved;
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.reload();
@@ -44,6 +57,7 @@ async function saveDuringAutosave(page: Page, draftId: string, trigger: "button"
     await expect(position).toHaveValue("0.45");
   } finally {
     releaseFirst();
+    releaseEdited();
     await page.unrouteAll({ behavior: "ignoreErrors" });
   }
 }
