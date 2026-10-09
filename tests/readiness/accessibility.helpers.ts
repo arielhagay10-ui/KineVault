@@ -3,6 +3,8 @@ import { expect, type Page, type TestInfo } from "@playwright/test";
 import { redactEvidence } from "../../scripts/lib/redact-evidence.mjs";
 
 export async function auditAccessibility(page: Page, testInfo: TestInfo, name: string) {
+  // Client navigation may commit content before streamed metadata reaches the head.
+  await expect(page).toHaveTitle(/\S/);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();

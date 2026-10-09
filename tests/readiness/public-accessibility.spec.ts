@@ -19,6 +19,7 @@ for (const appearance of ["light", "dark"] as const) {
     await expect(detail).toBeVisible();
     await detail.click();
     await expect(page).toHaveURL(/\/exercises\/[^/?]+$/);
+    await expect(page.getByRole("heading", { level: 1, name: publishedCableRaise.name, exact: true })).toBeVisible();
     await auditAccessibility(page, testInfo, `${appearance}-exercise-detail`);
     await page.getByRole("button", { name: "Site menu", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Site navigation" })).toBeVisible();
@@ -31,7 +32,9 @@ for (const appearance of ["light", "dark"] as const) {
     await page.getByLabel("Email", { exact: true }).fill("readiness-missing@example.test");
     await page.getByLabel("Password", { exact: true }).fill("InvalidReadinessPassword!");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
+    const authenticationError = page.getByRole("main").getByRole("alert");
+    await expect(authenticationError).toBeVisible();
+    await expect(authenticationError).toHaveText("Those sign-in details did not work.");
     await auditAccessibility(page, testInfo, `${appearance}-authentication-error`);
   });
 }
