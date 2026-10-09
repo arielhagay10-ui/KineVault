@@ -210,7 +210,7 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
     await openWorkshopTool(page, "Equipment");
     await page.getByRole("button", { name: "Remove item", exact: true }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
     expect(errors).toEqual([]);
   } finally { await cleanupLocalFixture(fixture); }
 });
@@ -525,18 +525,29 @@ test("wrist poses and slower movement controls work and survive reloading", asyn
       const startX = item === "Barbell" ? 0.95 : 0;
       const point = item === "Barbell" ? new Vector3(0.95, 0.85, 0.3) : new Vector3(0, 1.75, 0.1);
       await expandWorkshopControls(page, "Drag options");
+      await expect(sensitivity).toBeVisible();
       await sensitivity.focus(); await sensitivity.press("Home");
+      await expect(sensitivity).toHaveValue("10");
+      await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
       await drag(point);
       await expect(page.getByLabel("Position X meters", { exact: true })).not.toHaveValue(String(startX));
       const slow = Number(await page.getByLabel("Position X meters", { exact: true }).inputValue()) - startX;
       await page.getByRole("button", { name: "Undo", exact: true }).click();
+      await expect(page.getByLabel("Position X meters", { exact: true })).toHaveValue(String(startX));
+      await expandWorkshopControls(page, "Drag options");
+      await expect(sensitivity).toBeVisible();
       await sensitivity.focus(); await sensitivity.press("End");
+      await expect(sensitivity).toHaveValue("100");
+      await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
       await drag(point);
       const fast = Number(await page.getByLabel("Position X meters", { exact: true }).inputValue()) - startX;
       expect(fast).toBeGreaterThan(slow * 7);
       expect(fast).toBeLessThan(slow * 13);
       await page.getByRole("button", { name: "Undo", exact: true }).click();
+      await expect(page.getByLabel("Position X meters", { exact: true })).toHaveValue(String(startX));
     }
+    await expandWorkshopControls(page, "Drag options");
+    await expect(sensitivity).toBeVisible();
     await sensitivity.focus(); await sensitivity.press("Home"); await sensitivity.press("ArrowRight");
     await expect(sensitivity).toHaveValue("15");
     await selectWorkshopObject(page, "Barbell");

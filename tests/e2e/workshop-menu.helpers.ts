@@ -38,8 +38,8 @@ export async function setWorkshopMode(page: Page, mode: "quick" | "advanced") {
 export async function inspectMachineMoment(page: Page, name: string, moment: "Start" | "Finish") {
   await setWorkshopMode(page, "advanced");
   await page.getByLabel("Selected equipment", { exact: true }).selectOption({ label: name });
-  await openWorkshopTool(page, "Timeline");
   await page.getByRole("region", { name: "Playback controls" }).getByRole("button", { name: `View ${moment.toLowerCase()}`, exact: true }).click();
+  await openWorkshopTool(page, "Timeline");
 }
 
 export async function editRowTravel(page: Page, value: string) {
@@ -60,7 +60,9 @@ export async function expectRowTravel(page: Page, value: string) {
 
 export async function openWorkshopTool(page: Page, name: string) {
   await setWorkshopMode(page, "advanced");
-  await page.getByRole("tab", { name, exact: true }).click();
+  const tab = page.getByRole("tab", { name, exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
   if (name === "Position") await expandWorkshopControls(page, "Precise placement");
   if (name === "Settings") {
     const details = page.locator('[data-workshop-panel="settings"] details');
@@ -69,8 +71,13 @@ export async function openWorkshopTool(page: Page, name: string) {
 }
 
 export async function expandWorkshopControls(page: Page, name: string) {
-  const button = page.getByRole("button", { name, exact: true });
-  if (await button.isVisible() && await button.getAttribute("aria-expanded") === "false") await button.click();
+  const button = page.getByRole("button", { name, exact: true, includeHidden: true });
+  if (await button.count() === 0) return;
+  await expect(button).toBeVisible();
+  // Native exclusive disclosures can close before React receives onToggle.
+  const isOpen = () => button.evaluate(element => element.closest("details")!.open);
+  if (!await isOpen()) await button.click();
+  await expect.poll(isOpen).toBe(true);
 }
 
 export function cableAttachmentButton(page: Page, attachment: CableAttachment) {

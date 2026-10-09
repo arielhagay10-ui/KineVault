@@ -9,9 +9,12 @@ export function OverlayScrollbars() {
   useEffect(() => {
     const instances = new Map<HTMLElement, ScrollbarInstance>();
     const pending = new Set<HTMLElement>();
+    const pointers = new Set<number>();
     let frame = 0;
     const initializePending = () => {
       frame = 0;
+      // Initialization reparents children and can cancel a click mid-gesture.
+      if (pointers.size) return;
       for (const [element, instance] of instances) {
         if (!element.isConnected) { instance.destroy(); instances.delete(element); }
       }
@@ -42,12 +45,25 @@ export function OverlayScrollbars() {
     };
     pending.add(document.body);
     initializePending();
+    const onPointerDown = (event: PointerEvent) => { pointers.add(event.pointerId); };
+    const onPointerEnd = (event: PointerEvent) => {
+      pointers.delete(event.pointerId);
+      if (!pointers.size && pending.size && !frame) frame = requestAnimationFrame(initializePending);
+    };
+    const onBlur = () => {
+      pointers.clear();
+      if (pending.size && !frame) frame = requestAnimationFrame(initializePending);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerup", onPointerEnd, true);
+    document.addEventListener("pointercancel", onPointerEnd, true);
+    window.addEventListener("blur", onBlur);
     document.addEventListener("pointerover", onInteraction, { passive: true });
     document.addEventListener("focusin", onInteraction);
     document.addEventListener("scroll", onInteraction, { passive: true, capture: true });
     const onResize = () => {
       // Rebuilding ancestors can exit fullscreen or remove native dialog modality.
-      if (document.fullscreenElement || document.querySelector("dialog[open]")) {
+      if (pointers.size || document.fullscreenElement || document.querySelector("dialog[open]")) {
         instances.forEach(instance => instance.update(true));
         return;
       }
@@ -58,6 +74,10 @@ export function OverlayScrollbars() {
     window.addEventListener("resize", onResize);
     return () => {
       cancelAnimationFrame(frame);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerup", onPointerEnd, true);
+      document.removeEventListener("pointercancel", onPointerEnd, true);
+      window.removeEventListener("blur", onBlur);
       document.removeEventListener("pointerover", onInteraction);
       document.removeEventListener("focusin", onInteraction);
       document.removeEventListener("scroll", onInteraction, true);

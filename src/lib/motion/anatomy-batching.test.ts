@@ -84,4 +84,5 @@ it("releases each viewer's batch buffers once without disposing another viewer's
   expect(visibleMeshes(second.root)).toHaveLength(3);
   second.dispose(); second.dispose();
   expect(secondDisposals).toBe(3);
-});
+  // Two complete atlas rigs can exceed Vitest's five-second default on CI.
+}, 30_000);

@@ -22,8 +22,9 @@ test("shared appearance has no topbar or scrollbar gutter", async ({ page }) => 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.locator("body > .os-scrollbar-vertical")).toHaveCount(1);
-  expect(await page.locator("body > .os-scrollbar-vertical .os-scrollbar-track").evaluate(element => getComputedStyle(element).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
-  expect(await page.locator("body > .os-scrollbar-vertical .os-scrollbar-handle").evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+  await expect(page.locator("body > .os-scrollbar-vertical .os-scrollbar-track")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(page.locator("body > .os-scrollbar-vertical .os-scrollbar-handle")).toHaveCSS("background-color", /^rgba?\(.+/);
+  await expect(page.locator("body > .os-scrollbar-vertical .os-scrollbar-handle")).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   expect(await page.evaluate(() => innerWidth - document.documentElement.clientWidth)).toBe(0);
 });
 
@@ -85,8 +86,12 @@ test("tutorial keeps editing usable and a first exercise saves without WebGL", a
     await expect(page.getByText("3D preview needs WebGL.", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Exercise details", exact: true }).click();
     await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit/);
-    await page.mouse.wheel(0, 800);
-    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    await expect(page.getByRole("heading", { name: "Edit exercise", exact: true })).toBeVisible();
+    // A wheel event can arrive while client navigation is still releasing the workshop lock.
+    await expect(async () => {
+      await page.mouse.wheel(0, 800);
+      expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    }).toPass({ timeout: 5000 });
     await page.getByText("Description, equipment and classifications (optional)", { exact: true }).click();
     const description = page.getByLabel("Short description", { exact: true });
     await description.fill("Line\n".repeat(60));

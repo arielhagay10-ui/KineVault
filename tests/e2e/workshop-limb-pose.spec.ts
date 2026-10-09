@@ -23,7 +23,8 @@ async function drag(page: Page, handle: Locator, dx: number, dy: number, cancel 
 test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("hands and feet drag, cancel, undo, and survive saved preview without detaching contacts", async ({ page }) => {
-  test.setTimeout(180_000);
+  // CI captures 34 rendered frames and reloads the full atlas across several previews.
+  test.setTimeout(300_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });

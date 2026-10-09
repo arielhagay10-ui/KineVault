@@ -6,10 +6,10 @@ on:
 
 jobs:
   application:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -17,14 +17,15 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npx playwright install --with-deps chromium
       - run: npm run test:worker
       - run: npm run build
 
   database:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -34,7 +35,7 @@ jobs:
       - run: npm run db:load -- --rows=10000 --clients=2 --requests=5 --warmup=1
       - run: npm run db:load:http -- --rows=1000 --clients=2 --requests=5 --warmup=1 --http-pool=1
       - run: npm run recovery:database
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: catalog-load
@@ -45,14 +46,14 @@ jobs:
           include-hidden-files: true
 
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2, 3]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -65,7 +66,9 @@ jobs:
           echo "NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(npx supabase status -o env | sed -n 's/^ANON_KEY=//p' | tr -d '"')" >> "$GITHUB_ENV"
           echo "SUPABASE_SERVICE_ROLE_KEY=$(npx supabase status -o env | sed -n 's/^SERVICE_ROLE_KEY=//p' | tr -d '"')" >> "$GITHUB_ENV"
-          echo "RENDER_WORKER_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          render_token=$(openssl rand -hex 32)
+          echo "::add-mask::$render_token"
+          echo "RENDER_WORKER_TOKEN=$render_token" >> "$GITHUB_ENV"
       - run: npm run recovery:storage
         if: matrix.shard == 1
       - run: npm run build
@@ -81,7 +84,7 @@ jobs:
           KINEVAULT_E2E_PRODUCTION: "1"
       - name: Upload browser failure details
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: browser-failures-${{ matrix.shard }}
           path: |
@@ -98,11 +101,12 @@ jobs:
           done
           cat /tmp/kinevault-readiness-server.log
           exit 1
-      - run: npm run test:readiness
+      # Firefox needs a display for Mesa's software WebGL on Linux runners.
+      - run: xvfb-run -a npm run test:readiness
         if: matrix.shard == 1
       - run: npm run test:performance
         if: matrix.shard == 1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: browser-readiness-${{ matrix.shard }}
@@ -111,3 +115,4 @@ jobs:
             .local-artifacts/efficiency-review/
             .local-artifacts/operations/
           include-hidden-files: true
+          if-no-files-found: ignore

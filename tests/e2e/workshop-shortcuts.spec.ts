@@ -65,7 +65,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).not.toBeVisible();
     await setWorkshopMode(page, "advanced");
     const name = page.getByLabel("Exercise name", { exact: true });
-    await name.focus(); await page.keyboard.press("End"); await page.keyboard.type(" revised");
+    await name.focus(); await page.keyboard.press("End"); await page.keyboard.insertText(" revised");
     await page.keyboard.press("Control+z");
     await expect(name).toHaveValue("Keyboard fixture");
     await inspectMachineMoment(page, "Cable row", "Finish");

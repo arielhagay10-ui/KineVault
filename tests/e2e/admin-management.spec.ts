@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
@@ -14,9 +14,10 @@ async function withAdminFixture(page: Page, run: (fixture: { id: string; slug: s
   const result = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (result.error || !result.data.user) throw result.error ?? new Error("Admin fixture creation failed");
   const id = result.data.user.id;
-  appendFileSync(".local-artifacts/qa/admin-regression-fixtures.jsonl", `${JSON.stringify({ id, email, password, slug })}\n`);
   const sql = (statement: string) => execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", statement], { stdio: "pipe" });
   try {
+    mkdirSync(".local-artifacts/qa", { recursive: true });
+    appendFileSync(".local-artifacts/qa/admin-regression-fixtures.jsonl", `${JSON.stringify({ id, slug })}\n`);
     sql(`begin; select set_config('app.audit_comment','Authorized temporary local admin browser QA.',true); update public.roles set role='admin',assigned_by=user_id where user_id='${id}'; commit;`);
     await page.goto("/sign-in");
     await page.getByLabel("Email", { exact: true }).fill(email);
