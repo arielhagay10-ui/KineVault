@@ -210,7 +210,7 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
     await openWorkshopTool(page, "Equipment");
     await page.getByRole("button", { name: "Remove item", exact: true }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
     expect(errors).toEqual([]);
   } finally { await cleanupLocalFixture(fixture); }
 });

@@ -101,7 +101,8 @@ jobs:
           done
           cat /tmp/kinevault-readiness-server.log
           exit 1
-      - run: npm run test:readiness
+      # Firefox needs a display for Mesa's software WebGL on Linux runners.
+      - run: xvfb-run -a npm run test:readiness
         if: matrix.shard == 1
       - run: npm run test:performance
         if: matrix.shard == 1

@@ -1,8 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "../e2e/published-catalog.helpers";
 import { auditAccessibility, setAppearance } from "./accessibility.helpers";
 
 for (const appearance of ["light", "dark"] as const) {
-  test(`public pages and open navigation meet automated accessibility checks in ${appearance}`, async ({ page, isMobile }, testInfo) => {
+  test(`public pages and open navigation meet automated accessibility checks in ${appearance}`, async ({ page, isMobile, publishedCableRaise }, testInfo) => {
     await page.goto("/");
     await setAppearance(page, appearance);
     for (const path of ["/", "/exercises", "/sign-in", "/sign-up", "/reset-password", "/joint-actions/shoulder-abduction"]) {
@@ -14,7 +15,7 @@ for (const appearance of ["light", "dark"] as const) {
       });
     }
     await page.goto("/exercises?jointAction=shoulder-abduction&equipment=cable");
-    const detail = page.getByRole("main").locator('a[href^="/exercises/"]').first();
+    const detail = page.getByRole("main").locator(`a[href="/exercises/${publishedCableRaise.slug}"]`);
     await expect(detail).toBeVisible();
     await detail.click();
     await expect(page).toHaveURL(/\/exercises\/[^/?]+$/);

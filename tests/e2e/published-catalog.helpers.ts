@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { Database } from "../../src/lib/database.types";
 
 const run = promisify(execFile);
-type PublishedExercise = { name: string; slug: string };
+type PublishedExercise = { id: string; name: string; slug: string };
 
 function localSql(statement: string) {
   execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres",
@@ -88,7 +88,7 @@ export const test = base.extend<object, { publishedCableRaise: PublishedExercise
       const published = await visitor.from("exercises").select("slug").eq("id", approved.data!).single();
       expect(published.error).toBeNull();
       expect(published.data?.slug).toBe(slug);
-      await useFixture({ name, slug });
+      await useFixture({ id: z.uuid().parse(approved.data), name, slug });
     } finally {
       // Retain immutable review history, remove only this fixture from Explore,
       // and do not leave the fixture account with reviewer privileges.

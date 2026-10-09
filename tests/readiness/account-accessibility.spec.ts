@@ -5,7 +5,7 @@ import { auditAccessibility, setAppearance } from "./accessibility.helpers";
 import { test } from "./workshop.fixture";
 
 for (const appearance of ["light", "dark"] as const) {
-  test(`administration and submission forms meet automated checks in ${appearance}`, async ({ page, workshop }, testInfo) => {
+  test(`administration and submission forms meet automated checks in ${appearance}`, async ({ page, workshop, publishedCableRaise }, testInfo) => {
     const userId = z.uuid().parse(workshop.userId);
     // The fixture already verifies both local destinations. Change only its UUID.
     execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres",
@@ -21,7 +21,7 @@ for (const appearance of ["light", "dark"] as const) {
       await auditAccessibility(page, testInfo, `${appearance}-${path.replaceAll("/", "_")}`);
     }
     await page.goto("/admin/exercises");
-    const edit = page.getByRole("main").locator('a[href^="/admin/exercises/"][href$="/edit"]').first();
+    const edit = page.getByRole("main").locator(`a[href="/admin/exercises/${publishedCableRaise.id}/edit"]`);
     await expect(edit).toBeVisible();
     await edit.click();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

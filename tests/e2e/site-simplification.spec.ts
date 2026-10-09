@@ -22,8 +22,9 @@ test("shared appearance has no topbar or scrollbar gutter", async ({ page }) => 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.locator("body > .os-scrollbar-vertical")).toHaveCount(1);
-  expect(await page.locator("body > .os-scrollbar-vertical .os-scrollbar-track").evaluate(element => getComputedStyle(element).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
-  expect(await page.locator("body > .os-scrollbar-vertical .os-scrollbar-handle").evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+  await expect(page.locator("body > .os-scrollbar-vertical .os-scrollbar-track")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(page.locator("body > .os-scrollbar-vertical .os-scrollbar-handle")).toHaveCSS("background-color", /^rgba?\(.+/);
+  await expect(page.locator("body > .os-scrollbar-vertical .os-scrollbar-handle")).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   expect(await page.evaluate(() => innerWidth - document.documentElement.clientWidth)).toBe(0);
 });
 
