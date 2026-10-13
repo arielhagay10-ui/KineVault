@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { addWorkshopEquipment } from "../../src/lib/motion/workshop-freedom";
 import { blankWorkshopScene } from "../../src/lib/motion/workshop";
-import { cableAttachmentButton, expandWorkshopControls, openWorkshopMenu, openWorkshopRecovery, openWorkshopTool, selectWorkshopObject } from "./workshop-menu.helpers";
+import { cableAttachmentButton, expandWorkshopControls, openWorkshopMenu, openWorkshopRecovery, openWorkshopTool, selectWorkshopJoint, selectWorkshopObject } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
@@ -77,22 +77,26 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
     await expect(metrics).toHaveAttribute("data-camera-position", /\[/);
     const beforeCamera = await metrics.getAttribute("data-camera-position");
     const canvas = (await page.locator("canvas").boundingBox())!;
-    await page.mouse.move(canvas.x + canvas.width * .45, canvas.y + canvas.height * .5);
+    // Use the canvas background; the cable's HTML grab button covers its center.
+    const orbitStart = { x: canvas.x + canvas.width * .2, y: canvas.y + canvas.height * .2 };
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName, orbitStart)).toBe("CANVAS");
+    await page.mouse.move(orbitStart.x, orbitStart.y);
     await page.mouse.down({ button: "right" });
-    await page.mouse.move(canvas.x + canvas.width * .45 + 160, canvas.y + canvas.height * .5 + 30, { steps: 12 });
+    await page.mouse.move(orbitStart.x + 160, orbitStart.y + 30, { steps: 12 });
     await page.mouse.up({ button: "right" });
     await expect.poll(() => metrics.getAttribute("data-camera-position")).not.toBe(beforeCamera);
     await expect(page.getByRole("button", { name: "Move with mouse", exact: true })).toHaveAttribute("aria-pressed", "true");
 
-    await openWorkshopTool(page, "Pose");
-    await page.getByLabel("Body joint", { exact: true }).selectOption("left-elbow");
+    await selectWorkshopJoint(page, "Left elbow");
     const elbow = page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true });
     await expect(elbow).toHaveValue("70");
+    await expandWorkshopControls(page, "Pose options");
     await page.getByRole("button", { name: "Reset all joints", exact: true }).click();
     await expect(elbow).toHaveValue("0");
     await page.getByRole("button", { name: "Undo", exact: true }).click();
     await expect(elbow).toHaveValue("70");
-    await page.getByRole("button", { name: "Apply to all poses", exact: true }).click();
+    await expandWorkshopControls(page, "Pose options");
+    await page.getByRole("checkbox", { name: "Apply to all poses", exact: true }).check();
     await page.getByRole("button", { name: "Reset all joints", exact: true }).click();
     for (const index of ["0", "1", "2"]) {
       await page.getByLabel("Editing pose", { exact: true }).selectOption(index);
@@ -113,7 +117,7 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
     await expect(cableAttachmentButton(page, "lat-bar")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
     for (let sample = 0; sample <= 16; sample++) {
-      await page.getByLabel("Scrub timeline").evaluate((element, value) => {
+      await page.getByLabel("Preview time").evaluate((element, value) => {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(element, String(value));
         element.dispatchEvent(new Event("input", { bubbles: true }));
       }, sample * 200);
@@ -122,7 +126,7 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
     }
     await page.getByRole("button", { name: "View start", exact: true }).click();
     await page.getByRole("button", { name: "Play", exact: true }).click();
-    await expect.poll(() => page.getByLabel("Scrub timeline").inputValue()).not.toBe("0");
+    await expect.poll(() => page.getByLabel("Preview time").inputValue()).not.toBe("0");
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     await page.screenshot({ path: `${folder}/wide-grip-behind.png` });
     expect(errors).toEqual([]);

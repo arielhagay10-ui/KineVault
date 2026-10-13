@@ -1,0 +1,55 @@
+import { randomUUID } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
+import { expect, test } from "@playwright/test";
+import { blankWorkshopScene } from "../../src/lib/motion/workshop";
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { jointField, openWorkshopTool, selectWorkshopJoint } from "./workshop-menu.helpers";
+
+test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+test("spaces poses evenly and edits focused timeline rows with recoverable keyboard commands", async ({ page }) => {
+  test.setTimeout(180_000);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
+  const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const email = `timeline-${randomUUID()}@example.test`, password = "TimelineFixture2026!";
+  const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (account.error) throw account.error;
+  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+  try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const scene = structuredClone(blankWorkshopScene);
+    scene.keyframes[1].poses["left-elbow"] = { x: 80, y: 0, z: 0 };
+    const created = await owner.rpc("save_workshop_draft", { p_scene: scene, p_name: "Timeline fixture" });
+    if (created.error) throw created.error;
+    await page.setViewportSize({ width: 1500, height: 1100 });
+    await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
+    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await openWorkshopTool(page, "Timeline");
+    await page.getByLabel("Poses from start to finish", { exact: true }).selectOption("5");
+    await page.getByRole("button", { name: "Add evenly spaced poses", exact: true }).click();
+    const rows = page.getByRole("group", { name: "Saved poses", exact: true }).getByRole("button");
+    await expect(rows).toHaveCount(9);
+    await expect(rows.nth(1)).toContainText("0.40s"); await expect(rows.nth(7)).toContainText("2.80s");
+    await rows.nth(4).focus(); await page.keyboard.press("Control+c");
+    await rows.nth(1).focus(); await page.keyboard.press("Control+v");
+    await selectWorkshopJoint(page, "Left elbow"); await expect(jointField(page, "x")).toHaveValue("80");
+    await openWorkshopTool(page, "Timeline"); await rows.nth(1).click(); await page.keyboard.press("Control+x");
+    await expect(rows).toHaveCount(8); await expect(rows.nth(0)).toBeFocused();
+    await page.keyboard.press("Control+z"); await expect(rows).toHaveCount(9);
+    await rows.nth(1).click(); await page.keyboard.press("Control+d"); await expect(rows).toHaveCount(10);
+    await expect(rows.nth(2)).toContainText("0.60s"); await expect(rows.nth(2)).toBeFocused();
+    await page.keyboard.press("Delete"); await expect(rows).toHaveCount(9); await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press("ArrowRight"); await expect(rows.nth(2)).toBeFocused();
+    await page.keyboard.press("Backspace"); await expect(rows).toHaveCount(8);
+    await page.keyboard.press("Control+z"); await expect(rows).toHaveCount(9);
+    await page.getByRole("button", { name: "Save", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible(); await openWorkshopTool(page, "Timeline");
+    await expect(rows).toHaveCount(9); await rows.nth(1).click(); await selectWorkshopJoint(page, "Left elbow"); await expect(jointField(page, "x")).toHaveValue("80");
+    await openWorkshopTool(page, "Timeline"); mkdirSync(".local-artifacts/workshop/timeline", { recursive: true });
+    await page.screenshot({ path: ".local-artifacts/workshop/timeline/even-poses.png" });
+    expect(errors).toEqual([]);
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
+});

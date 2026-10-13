@@ -88,3 +88,21 @@ test("candidate searches remain bounded without dropping the query", async ({ pa
     await expect(page.getByText("No candidates on this page.", { exact: true })).toBeVisible();
   });
 });
+
+test("original candidates keep the review path and canonical identity", async ({ page }) => {
+  await withAdminFixture(page, async () => {
+    await page.goto("/admin/candidates");
+    const candidate = page.getByRole("button", { name: "Prepare demonstration", exact: true }).first();
+    await expect(candidate).toBeVisible();
+    await candidate.click();
+    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit$/);
+    await page.getByRole("link", { name: "Submit for review", exact: true }).click();
+    await expect(page).toHaveURL(/\/submit$/);
+    await expect(page.getByRole("heading", { name: "Ready for review", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Publish exercise", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Submit for review", exact: true })).toBeVisible();
+    await page.goto("/my-exercises");
+    await expect(page.getByRole("link", { name: "Submit for review", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Publish exercise", exact: true })).toHaveCount(0);
+  });
+});

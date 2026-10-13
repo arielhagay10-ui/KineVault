@@ -54,9 +54,12 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
     return () => cancelAnimationFrame(frame);
   }, [dirty, recovery, recoveryReady, key, scene, name, queue, saving, ownerId, sessionId]);
 
-  const saveNow = useCallback(async () => {
+  const saveNow = useCallback(async (requestedName?: string) => {
     if (!mounted.current) return null;
-    const value = latest.current;
+    const live = latest.current;
+    const value = requestedName === undefined ? live : {
+      scene: live.scene, name: requestedName, snapshot: draftSnapshot({ scene: live.scene, name: requestedName }),
+    };
     if (!value.name.trim()) { setError("Name your exercise before saving."); return null; }
     if (!navigator.onLine) { setMessage("Offline · draft kept on this device"); setError("Reconnect, then Retry."); return null; }
     // Persist the request identity before the first request can commit.

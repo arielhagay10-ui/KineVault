@@ -112,7 +112,7 @@ Current behavior:
 - Apply the theme to the root. Web uses the `.dark` class and matching `color-scheme`.
 - Persist the explicit preference; the web cookie is `kv-theme`, valid for one year.
 - System mode follows OS changes. Bootstrap appearance before first paint.
-- Page topbars are removed. A floating Site menu provides navigation and Appearance.
+- Page topbars are removed. A floating Site menu in the upper-right corner provides navigation and Appearance, using the primary background and foreground for contrast.
 - Scrollbars overlay content, with transparent tracks and slate-blue handles.
 
 **Companion guidance:** a native app can place Appearance in settings. Keep the

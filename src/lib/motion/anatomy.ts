@@ -216,7 +216,7 @@ export function createAnatomyRig(source: Group) {
   const parts = new Group(); parts.visible = false;
   root.add(parts);
   for (const mesh of meshes) parts.add(mesh);
-  root.add(...batches.meshes);
+  for (const mesh of batches.meshes) root.add(mesh);
   batches.update();
   muscles.sort((a, b) => a.label.localeCompare(b.label));
   root.scale.setScalar(0.85);
@@ -252,11 +252,10 @@ export function poseAnatomyRig(rig: AnatomyRig, pose: RigPose, gripping: boolean
     const ankle = pose[`${side}-ankle`];
     rig.footBones[side].rotation.set(-(ankle?.x ?? 0) * Math.PI / 180, (ankle?.y ?? 0) * Math.PI / 180, -(ankle?.z ?? 0) * Math.PI / 180);
     const wrist = pose[`${side}-wrist`];
-    if (wrist) {
-      // Twist along the actual forearm so turning the palm does not move the wrist.
-      rig.forearmBones[side].quaternion.setFromAxisAngle(rig.scratch.vector.copy(rig.handBones[side].position).normalize(),
-        (side === "left" ? 1 : -1) * (wrist.x + 90) * Math.PI / 180);
-    } else rig.forearmBones[side].rotation.set(0, (side === "left" ? -1 : 1) * forearmRotation * Math.PI / 180, 0);
+    // Automatic and authored palms share the actual forearm axis, so taking
+    // wrist control cannot translate the hand or require shoulder compensation.
+    rig.forearmBones[side].quaternion.setFromAxisAngle(rig.scratch.vector.copy(rig.handBones[side].position).normalize(),
+      (side === "left" ? 1 : -1) * (wrist ? wrist.x + 90 : forearmRotation) * Math.PI / 180);
     rig.handBones[side].rotation.set((wrist?.y ?? 0) * Math.PI / 180, 0, -(wrist?.z ?? 0) * Math.PI / 180);
   }
   for (const segment of rig.fingerSegments) {

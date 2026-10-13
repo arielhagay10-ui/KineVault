@@ -78,6 +78,7 @@ test("mouse handles edit row endpoints with Undo, cancellation and saved motion"
     await page.getByRole("button", { name: "Move with mouse", exact: true }).click();
     await page.screenshot({ path: `${folder}/mouse-controls.png`, fullPage: true });
     await setWorkshopMode(page, "quick");
+    await page.getByRole("button", { name: "Save pose", exact: true }).click();
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await page.getByRole("button", { name: "Save privately", exact: true }).click();
     await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();

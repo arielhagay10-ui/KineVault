@@ -46,15 +46,18 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     }).toBe(true);
     await page.reload();
     await expect(tutorial.getByRole("heading", { name: "Build the movement", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Restore recovered draft", exact: true }).click();
     await expect(page.locator('[data-tutorial-target="pose"]')).toHaveAttribute("data-tutorial-active", "true");
     await expect.poll(async () => {
       const spotlight = await page.locator("[data-tutorial-spotlight]").boundingBox();
-      const start = await page.getByRole("button", { name: "Edit start", exact: true }).boundingBox();
-      const finish = await page.getByRole("button", { name: "Edit finish", exact: true }).boundingBox();
-      return !!spotlight && !!start && !!finish && Math.abs(spotlight.x - start.x + 5) < 1
-        && Math.abs(spotlight.x + spotlight.width - finish.x - finish.width - 5) < 1;
+      const controls = await page.locator('[data-tutorial-target="pose"]').boundingBox();
+      return !!spotlight && !!controls && Math.abs(spotlight.x - controls.x + 5) < 1
+        && Math.abs(spotlight.x + spotlight.width - controls.x - controls.width - 5) < 1
+        && Math.abs(spotlight.y - controls.y + 5) < 1
+        && Math.abs(spotlight.height - controls.height - 10) < 1;
     }).toBe(true);
     await page.screenshot({ path: ".local-artifacts/workshop/tutorial/desktop-pose.png" });
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
     await page.getByRole("button", { name: "Edit finish", exact: true }).click();
     await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
     await tutorial.getByRole("button", { name: "Return to this tip", exact: true }).click();
@@ -63,6 +66,10 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     await expect(page.getByRole("button", { name: "Tutorial", exact: true })).toBeFocused();
     await page.reload();
     await expect(page.getByRole("button", { name: "Tutorial", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await page.getByRole("button", { name: "Restore recovered draft", exact: true }).click();
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
+    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await page.getByRole("button", { name: "Save pose", exact: true }).click();
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await page.getByLabel("Exercise name", { exact: true }).fill("My first workshop exercise");
     await page.getByRole("button", { name: "Save privately", exact: true }).click();

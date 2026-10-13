@@ -81,16 +81,16 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
       await setWorkshopMode(page, "advanced");
       await page.getByRole("tab", { name: "Timeline", exact: true }).click();
       for (let frame = 0; frame <= 16; frame++) {
-        await page.getByLabel("Scrub timeline").evaluate((element, value) => {
+        await page.getByLabel("Preview time").evaluate((element, value) => {
           Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(element, String(value));
           element.dispatchEvent(new Event("input", { bubbles: true }));
         }, frame * 200);
-        await expect(page.getByLabel("Scrub timeline")).toHaveValue(String(frame * 200));
+        await expect(page.getByLabel("Preview time")).toHaveValue(String(frame * 200));
         if (frame % 2 === 0) await page.locator("canvas").screenshot({ path: `${artifacts}/${facing}-saved-side-${frame}.png` });
       }
       await page.getByRole("button", { name: "Three-quarter", exact: true }).click();
       for (let frame = 0; frame <= 8; frame++) {
-        await page.getByLabel("Scrub timeline").evaluate((element, value) => {
+        await page.getByLabel("Preview time").evaluate((element, value) => {
           Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(element, String(value));
           element.dispatchEvent(new Event("input", { bubbles: true }));
         }, frame * 400);

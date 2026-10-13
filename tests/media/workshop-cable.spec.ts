@@ -6,12 +6,16 @@ import { promisify } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { addWorkshopEquipment } from "../../src/lib/motion/workshop-freedom";
-import { blankWorkshopScene } from "../../src/lib/motion/workshop";
+import { blankWorkshopScene, identityTransform, type StudioObject } from "../../src/lib/motion/workshop";
 import { createQuickScene } from "../../src/lib/motion/quick-create";
+import { createStudioObject } from "../../src/lib/motion/studio";
+import { automaticWeightTransform } from "../../src/lib/motion/automatic-weight-grip";
+import { editHeldWeightPose } from "../../src/lib/motion/held-weight-pose";
+import { carryHeldWeightsWithBody } from "../../src/lib/motion/held-weight-body";
 
 const run = promisify(execFile);
 
-for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift"] as const) test(`a saved ${variant} produces playable private media`, async ({ page }) => {
+for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-hand-barbell", "custom-barbell", "custom-rope", "custom-machine", "automatic-dumbbells", "resting-dumbbells", "joint-driven-dumbbells", "carried-dumbbells", "lying-front-raise-dumbbells", "joint-driven-barbell"] as const) test(`a saved ${variant} produces playable private media`, async ({ page }) => {
   test.setTimeout(150_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
@@ -30,10 +34,52 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift"] as co
       "left-elbow": { x: timeMs === 250 ? 90 : 30, y: 0, z: 0 }, "right-elbow": { x: timeMs === 250 ? 90 : 30, y: 0, z: 0 },
     } }));
     Object.assign(scene.studio!.objects[0], { attachment: "both", cableAttachment: "lat-bar", pulleyHeight: 2.8 });
-    if (variant !== "wide-bar") {
+    if (variant === "joint-driven-barbell") {
+      scene.durationMs = 3200;
+      scene.keyframes = structuredClone(blankWorkshopScene.keyframes);
+      const bar = { ...createStudioObject("barbell", randomUUID(), 0), attachment: "both" as const };
+      scene.studio = { body: identityTransform, objects: [bar] };
+      Object.assign(bar, automaticWeightTransform(identityTransform, bar, "both", scene, 0));
+      Object.assign(scene, editHeldWeightPose(scene, 1, "selected", { "left-elbow": { x: 155, y: 0, z: 0 }, "right-elbow": { x: 155, y: 0, z: 0 } }));
+    } else if (variant === "resting-dumbbells") {
+      scene.durationMs = blankWorkshopScene.durationMs;
+      scene.keyframes = structuredClone(blankWorkshopScene.keyframes);
+      const weights: StudioObject[] = (["left", "right"] as const).map(side => ({ ...createStudioObject("dumbbell", randomUUID(), 0), attachment: side }));
+      scene.studio = { body: identityTransform, objects: weights };
+      for (const weight of weights) weight.frames = scene.keyframes.map(frame => ({ ...automaticWeightTransform(identityTransform, weight, weight.attachment, scene, frame.timeMs), timeMs: frame.timeMs }));
+    } else if (variant === "automatic-dumbbells" || variant === "joint-driven-dumbbells" || variant === "carried-dumbbells" || variant === "lying-front-raise-dumbbells") {
+      scene.durationMs = 3200;
+      scene.keyframes = [0, 1600, 3200].map(timeMs => ({ timeMs, poses: { "left-elbow": { x: timeMs === 1600 ? 80 : 15, y: 0, z: 0 }, "right-elbow": { x: timeMs === 1600 ? 80 : 15, y: 0, z: 0 } } }));
+      const bench = { ...createStudioObject("bench", randomUUID(), 0), x: 0, z: 0, benchAngle: 65 };
+      const weights: StudioObject[] = (["left", "right"] as const).map(side => ({ ...createStudioObject("dumbbell", randomUUID(), 1), attachment: side }));
+      scene.studio = { body: identityTransform, objects: [bench, ...weights], seating: variant === "carried-dumbbells" ? undefined : { benchId: bench.id, facing: "supine" } };
+      for (const weight of weights) weight.frames = scene.keyframes.map(frame => ({ ...automaticWeightTransform(identityTransform, weight, weight.attachment, scene, frame.timeMs), timeMs: frame.timeMs }));
+      if (variant === "joint-driven-dumbbells") Object.assign(scene, editHeldWeightPose(scene, 1, "selected", { "left-elbow": { x: 105, y: 0, z: 0 }, "right-elbow": { x: 105, y: 0, z: 0 } }));
+      if (variant === "carried-dumbbells") Object.assign(scene, carryHeldWeightsWithBody(scene, { ...scene, studio: { ...scene.studio!, seating: { benchId: bench.id, facing: "supine" } } }));
+      if (variant === "lying-front-raise-dumbbells") {
+        bench.benchAngle = 0;
+        scene.keyframes = [0, 1600, 3200].map(timeMs => ({ timeMs, poses: {
+          "left-elbow": { x: 15, y: 0, z: 0 }, "right-elbow": { x: 15, y: 0, z: 0 },
+        } }));
+        Object.assign(scene, editHeldWeightPose(scene, 1, "selected", { "left-shoulder": { x: 90, y: 0, z: 0 }, "right-shoulder": { x: 90, y: 0, z: 0 } }));
+      }
+    } else if (variant === "one-hand-barbell" || variant === "custom-barbell") {
+      scene.durationMs = 3200;
+      scene.keyframes = [0, 1600, 3200].map(timeMs => ({ timeMs, poses: { "left-wrist": { x: -90, y: 0, z: 0 } } }));
+      scene.studio!.objects = [{ ...scene.studio!.objects[0], slug: "barbell", name: "One-hand barbell", attachment: "left", cableAttachment: undefined, x: .45, y: 1.3, z: .4,
+        ...(variant === "custom-barbell" ? { gripOffsets: { left: { x: -.08, y: 0, z: 0 } } } : {}),
+        frames: [0, 1600, 3200].map(timeMs => ({ ...identityTransform, x: .45, y: timeMs === 1600 ? 1.5 : 1.3, z: .4, timeMs, rotationZ: timeMs === 1600 ? 10 : 0 })) }];
+    } else if (variant === "custom-machine") {
+      const machine = createQuickScene("smith-machine");
+      scene.durationMs = machine.durationMs;
+      scene.keyframes = machine.keyframes.map(frame => ({ ...frame, poses: { ...frame.poses, "left-wrist": { x: -90, y: 0, z: 0 } } }));
+      scene.studio = machine.studio;
+      scene.studio!.objects[0].gripOffsets = { left: { x: -.08, y: 0, z: 0 }, right: { x: .08, y: 0, z: 0 } };
+    } else if (variant !== "wide-bar") {
       const row = createQuickScene("cable-row-machine").studio!.objects[0];
       row.frames = undefined;
-      Object.assign(row, { attachment: "both", cableAttachment: variant === "seated-row-rope" ? "rope" : "angled-bar", machineUse: variant === "seated-row-rope", machinePosition: .4 });
+      Object.assign(row, { attachment: "both", cableAttachment: variant === "seated-row-rope" || variant === "custom-rope" ? "rope" : "angled-bar", machineUse: variant === "seated-row-rope" || variant === "custom-rope", machinePosition: .4 });
+      if (variant === "custom-rope") row.gripOffsets = { left: { x: .025, y: 0, z: 0 }, right: { x: -.025, y: 0, z: 0 } };
       scene.studio!.objects = [row];
       if (variant === "free-row-deadlift") {
         scene.studio!.body.x = 1.3;
@@ -47,7 +93,7 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift"] as co
     const created = await owner.rpc("save_workshop_draft", { p_scene: scene, p_name: "Wide cable render fixture" });
     if (created.error) throw created.error;
     const metadata = await owner.rpc("save_private_exercise", { p_private_id: created.data, p_name: "Wide cable render fixture", p_family_slug: "curl",
-      p_primary_muscle_slugs: ["biceps-brachii"], p_joint_action_slugs: ["elbow-flexion"], p_equipment_slugs: ["cable"] });
+      p_primary_muscle_slugs: ["biceps-brachii"], p_joint_action_slugs: ["elbow-flexion"], p_equipment_slugs: [variant.endsWith("dumbbells") ? "dumbbell" : variant.endsWith("barbell") ? "barbell" : "cable"] });
     if (metadata.error) throw metadata.error;
     const submission = await owner.rpc("submit_private_exercise", { p_private_id: created.data, p_duplicate_disposition: "new" });
     if (submission.error) throw submission.error;
@@ -82,6 +128,18 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift"] as co
     await expect.poll(() => page.locator("video").evaluate((video: HTMLVideoElement) => video.readyState)).toBeGreaterThanOrEqual(2);
     await expect.poll(() => page.locator("video").evaluate((video: HTMLVideoElement) => video.videoWidth)).toBeGreaterThan(0);
     await page.locator("video").screenshot({ path: `${folder}/rendered-${variant}.png` });
+    if (variant.startsWith("custom-") || variant.endsWith("dumbbells") || variant === "joint-driven-barbell") {
+      await page.locator("video").evaluate((video: HTMLVideoElement) => video.play());
+      await expect.poll(() => page.locator("video").evaluate((video: HTMLVideoElement) => video.ended), { timeout: 15_000 }).toBe(true);
+      for (let sample = 0; sample <= 16; sample++) {
+        await page.locator("video").evaluate(async (video: HTMLVideoElement, progress) => {
+          const target = Math.min(video.duration - .04, video.duration * progress);
+          if (Math.abs(video.currentTime - target) < .001) return;
+          await new Promise<void>(resolve => { video.addEventListener("seeked", () => resolve(), { once: true }); video.currentTime = target; });
+        }, sample / 16);
+        await page.locator("video").screenshot({ path: `${folder}/${variant}-${sample}.png` });
+      }
+    }
   } finally {
     try {
     if (renderSceneId) execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",

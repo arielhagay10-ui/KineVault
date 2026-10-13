@@ -21,6 +21,8 @@ const resistanceProfiles = [
   ["bell_shaped", "Bell shaped"], ["relatively_constant", "Relatively constant"], ["variable_complex", "Variable / complex"],
 ] as const;
 
+const bodyPositionLabels: Record<string, string> = { supine: "Lying face up", prone: "Lying face down" };
+
 type FormProps = {
   ownerId: string;
   initial: PrivateExerciseInput; options: ReviewOptions; metadata?: ReviewPatch; scene?: WorkshopScene | null;
@@ -100,7 +102,7 @@ function PrivateExerciseFields({ initial, options, metadata, scene, recoveryKey,
           <label htmlFor="bodyPositionSlug" className="block text-base font-semibold">Body position</label>
           <select id="bodyPositionSlug" name="bodyPositionSlug" value={bodyPosition} onChange={event => setBodyPosition(event.target.value)} className={input}>
             <option value="">Unknown / choose later</option>
-            {options.bodyPositions.map(item => <option key={item.slug} value={item.slug}>{item.name}</option>)}
+            {options.bodyPositions.map(item => <option key={item.slug} value={item.slug}>{bodyPositionLabels[item.slug] ?? item.name}</option>)}
           </select>
         </div>
       </div>
@@ -111,12 +113,12 @@ function PrivateExerciseFields({ initial, options, metadata, scene, recoveryKey,
           {suggestedEquipment.map(slug => <button key={slug} type="button" onClick={() => setEquipment([...equipment, slug])}
             className="min-h-11 rounded-lg border border-border bg-card px-3 text-base">Use {options.equipment.find(item => item.slug === slug)?.name}</button>)}
           {suggestedPosition && <button type="button" onClick={() => setBodyPosition(suggestedPosition)}
-            className="min-h-11 rounded-lg border border-border bg-card px-3 text-base">Use {options.bodyPositions.find(item => item.slug === suggestedPosition)?.name}</button>}
+            className="min-h-11 rounded-lg border border-border bg-card px-3 text-base">Use {bodyPositionLabels[suggestedPosition] ?? options.bodyPositions.find(item => item.slug === suggestedPosition)?.name}</button>}
         </div>
       </section>}
       <div className="mt-5 grid gap-5 md:grid-cols-2">
         <SelectedPrivateOptions title="Equipment" name="equipment" options={options.equipment} selected={equipment}
-          onChange={setEquipment} roles={metadata?.equipment} rolePrefix="equipmentRole" />
+          onChange={setEquipment} roles={metadata?.equipment} rolePrefix="equipmentRole" editLabel="Edit equipment" />
         <div>
           <label htmlFor="resistanceProfile" className="block text-base font-semibold">External resistance profile</label>
           <select id="resistanceProfile" name="resistanceProfile" defaultValue={initial.resistanceProfile} className={input}>

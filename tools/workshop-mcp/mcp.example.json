@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "kinevault-workshop": {
+      "command": "node",
+      "args": ["C:/KineVault/tools/workshop-mcp/dist/server.js"],
+      "env": {
+        "KV_WORKSHOP_URL": "http://127.0.0.1:3000"
+      }
+    }
+  }
+}

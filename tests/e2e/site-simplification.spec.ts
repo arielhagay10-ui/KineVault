@@ -8,6 +8,9 @@ test("shared appearance has no topbar or scrollbar gutter", async ({ page }) => 
   await page.goto("/");
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Site menu", exact: true })).toBeVisible();
+  const menuBox = (await page.getByRole("button", { name: "Site menu", exact: true }).boundingBox())!;
+  expect(menuBox.y).toBeLessThanOrEqual(32);
+  expect(page.viewportSize()!.width - menuBox.x - menuBox.width).toBeLessThanOrEqual(32);
   expect(await page.locator("body").evaluate(element => getComputedStyle(element).fontFamily)).toContain("Comfortaa");
   await expect(page.locator('img[src="/posters/home-anatomy.webp"]')).toHaveCount(0);
   await expect.poll(() => page.getByRole("img", { name: "Blue mascot wearing glasses and holding a pencil and notebook", exact: true }).evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
@@ -65,6 +68,9 @@ test("tutorial keeps editing usable and a first exercise saves without WebGL", a
     await tutorial.getByRole("button", { name: "Close tutorial", exact: true }).click();
     await expect(tutorial).toHaveCount(0);
     await expect(page.getByText("3D preview needs WebGL.", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
+    await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
+    await page.getByRole("button", { name: "Save pose", exact: true }).click();
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await page.getByLabel("Exercise name", { exact: true }).fill("No graphics exercise");
     await page.getByRole("button", { name: "Save privately", exact: true }).click();

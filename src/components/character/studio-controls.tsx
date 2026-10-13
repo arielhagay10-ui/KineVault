@@ -3,8 +3,8 @@
 import { useMotionFrame } from "./motion-frame";
 import { createPortal, useFrame, useThree } from "@react-three/fiber";
 import { TransformControls } from "@react-three/drei";
-import { Fragment, useEffect, useMemo, useRef, type ReactNode } from "react";
-import { BoxHelper, Group, Object3D, Quaternion, Vector3 } from "three";
+import { Fragment, useMemo, useRef, type ReactNode } from "react";
+import { Group, Object3D, Quaternion, Vector3 } from "three";
 import type { AnatomyRig } from "@/lib/motion/anatomy";
 import { readJointAngles, readSceneTransform, studioPointFromWorld, studioPointToWorld } from "@/lib/motion/studio";
 import { constrainSupportedWeight, reachStudioGrip, studioForearmReach, weightGripPoint } from "@/lib/motion/studio-grip";
@@ -14,11 +14,15 @@ import { AdjustableBench } from "./adjustable-bench";
 import { useStudioDrag } from "./studio-drag";
 import { StudioCable } from "./studio-cable";
 import { StudioMachine } from "./studio-machines";
-import { isStudioMachine } from "@/lib/motion/studio-machines";
+import { isStudioMachine, machineHandlePoint, machineGripPoint } from "@/lib/motion/studio-machines";
+import { StudioGripMarker } from "./studio-grip-marker";
+import type { GripSide } from "@/lib/motion/grip-edit";
 import { equipmentBoundsOverlap, needsPlacementAdvisory, placementBodyBounds } from "@/lib/motion/workshop-placement";
 import type { MachineDragValues, StudioDragPlane } from "@/lib/motion/workshop-mouse";
 import { poseLimbs, type PoseLimb } from "@/lib/motion/limb-pose";
 import { StudioLimbDrag } from "./studio-limb-drag";
+import { poseArmDrivenWeight, solveDumbbellGrip } from "@/lib/motion/automatic-weight-grip";
+import { solveBarbellGrip } from "@/lib/motion/barbell-grip";
 
 export type StudioSelection = { kind: "body" } | { kind: "joint"; slug: JointSlug } | { kind: "object"; id: string } | null;
 export type StudioEditor = {
@@ -49,6 +53,8 @@ export type StudioEditor = {
   onDragStart: () => void;
   onDragEnd: (cancelled?: boolean) => void;
   onGripReach: (id: string, reachable: boolean) => void;
+  gripEdit?: { objectId: string; side: GripSide; picking: boolean } | null;
+  onGripPoint?: (id: string, side: GripSide, point: ScenePoint) => void;
   captureElbow?: { objectId: string; side: "left" | "right" } | null;
   onCaptureElbow?: (id: string, side: "left" | "right", point: ScenePoint) => void;
   onPresentationChange?: (presentation: ScenePresentation) => void;
@@ -147,10 +153,10 @@ function Weights({ barbell }: { barbell: boolean }) {
   </>;
 }
 
-export function StudioEquipment({ objects, body, rig, pose, timeMs, editor }: { objects: StudioObject[]; body: SceneTransform; rig: AnatomyRig; pose: RigPose; timeMs: number; editor?: StudioEditor }) {
+export function StudioEquipment({ objects, body, rig, pose, timeMs, editor, frontalPlane }: { objects: StudioObject[]; body: SceneTransform; rig: AnatomyRig; pose: RigPose; timeMs: number; editor?: StudioEditor; frontalPlane?: boolean }) {
   const geometry = useRef(new Map<string, Group>());
   const placementSnapshot = JSON.stringify({ objects, body, pose, timeMs, supports: editor?.supportObjectIds });
-  return <>{objects.map(object => <StudioAsset key={object.id} object={object} body={body} rig={rig} pose={pose} editor={editor} onGeometry={group => { if (group) geometry.current.set(object.id, group); else geometry.current.delete(object.id); }} />)}<StudioPlacementAdvisory objects={objects} body={body} rig={rig} geometry={geometry} editor={editor} placementSnapshot={placementSnapshot} /></>;
+  return <>{objects.map(object => <StudioAsset key={object.id} object={object} body={body} rig={rig} pose={pose} editor={editor} frontalPlane={frontalPlane} onGeometry={group => { if (group) geometry.current.set(object.id, group); else geometry.current.delete(object.id); }} />)}<StudioPlacementAdvisory objects={objects} body={body} rig={rig} geometry={geometry} editor={editor} placementSnapshot={placementSnapshot} /></>;
 }
 
 /** Registered after the equipment solvers, so bounds use the final held/machine pose. */
@@ -172,14 +178,7 @@ function StudioPlacementAdvisory({ objects, body, rig, geometry, editor, placeme
   return null;
 }
 
-function SelectionOutline({ target }: { target: React.RefObject<Group> }) {
-  const outline = useMemo(() => new BoxHelper(new Group(), "#2b9891"), []);
-  useEffect(() => () => { outline.geometry.dispose(); outline.material.dispose(); }, [outline]);
-  useFrame(() => { if (target.current) outline.setFromObject(target.current); });
-  return <primitive object={outline} />;
-}
-
-function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: StudioObject; body: SceneTransform; rig: AnatomyRig; pose: RigPose; editor?: StudioEditor; onGeometry: (group: Group | null) => void }) {
+function StudioAsset({ object, body, rig, pose, editor, frontalPlane, onGeometry }: { object: StudioObject; body: SceneTransform; rig: AnatomyRig; pose: RigPose; editor?: StudioEditor; frontalPlane?: boolean; onGeometry: (group: Group | null) => void }) {
   const group = useRef<Group>(null!);
   const frameRef = useMotionFrame();
   const currentObject = useRef(object);
@@ -187,8 +186,18 @@ function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: 
   const selected = editor?.selection?.kind === "object" && editor.selection.id === object.id;
   const lastReach = useRef<boolean | null>(null);
   const captured = useRef<StudioEditor["captureElbow"]>(null);
-  const dragEvents = useStudioDrag(group, { kind: "object", id: object.id }, editor, target => editor?.onObjectChange(object.id, readSceneTransform(target)));
+  const lastWeightSolve = useRef<{ frame: unknown; object: StudioObject; pose: RigPose; body: SceneTransform } | null>(null);
+  const picking = editor?.gripEdit?.objectId === object.id && editor.gripEdit.picking;
+  const dragEditor = picking && editor ? { ...editor, interactionEnabled: false } : editor;
+  const dragEvents = useStudioDrag(group, { kind: "object", id: object.id }, dragEditor, target => editor?.onObjectChange(object.id, readSceneTransform(target)));
+  const cable = object.slug === "cable-machine" || object.slug === "cable-row-machine" && !!object.cableAttachment;
+  const automaticDumbbell = object.slug === "dumbbell" && (object.attachment === "left" || object.attachment === "right") && !object.elbowLocks?.[object.attachment];
   useFrame(() => {
+    const frame = frameRef?.current;
+    const previous = lastWeightSolve.current;
+    // Camera-only frames reuse the solved arm and the clamped equipment pose.
+    if (["dumbbell", "barbell"].includes(object.slug) && previous && previous.frame === frame && previous.object === object && previous.pose === pose && previous.body === body && !editor?.dragging && !editor?.captureElbow) return;
+    lastWeightSolve.current = { frame, object, pose, body };
     const liveObject = sampleStudioObject(object, frameRef?.current.timeMs ?? 0);
     currentObject.current = liveObject;
     if (group.current && !editor?.dragging) {
@@ -199,6 +208,17 @@ function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: 
     }
     const livePose = frameRef?.current.pose ?? pose;
     if (!group.current || object.attachment === "none" || !["barbell", "dumbbell", "kettlebell"].includes(object.slug)) return;
+    const armDriven = object.poseDriver !== undefined && object.poseDriver !== "weight"
+      && !["left", "right"].some(side => (object.attachment === side || object.attachment === "both") && object.elbowLocks?.[side as "left" | "right"])
+      && !(editor?.dragging && selected);
+    let reachable = true;
+    if (armDriven) {
+      const solved = poseArmDrivenWeight(rig, liveObject, livePose, frontalPlane);
+      const transform = solved.transform;
+      reachable = !solved.limited;
+      group.current.position.set(transform.x, transform.y, transform.z);
+      group.current.rotation.set(transform.rotationX * Math.PI / 180, transform.rotationY * Math.PI / 180, transform.rotationZ * Math.PI / 180);
+    }
     group.current.updateWorldMatrix(true, false);
     const sides: ("left" | "right")[] = object.attachment === "both" ? ["left", "right"] : object.attachment === "left" || object.attachment === "right" ? [object.attachment] : [];
     const rotation = group.current.getWorldQuaternion(scratch.rotation);
@@ -213,11 +233,22 @@ function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: 
       group.current.position.copy(group.current.parent!.worldToLocal(constrainSupportedWeight(center, supports)));
       group.current.updateWorldMatrix(true, false);
     }
-    let reachable = true;
     for (const side of sides) {
+      if (armDriven) break;
       const grip = group.current.localToWorld(weightGripPoint(object, side));
       const lock = object.elbowLocks?.[side];
-      reachable = reachStudioGrip(rig, side, grip, rotation, livePose[`${side}-wrist`], lock ? studioPointToWorld(lock, body) : undefined) < 0.005 && reachable;
+      const automatic = !lock ? object.slug === "barbell"
+        ? { ...solveBarbellGrip(rig, side, livePose, grip, new Vector3(1, 0, 0).applyQuaternion(rotation), frontalPlane), transform: liveObject }
+        : solveDumbbellGrip(rig, { ...liveObject, attachment: side }, livePose, grip, frontalPlane) : null;
+      if (automatic) {
+        if (object.slug === "dumbbell" && object.attachment !== "both") {
+          const transform = automatic.transform;
+          group.current.position.set(transform.x, transform.y, transform.z);
+          group.current.rotation.set(transform.rotationX * Math.PI / 180, transform.rotationY * Math.PI / 180, transform.rotationZ * Math.PI / 180);
+          group.current.updateWorldMatrix(true, true);
+        }
+        reachable = !automatic.limited && reachable;
+      } else reachable = reachStudioGrip(rig, side, grip, rotation, livePose[`${side}-wrist`], lock ? studioPointToWorld(lock, body) : undefined) < 0.005 && reachable;
     }
     const request = editor?.captureElbow;
     if (request?.objectId === object.id && request !== captured.current) {
@@ -227,8 +258,17 @@ function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: 
     if (lastReach.current !== reachable) { lastReach.current = reachable; editor?.onGripReach(object.id, reachable); }
   }, -1);
   return <>
-    <group ref={group} {...dragEvents} position={[object.x, object.y, object.z]} rotation={[object.rotationX, object.rotationY, object.rotationZ].map(value => value * Math.PI / 180) as [number, number, number]} scale={object.scale}
-      onClick={editor && editor.interactionEnabled !== false ? event => { event.stopPropagation(); if (event.delta < 3) editor.onSelect({ kind: "object", id: object.id }); } : undefined}
+    <group ref={group} {...dragEvents} userData={{ workshopObjectId: object.id }} position={[object.x, object.y, object.z]} rotation={[object.rotationX, object.rotationY, object.rotationZ].map(value => value * Math.PI / 180) as [number, number, number]} scale={object.scale}
+      onClick={editor && editor.interactionEnabled !== false ? event => {
+        event.stopPropagation();
+        if (event.delta >= 3) return;
+        if (picking && !cable && editor.gripEdit) {
+          const side = editor.gripEdit.side;
+          const automatic = isStudioMachine(object.slug) ? machineHandlePoint(currentObject.current, side) : weightGripPoint({ ...object, gripOffsets: undefined }, side);
+          const point = group.current.worldToLocal(event.point.clone()).sub(automatic);
+          editor.onGripPoint?.(object.id, side, { x: point.x, y: point.y, z: point.z });
+        } else if (!picking) editor.onSelect({ kind: "object", id: object.id });
+      } : undefined}
       onContextMenu={editor?.onRequestMove ? event => { event.stopPropagation(); event.nativeEvent.preventDefault(); editor.onRequestMove?.({ kind: "object", id: object.id }); } : undefined}
       onDoubleClick={editor?.onActivate ? event => { event.stopPropagation(); if (event.delta < 3) editor.onActivate?.({ kind: "object", id: object.id }); } : undefined}>
       <group ref={onGeometry}>{isStudioMachine(object.slug) ? <StudioMachine object={object} currentObject={currentObject} editor={editor} rig={rig} group={group} pose={pose} /> : object.slug === "cable-machine" ? <StudioCable object={object} currentObject={currentObject} rig={rig} group={group} pose={pose} editor={editor} />
@@ -240,9 +280,8 @@ function StudioAsset({ object, body, rig, pose, editor, onGeometry }: { object: 
             <Beam from={[x, 1.4, -0.3]} to={[x, 1.4, 0.5]} radius={0.025} />
           </group>)}<Beam from={[-0.65, 2.3, -0.3]} to={[0.65, 2.3, -0.3]} />
         </> : <Weights barbell={object.slug === "barbell"} />}</group>
-      {selected && <mesh position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.45, 0.48, 48]} /><meshBasicMaterial color="#2b9891" /></mesh>}
+      {!cable && editor?.gripEdit?.objectId === object.id && <StudioGripMarker side={editor.gripEdit.side} getPoint={() => isStudioMachine(object.slug) ? machineGripPoint(currentObject.current, editor.gripEdit!.side) : weightGripPoint(object, editor.gripEdit!.side)} />}
     </group>
-    {selected && <SelectionOutline target={group} />}
-    {editor && editor.interactionEnabled !== false && !editor.placementLockedIds?.includes(object.id) && selected && editor.tool !== "select" && !editor.playing && <Handles object={group} mode={editor.tool} editor={editor} onCommit={target => editor.onObjectChange(object.id, readSceneTransform(target))} />}
+    {editor && !picking && editor.interactionEnabled !== false && !editor.placementLockedIds?.includes(object.id) && selected && editor.tool !== "select" && !(automaticDumbbell && editor.tool === "rotate") && !editor.playing && <Handles object={group} mode={editor.tool} editor={editor} onCommit={target => editor.onObjectChange(object.id, readSceneTransform(target))} />}
   </>;
 }

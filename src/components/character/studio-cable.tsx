@@ -1,12 +1,14 @@
 "use client";
 
 import { useMotionFrame } from "./motion-frame";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Group, Quaternion, Vector3 } from "three";
+import { Group, Object3D, Quaternion, Vector3 } from "three";
 import { createCableGeometry, updateCableGeometry } from "@/lib/motion/cable-geometry";
 import type { AnatomyRig } from "@/lib/motion/anatomy";
-import { studioCableFrame } from "@/lib/motion/studio-cable";
+import { cableLocalGrip, studioCableFrame } from "@/lib/motion/studio-cable";
+import { gripOffset } from "@/lib/motion/grip-edit";
+import { StudioGripMarker } from "./studio-grip-marker";
 import { maxPulleyHeight } from "@/lib/motion/studio";
 import { alignedCableTransform } from "@/lib/motion/studio-constraints";
 import type { RigPose, StudioObject } from "@/lib/motion/workshop";
@@ -22,7 +24,8 @@ function Shaft({ from, to, radius = 0.022, color = "#627479" }: { from: [number,
 
 export function StudioCable({ object, currentObject, rig, group, pose, editor, showTower = true }: { object: StudioObject; currentObject?: React.RefObject<StudioObject>; rig: AnatomyRig; group: React.RefObject<Group>; pose: RigPose; editor?: StudioEditor; showTower?: boolean }) {
   const frameRef = useMotionFrame();
-  const drag = useCableDrag(rig, object, editor);
+  const editing = editor?.gripEdit?.objectId === object.id ? editor.gripEdit : null;
+  const drag = useCableDrag(rig, object, editing?.picking && editor ? { ...editor, interactionEnabled: false } : editor);
   const scratch = useMemo(() => ({ inverse: new Quaternion(), rotation: new Quaternion(), point: new Vector3(), tip: new Vector3(), points: Array.from({ length: 6 }, () => new Vector3()) }), []);
   const end = useRef<Group>(null), left = useRef<Group>(null), right = useRef<Group>(null);
   const knot = useRef<Group>(null);
@@ -30,6 +33,13 @@ export function StudioCable({ object, currentObject, rig, group, pose, editor, s
   const wire = useMemo(() => createCableGeometry(), []);
   const lastReach = useRef<boolean | null>(null);
   const kind = object.cableAttachment ?? "d-handle";
+  const pick = (event: ThreeEvent<MouseEvent>, target: Object3D, ropeSide?: "left" | "right") => {
+    if (!editing?.picking || editor?.interactionEnabled === false || event.delta >= 3 || ropeSide && ropeSide !== editing.side) return;
+    event.stopPropagation();
+    const automatic = kind === "rope" || kind === "cuff" ? new Vector3() : cableLocalGrip(kind, editing.side).point;
+    const point = target.worldToLocal(event.point.clone()).sub(automatic);
+    editor?.onGripPoint?.(object.id, editing.side, { x: point.x, y: point.y, z: point.z });
+  };
   useEffect(() => () => wire.dispose(), [wire]);
   useFrame(() => {
     if (!group.current || !end.current) return;
@@ -73,7 +83,7 @@ export function StudioCable({ object, currentObject, rig, group, pose, editor, s
     </>}
     <lineSegments geometry={wire}><lineBasicMaterial color="#34484b" /></lineSegments>
     {(kind === "rope" || kind === "cuff") && <group ref={knot}>{kind === "rope" && <StudioCableGrab drag={drag} />}<mesh>{kind === "cuff" ? <torusGeometry args={[0.018, 0.005, 8, 20]} /> : <sphereGeometry args={[0.025, 12, 12]} />}<meshStandardMaterial color="#627479" metalness={0.6} /></mesh></group>}
-    <group ref={end} {...drag.meshEvents}>
+    <group ref={end} {...drag.meshEvents} onClick={event => pick(event, event.eventObject)}>
       {kind !== "rope" && <StudioCableGrab drag={drag} />}
       {kind === "cuff" ? <group ref={cuff}>
         <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1, 0.16, 10, 32]} /><meshStandardMaterial color="#263b3b" roughness={0.85} /></mesh>
@@ -92,10 +102,12 @@ export function StudioCable({ object, currentObject, rig, group, pose, editor, s
         </> : kind === "v-bar" ? <><Shaft from={[-0.2, -0.2, 0]} to={[0, 0, 0]} /><Shaft from={[0, 0, 0]} to={[0.2, -0.2, 0]} /></> : null}
       {kind !== "rope" && kind !== "cuff" && <Shaft from={[0, kind === "d-handle" ? 0.2 : 0, 0]} to={[0, kind === "d-handle" ? 0.21 : 0.08, 0]} radius={0.01} />}
       {(kind === "angled-bar" || kind === "lat-bar") && <mesh position={[0, .065, 0]}><torusGeometry args={[.022, .007, 8, 20]} /><meshStandardMaterial color="#627479" metalness={.6} /></mesh>}
+      {editing && kind !== "rope" && <StudioGripMarker side={editing.side} getPoint={() => kind === "cuff" ? gripOffset(object, editing.side) : cableLocalGrip(kind, editing.side, object).point} />}
     </group>
-    {kind === "rope" && (["left", "right"] as const).map(side => <group key={side} ref={side === "left" ? left : right} {...drag.meshEvents}>
+    {kind === "rope" && (["left", "right"] as const).map(side => <group key={side} ref={side === "left" ? left : right} {...drag.meshEvents} onClick={event => pick(event, event.eventObject, side)}>
       <Shaft from={[-0.09, 0, 0]} to={[0.09, 0, 0]} radius={0.018} color="#343d3b" />
       <mesh position={[side === "left" ? 0.11 : -0.11, 0, 0]}><sphereGeometry args={[0.04, 16, 12]} /><meshStandardMaterial color="#263b3b" /></mesh>
+      {editing?.side === side && <StudioGripMarker side={side} getPoint={() => gripOffset(object, side)} />}
     </group>)}
   </>;
 }

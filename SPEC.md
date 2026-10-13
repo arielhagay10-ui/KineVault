@@ -4,7 +4,7 @@ Working name: KineVault.
 
 The core concept is NOT a workout tracker. It is a comprehensive, searchable and community-expandable database of strength-training and gym exercises.
 
-Users should be able to browse exercises, deeply filter them, save favorites, create private custom exercises, and submit new exercises for inclusion in the global database. Public submissions must go through an admin/reviewer moderation workflow before becoming part of the canonical database.
+Users can browse and filter exercises, save favorites, create private custom exercises, and explicitly publish immutable public snapshots immediately. Verification is a separate reviewer decision that improves discovery, alongside favorites, unique visitors, and unique copies. Reviewers can resolve reports and hide or restore public entries. Saving a private draft never publishes it. This policy, approved on 11 October 2026, supersedes the original requirement for approval before publication below; existing submission and review history is retained.
 
 An important part of this product is biomechanical search. Exercises must be filterable not only by muscles and equipment, but also by anatomical joints and joint actions such as:
 

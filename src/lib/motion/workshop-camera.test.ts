@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { Group, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } from "three";
 import { blankWorkshopScene } from "./workshop";
-import { fadeWorkshopEquipment, fitWorkshopCamera, oppositeCameraPosition, zoomCameraPosition } from "./workshop-camera";
+import { fadeWorkshopEquipment, styleWorkshopEquipment, fitWorkshopCamera, oppositeCameraPosition, zoomCameraPosition } from "./workshop-camera";
 import { searchAnatomy } from "./workshop-anatomy-search";
 import { createStudioObject } from "./studio";
 import { createAdjustableBench } from "./adjustable-bench";
@@ -45,6 +45,24 @@ it("fades equipment without changing shared materials and restores it", () => {
   restore();
   expect(mesh.material).toBe(material);
   expect(material.depthWrite).toBe(true);
+});
+
+it("highlights only the selected item and restores materials when selection and fading change", () => {
+  const material = new MeshStandardMaterial({ color: "#263b3b" });
+  const root = new Group(), first = new Group(), second = new Group();
+  first.userData.workshopObjectId = "first"; second.userData.workshopObjectId = "second";
+  const meshes = [new Mesh(undefined, material), new Mesh(undefined, material)];
+  first.add(meshes[0]); second.add(meshes[1]); root.add(first, second);
+  for (const settings of [{ selectedId: "first" }, { faded: true, selectedId: "first" }, { faded: true, selectedId: "second" }, { selectedId: "second" }, {}]) {
+    const restore = styleWorkshopEquipment(root, settings);
+    for (const [index, id] of ["first", "second"].entries()) {
+      expect(meshes[index].material.color.getHex() !== material.color.getHex()).toBe(settings.selectedId === id);
+      expect(meshes[index].material.opacity < .3).toBe(settings.faded === true);
+    }
+    expect(material.opacity).toBe(1); expect(material.color.getHexString()).toBe("263b3b");
+    restore(); expect(meshes.map(mesh => mesh.material)).toEqual([material, material]);
+  }
+  material.dispose(); meshes.forEach(mesh => mesh.geometry.dispose());
 });
 
 it("finds familiar body areas and formal names without changing selection", () => {

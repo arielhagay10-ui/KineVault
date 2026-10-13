@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blankWorkshopScene } from "./workshop";
+import { blankWorkshopScene, identityTransform } from "./workshop";
 import { DraftSaveQueue, clearDraftRecoveryCopies, clearMatchingRecovery, confirmDraftRecovery, draftSnapshot, migrateDraftRecovery, parseDraftRecovery, persistDraftRecovery, readDraftRecovery, removeOwnedDraftRecovery, draftRecoveryKey } from "./workshop-draft";
 
 describe("private workshop recovery", () => {
@@ -7,6 +7,14 @@ describe("private workshop recovery", () => {
     expect(draftRecoveryKey("a", "draft")).not.toBe(draftRecoveryKey("b", "draft"));
     expect(parseDraftRecovery('{"scene":{}}')).toBeNull();
     expect(parseDraftRecovery(JSON.stringify({ scene: blankWorkshopScene, name: "Row", privateId: null, updatedAt: 3 }))).toMatchObject({ name: "Row" });
+  });
+  it("recovers legacy bench contacts without losing the draft or seating", () => {
+    const bench = { ...identityTransform, id: "00000000-0000-4000-8000-000000000001", name: "Bench", slug: "bench", attachment: "both", pulleyHeight: 1.5 };
+    const studio = { body: { ...identityTransform }, objects: [bench], seating: { benchId: bench.id, facing: "supine" } };
+    const recovered = parseDraftRecovery(JSON.stringify({ scene: { ...blankWorkshopScene, studio }, name: "Lying raise", privateId: null, updatedAt: 3 }));
+    expect(recovered?.name).toBe("Lying raise");
+    expect(recovered?.scene.studio?.objects[0].attachment).toBe("none");
+    expect(recovered?.scene.studio?.seating).toEqual(studio.seating);
   });
   it("serializes saves, propagates created ID and never marks newer edits saved", async () => {
     let release!: () => void;

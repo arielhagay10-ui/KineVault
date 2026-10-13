@@ -56,15 +56,15 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       for (const view of grip === "pronated" ? ["Front", "Three-quarter", "Side"] : ["Three-quarter", "Side"]) {
         await page.getByRole("button", { name: view, exact: true }).click();
         for (let step = 0; step <= 8; step++) {
-          await page.getByLabel("Scrub timeline", { exact: true }).fill(String(step * 600));
+          await page.getByLabel("Preview time", { exact: true }).fill(String(step * 600));
           await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
           await page.locator("canvas").screenshot({ path: `${artifacts}/${view.toLowerCase()}-${step}.png` });
         }
       }
       await page.getByRole("button", { name: "Three-quarter", exact: true }).click();
       await page.getByRole("button", { name: "Play", exact: true }).click();
-      const first = Number(await page.getByLabel("Scrub timeline", { exact: true }).inputValue());
-      await expect.poll(async () => Number(await page.getByLabel("Scrub timeline", { exact: true }).inputValue())).not.toBe(first);
+      const first = Number(await page.getByLabel("Preview time", { exact: true }).inputValue());
+      await expect.poll(async () => Number(await page.getByLabel("Preview time", { exact: true }).inputValue())).not.toBe(first);
       await page.getByRole("button", { name: "Pause", exact: true }).click();
       await page.getByRole("button", { name: /^Start ·/ }).click();
       await page.getByLabel(`${machineTravelLabels[slug]} percent`, { exact: true }).fill("42");
@@ -108,11 +108,12 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
         joint_actions: [{ slug: slug === "lat-pulldown-machine" ? "shoulder-adduction" : "knee-extension", role: "primary" }],
       } });
       if (metadata.error) throw metadata.error;
-      await page.goto(`/my-exercises/${created.data}/submit`);
-      await expect(page.getByRole("button", { name: "Submit for review", exact: true })).toBeEnabled();
-      await page.getByRole("button", { name: "Submit for review", exact: true }).click();
-      await expect(page).toHaveURL(/\/submissions\/[0-9a-f-]+$/);
-      const submissionId = page.url().split("/").at(-1)!;
+      // Legacy review snapshots remain supported independently of community publishing.
+      const submitted = await owner.rpc("submit_private_exercise", { p_private_id: created.data, p_duplicate_disposition: "new" });
+      if (submitted.error) throw submitted.error;
+      const submissionId = submitted.data!;
+      await page.goto(`/submissions/${submissionId}`);
+      await expect(page.getByText(/submitted ·/)).toBeVisible();
       const snapshot = await owner.from("exercise_submissions").select("original_content_id").eq("id", submissionId).single();
       if (snapshot.error) throw snapshot.error;
       const frozen = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", snapshot.data.original_content_id).single();

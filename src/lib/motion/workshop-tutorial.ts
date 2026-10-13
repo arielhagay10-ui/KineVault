@@ -5,7 +5,8 @@ export const workshopTutorialSteps = [
     "You can add more items later.",
   ] },
   { id: "pose", title: "Build the movement", mode: "quick", quickStep: 1, target: "pose", tips: [
-    "Edit start, then edit finish. Each change updates that pose.",
+    "Arrange the first position, then choose Save first pose below the preview. Edit finish and choose Save pose. You can return to either pose anytime.",
+    "Moving the figure edits a draft pose. The pose is recorded when you press Save pose.",
     "Use Advanced editing for joint angles, grips and equipment placement.",
   ] },
   { id: "preview", title: "Check your full repetition", mode: "quick", quickStep: 2, target: "playback", tips: [
@@ -14,7 +15,7 @@ export const workshopTutorialSteps = [
   ] },
   { id: "save", title: "Name and save your exercise", mode: "quick", quickStep: 3, target: "save", tips: [
     "Name your exercise and choose Save privately.",
-    "Add details, share a view link, or submit for review from My exercises.",
+    "Add details, share a view link, or publish from My exercises.",
   ] },
 ] as const;
 

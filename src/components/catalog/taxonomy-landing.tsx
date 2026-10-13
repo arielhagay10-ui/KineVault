@@ -40,7 +40,7 @@ export async function TaxonomyLanding({ kind, slug }: { kind: Kind; slug: string
         </div>
         {error ? <p className="text-sm text-red-700 dark:text-red-300">Exercises could not be loaded.</p>
           : rows?.length ? <ExerciseCards rows={rows.slice(0, 24)} />
-            : <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center text-muted-foreground">No reviewed demonstrations yet.</div>}
+            : <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center text-muted-foreground">No exercises yet.</div>}
         {(rows?.length ?? 0) > 24 && <Link href={exploreUrl} className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary">View more <ArrowRight size={16} /></Link>}
       </div>
     </main>

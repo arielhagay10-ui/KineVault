@@ -1,0 +1,12 @@
+<evaluation>
+  <qa_pair><question>Inspect the tool catalog and workshop guide. An agent needs evidence of actual hand contact, rather than accessible control values. Which tool returns that visual evidence as an MCP image? Answer with its tool name.</question><answer>workshop_screenshot</answer></qa_pair>
+  <qa_pair><question>Inspect the guide and tools. After a visible save confirmation, which tool checks that an exercise survives a fresh page load? Answer with its tool name.</question><answer>workshop_reload</answer></qa_pair>
+  <qa_pair><question>Inspect the control schema and guide. Two visible controls have the same name but belong to different named regions. Which target property narrows lookup before choosing an index? Answer with the property name.</question><answer>region</answer></qa_pair>
+  <qa_pair><question>Inspect the open tool schema and guide. Can an agent use a relative path such as ../../admin as an existing draft identifier? Answer true or false.</question><answer>false</answer></qa_pair>
+  <qa_pair><question>Inspect the pointer schema and guide. During mouse editing, which button should an agent choose to orbit the camera rather than drag the selected equipment? Answer with its enum value.</question><answer>right</answer></qa_pair>
+  <qa_pair><question>Inspect the guide and tool schemas. A snapshot lists a button that appears after an asynchronous operation. Which tool waits for that named button without a blind sleep? Answer with its tool name.</question><answer>workshop_wait</answer></qa_pair>
+  <qa_pair><question>Inspect the guide and tool outputs. Does closing an agent browser delete the private drafts that the app already saved? Answer true or false.</question><answer>false</answer></qa_pair>
+  <qa_pair><question>Inspect the snapshot and control schemas. The agent needs to undo an edit using the editor keyboard shortcut. Which control action accepts the shortcut as value? Answer with its enum value.</question><answer>press</answer></qa_pair>
+  <qa_pair><question>Inspect the guide and snapshot schema. A screenshot is visually unclear; which snapshot property records preview readiness separately from browser error diagnostics? Answer with its property name.</question><answer>preview</answer></qa_pair>
+  <qa_pair><question>Inspect the guide and tool schemas. Should an agent assume that its independent browser context also gives it a separate account when all clients use the same saved login? Answer true or false.</question><answer>false</answer></qa_pair>
+</evaluation>

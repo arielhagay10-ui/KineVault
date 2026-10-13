@@ -1,0 +1,13 @@
+export const guide = `Try the actual KineVault workshop using its visible controls.
+
+1. Call workshop_open with no draftId for your own fresh private draft. Existing drafts require explicit authorization and their UUID. If redirected to sign-in, ask the operator to run npm run login in this package, then restart the MCP. Missing server: start npm run dev in KineVault.
+2. Read workshop_snapshot. Use exact names from the current snapshot with workshop_control. Scope duplicate names to a named region or supply an explicit zero-based index. Menus and disclosures must be opened before their hidden controls become available. Hebrew names follow the current UI language.
+3. Quick create walks through equipment, Edit start, Edit finish, preview and Save privately. Advanced editing exposes Equipment, Body, Pose, Contacts and Timeline. Discover actual names from snapshots. Close tutorial if it obscures the preview; replay it when testing onboarding.
+4. Set equipment, body placement, supports and grips before animating. Held weights drive the arms. Enable Animate this item for moving equipment; supports normally stay static. Select the intended pose before editing. Match return to start closes the loop.
+5. Use workshop_screenshot to inspect the actual 3D scene. Pointer coordinates are viewport CSS pixels at the returned 1440 by 1000 viewport. workshop_pointer supports click, double-click, left/right drag and scroll. Right-drag orbits during editing. After each gesture inspect again. Failed gestures release the mouse.
+6. Test Play and Pause, scrub start/middle/finish and return, inspect front and side, and examine hands, feet and supports. Inspect at 0%, 12.5%, 25%, 37.5%, 50%, 62.5%, 75%, 87.5% and 100%. Check reach warnings, sliding, penetration, snapping and the loop seam. Screenshots alone do not establish smooth playback.
+7. Save privately, wait for the visible save confirmation, record the resulting draft URL, then workshop_reload and recheck the movement. App autosave writes real private drafts. Keep experiments in your own draft. Publishing, submission, deletion and editing others' drafts require explicit user authorization.
+8. Report reproducible issues with draft URL, control/action, expected/actual result, time/view and screenshot path. Include errors from snapshots. Distinguish verified results from blocked/untried steps. workshop_close releases your browser; reconnecting starts a fresh browser context.
+
+Tools do not bypass app authentication, authorization, validation, history, recovery or saves. Each MCP process has its own browser context. Agents using the same login share account ownership, so each must create a separate draft. The operator can configure a different auth file/account per agent.
+`;

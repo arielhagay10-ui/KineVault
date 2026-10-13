@@ -16,6 +16,7 @@ export type CableAttachment = typeof cableAttachmentSlugs[number];
 export type StudioObject = SceneTransform & {
   id: string; name: string; slug: typeof studioAssetSlugs[number];
   attachment: "none" | "left" | "right" | "both"; pulleyHeight: number;
+  poseDriver?: "arm" | "weight" | "left-arm" | "right-arm";
   frames?: (SceneTransform & { timeMs: number; machinePosition?: number; machineHandleHeight?: number })[];
   machinePosition?: number;
   machineHandleHeight?: number;
@@ -29,6 +30,7 @@ export type StudioObject = SceneTransform & {
   cuffPosition?: "wrist" | "upper-arm";
   shoulderAlignment?: "left" | "right";
   elbowLocks?: Partial<Record<"left" | "right", ScenePoint>>;
+  gripOffsets?: Partial<Record<"left" | "right", ScenePoint>>;
 };
 export type BenchFacing = "front" | "left" | "right" | "back" | "supine" | "prone";
 export type StudioLayout = { body: SceneTransform; objects: StudioObject[]; frontalPlane?: boolean; presentation?: ScenePresentation; seating?: { benchId: string; facing: BenchFacing } };
@@ -36,7 +38,9 @@ export const identityTransform: SceneTransform = { x: 0, y: 0, z: 0, rotationX: 
 export const blankWorkshopScene: WorkshopScene = {
   motionStyle: "free", durationMs: 3200, cameraAngle: "three_quarter", equipment: null,
   studio: { body: { ...identityTransform }, objects: [] },
-  keyframes: [{ timeMs: 0, poses: {} }, { timeMs: 1600, poses: {} }, { timeMs: 3200, poses: {} }],
+  keyframes: [0, 1600, 3200].map(timeMs => ({ timeMs, poses: {
+    "left-shoulder": { x: 0, y: 0, z: 0 }, "right-shoulder": { x: 0, y: 0, z: 0 },
+  } })),
 };
 export type WorkshopScene = {
   motionStyle?: "free" | "squat" | "hinge" | "row" | "split-squat" | "bench-press" | "seated-curl" | "incline-curl";
@@ -73,8 +77,49 @@ export function jointControlValue(slug: JointSlug, axis: keyof JointAngles, valu
 }
 
 export function jointControlRange(slug: JointSlug, axis: keyof JointAngles): [number, number] {
+  // Manual authoring guardrails use the rig's signs, not clinical ROM axes.
+  // Keep jointLimits unchanged for existing scenes and contact solver readback.
+  // Reference: sportsmedref.amssm.org/physical-examination/shoulder-upper-arm/
+  if (slug.endsWith("shoulder")) {
+    if (axis === "x") return [-160, 50];
+    if (axis === "y") return [-80, 80];
+    return slug.startsWith("left") ? [-170, 50] : [-50, 170];
+  }
+  // Palm rotation belongs to the forearm/wrist control, not a sideways elbow bend.
+  // Adult flexion reference: archive.cdc.gov/www_cdc_gov/ncbddd/jointrom/index.html
+  if (slug.endsWith("elbow")) return axis === "x" ? [0, 150] : [0, 0];
   const [min, max] = jointLimits[slug][axis];
   return slug.endsWith("knee") && axis === "x" ? [-max, -min] : [min, max];
+}
+
+export function clampJointControlAngles(slug: JointSlug, angles: JointAngles): JointAngles {
+  const result = { ...angles };
+  for (const axis of ["x", "y", "z"] as const) {
+    const [min, max] = jointControlRange(slug, axis);
+    const value = jointControlValue(slug, axis, angles[axis]);
+    result[axis] = jointControlValue(slug, axis, Math.max(min, Math.min(max, value)));
+  }
+  if (slug.endsWith("shoulder")) {
+    // XYZ Euler axes combine: even individually valid values can raise the arm
+    // behind the back. Measure the shoulder's local -Y axis in the torso's YZ
+    // plane, without copying anatomy pivots or depending on the rendered rig.
+    const radians = Math.PI / 180, y = result.y * radians, z = result.z * radians;
+    const front = -Math.sin(y) * Math.sin(z), down = Math.cos(z);
+    if (Math.hypot(front, down) > .000001) {
+      const offset = Math.atan2(front, down) / radians;
+      const extension = ((result.x + offset + 540) % 360) - 180;
+      if (extension > 50 + .000001) {
+        const [min, max] = jointControlRange(slug, "x");
+        // Choose the nearest valid boundary: rearward extension or overhead.
+        // At least one lies inside X's 210-degree authoring interval.
+        const candidates = [result.x + 50 - extension, result.x + 180 - extension]
+          .filter(value => value >= min - .000001 && value <= max + .000001);
+        result.x = Math.max(min, Math.min(max, candidates.reduce((closest, value) =>
+          Math.abs(value - result.x) < Math.abs(closest - result.x) ? value : closest)));
+      }
+    }
+  }
+  return result;
 }
 
 export const defaultScene: WorkshopScene = {

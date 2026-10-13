@@ -1,10 +1,26 @@
 import { Quaternion, Vector3 } from "three";
 import type { AnatomyRig } from "./anatomy";
 import type { JointAngles, StudioObject } from "./workshop";
+import { gripOffset } from "./grip-edit";
 
 export function weightGripPoint(object: StudioObject, side: "left" | "right") {
-  const half = object.slug === "barbell" ? 0.4 : object.slug === "kettlebell" && object.attachment === "both" ? 0.12 : 0;
-  return new Vector3(side === "left" ? half : -half, 0.2, 0);
+  const half = object.attachment !== "both" ? 0 : object.slug === "barbell" ? 0.4 : object.slug === "kettlebell" ? 0.12 : 0;
+  const base = object.slug === "bench" ? new Vector3(side === "left" ? .24 : -.24, .68, .25)
+    : object.slug === "squat-rack" ? new Vector3(side === "left" ? .65 : -.65, 1.4, .3)
+    : new Vector3(side === "left" ? half : -half, 0.2, 0);
+  return base.add(gripOffset(object, side));
+}
+
+export function changeGripAttachment(object: StudioObject, attachment: StudioObject["attachment"]): StudioObject {
+  const next = { ...object, attachment, gripOffsets: object.gripOffsets ? { ...object.gripOffsets } : undefined };
+  if (attachment === object.attachment || !["barbell", "dumbbell", "kettlebell"].includes(object.slug)) return next;
+  for (const side of ["left", "right"] as const) {
+    if (!object.gripOffsets?.[side]) continue;
+    const point = weightGripPoint(object, side).sub(weightGripPoint({ ...next, gripOffsets: undefined }, side));
+    if (point.toArray().some(value => Math.abs(value) > 2)) throw new Error("Reset the custom grip or move it closer before changing hands.");
+    next.gripOffsets![side] = { x: point.x, y: point.y, z: point.z };
+  }
+  return next;
 }
 
 export const studioGripOffset = (side: "left" | "right") => new Vector3(side === "left" ? 0.03 : -0.03, -0.15, 0.13);
@@ -51,10 +67,11 @@ function alignedGrip(origin: Vector3, target: Vector3, lower: Vector3, upperLeng
     const rotation = shaftRotation.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), angle));
     return { rotation, elbow: target.clone().sub(lower.clone().applyQuaternion(rotation)) };
   });
-  // Vertical shafts put both solutions at the same height. Choose an outward
-  // elbow consistently instead of letting rounding switch the IK branch.
+  // Keep one bend branch as the shaft rotates. Choosing the lowest elbow in
+  // world space swaps branches at a vertical shaft and snaps the whole arm.
+  // Machines can still choose their authored anatomical elbow direction.
   if (elbowPole) return candidates[0].elbow.clone().sub(origin).dot(elbowPole) > candidates[1].elbow.clone().sub(origin).dot(elbowPole) ? candidates[0] : candidates[1];
-  return candidates[0].elbow.y < candidates[1].elbow.y ? candidates[0] : candidates[1];
+  return candidates[0];
 }
 
 // Solve the elbow and palm together, preserving both arm lengths.

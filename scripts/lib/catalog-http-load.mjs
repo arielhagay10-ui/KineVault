@@ -107,6 +107,11 @@ export async function runCatalogHttpLoad({ container, database, options, deadlin
         timeoutMs: options.statementTimeoutMs, deadline });
       const passed = samples[0]?.ok === true;
       report.checks.push({ name, passed });
+      if (!passed && name.endsWith("_next_page_no_gaps")) {
+        const actual = oracle(body);
+        report.paginationDiagnostic = { name, body, expectedIds: expected.map(row => row.exercise_id),
+          actualIds: actual.map(row => row.exercise_id) };
+      }
       save();
       if (!passed) throw new Error(`HTTP correctness check failed: ${name}`);
     };
@@ -116,14 +121,16 @@ export async function runCatalogHttpLoad({ container, database, options, deadlin
       await check(`${role}_unpublished_hidden`, origin + "/exercises?select=id&id=in.(" + hidden.join(",") + ")", [], headers, {}, "GET");
     }
     const cursor = (sort, offset) => JSON.parse(sql(`select row_to_json(r) from (select e.id exercise_id,s.normalized_name,
-      e.published_at,e.favorite_count from public.exercises e join public.exercise_search s on s.exercise_id=e.id
-      where e.status='published' order by ${sort === "alphabetical" ? "s.normalized_name,e.id" : sort === "newest" ? "e.published_at desc,e.id desc" : "e.favorite_count desc,e.id desc"}
+      e.published_at,e.favorite_count,e.discovery_score from public.exercises e join public.exercise_search s on s.exercise_id=e.id
+      where e.status='published' order by ${sort === "recommended" ? "e.discovery_score desc,e.published_at desc,e.id desc" : sort === "alphabetical" ? "s.normalized_name,e.id" : sort === "newest" ? "e.published_at desc,e.id desc" : "e.favorite_count desc,e.id desc"}
       offset ${offset} limit 1) r;`));
-    const cursorBody = (sort, row) => ({ sort_key: sort, cursor_id: row.exercise_id, ...sort === "alphabetical"
-      ? { cursor_name: row.normalized_name } : sort === "newest" ? { cursor_published_at: row.published_at } : { cursor_favorite_count: row.favorite_count } });
+    const cursorBody = (sort, row) => ({ sort_key: sort, cursor_id: row.exercise_id, ...sort === "recommended"
+      ? { cursor_score: row.discovery_score, cursor_published_at: row.published_at } : sort === "alphabetical"
+        ? { cursor_name: row.normalized_name } : sort === "newest" ? { cursor_published_at: row.published_at } : { cursor_favorite_count: row.favorite_count } });
     const deepOffset = Math.floor(report.fixture.published * 0.9);
     const cases = [
-      { name: "alphabetical", body: {} },
+      { name: "recommended", body: { sort_key: "recommended" } },
+      { name: "alphabetical", body: { sort_key: "alphabetical" } },
       { name: "exact_name", body: { search_text: "Dumbbell Lateral Raise" } },
       { name: "broad_search", body: { search_text: "press" } },
       { name: "alias", body: { search_text: "side lift" } },
@@ -133,7 +140,7 @@ export async function runCatalogHttpLoad({ container, database, options, deadlin
       { name: "joint_and_cable", body: { joint_action_slugs: ["shoulder-abduction"], equipment_slugs: ["cable"] } },
       { name: "combined_anatomy", body: { primary_muscle_slugs: ["lateral-deltoid"], joint_action_slugs: ["shoulder-abduction"], equipment_slugs: ["cable"], resistance_profiles: ["unknown"] } },
     ];
-    for (const sort of ["alphabetical", "newest", "most_favorited"]) {
+    for (const sort of ["recommended", "alphabetical", "newest", "most_favorited"]) {
       const first = oracle({ sort_key: sort, page_size: 48 });
       if (first.length !== 49) throw new Error("Pagination fixtures require at least 49 rows");
       const body = { ...cursorBody(sort, first[23]), page_size: 24 };
@@ -141,7 +148,7 @@ export async function runCatalogHttpLoad({ container, database, options, deadlin
       cases.push({ name: `${sort}_next_page`, body });
       cases.push({ name: `deep_${sort}`, body: cursorBody(sort, cursor(sort, deepOffset)), cursorOffset: deepOffset });
     }
-    const searchRows = oracle({ search_text: "press", page_size: 48 });
+    const searchRows = oracle({ search_text: "press", sort_key: "alphabetical", page_size: 48 });
     const searchBody = { search_text: "press", ...cursorBody("alphabetical", searchRows[23]), page_size: 24 };
     await check("search_next_page_no_gaps", origin + "/rpc/explore_exercises", searchRows.slice(24, 49), {}, searchBody);
     cases.push({ name: "search_next_page", body: searchBody });

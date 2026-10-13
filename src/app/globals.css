@@ -133,6 +133,26 @@
   .dark { color-scheme: dark; }
   ::selection { background: var(--accent); color: var(--accent-foreground); }
   input, textarea { caret-color: var(--primary); }
+  :where(
+    button,
+    a[href],
+    summary,
+    select,
+    input:is([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="file"], [type="color"], [type="range"]),
+    [role="button"],
+    [role="link"],
+    [role="checkbox"],
+    [role="radio"],
+    [role="switch"],
+    [role="tab"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"],
+    label:has(input:is([type="checkbox"], [type="radio"]):enabled)
+  ):not(:disabled, [aria-disabled="true"], [data-disabled]) {
+    cursor: pointer;
+  }
   * { scrollbar-color: var(--ring) transparent; scrollbar-width: none; scrollbar-gutter: auto; }
   ::-webkit-scrollbar { width: 0; height: 0; }
   ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }

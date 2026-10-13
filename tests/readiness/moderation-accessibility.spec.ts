@@ -89,8 +89,10 @@ test("populated submission, review, history and signed media expose accessible c
       } });
       if (scene.error) throw scene.error;
       await ownerPage.goto(`/my-exercises/${draft.data}/submit`);
-      await expect(ownerPage.getByRole("button", { name: "Submit for review", exact: true })).toBeVisible();
-      await scanThemes(ownerPage, `${render ? "media" : "changes"}-submission-form`);
+      await expect(ownerPage.getByRole("heading", { name: "Publish exercise", exact: true })).toBeVisible();
+      await expect(ownerPage.getByRole("button", { name: "Publish exercise", exact: true })).toBeVisible();
+      await scanThemes(ownerPage, `${render ? "media" : "changes"}-publication-confirmation`);
+      // Seed the retained review workflow directly; publication no longer requires review.
       const submission = await owner.rpc("submit_private_exercise", { p_private_id: draft.data, p_duplicate_disposition: "new" });
       if (submission.error) throw submission.error;
       if (render) {

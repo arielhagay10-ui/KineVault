@@ -2,6 +2,7 @@ import { z } from "zod";
 import { cableAttachmentSlugs, jointLimits, jointSlugs, studioAssetSlugs } from "./workshop";
 import { maxPulleyHeight, studioAttachmentSlots } from "./studio";
 import { isStudioMachine } from "./studio-machines";
+import { equipmentGripHands } from "./equipment-capabilities";
 
 const finite = z.number().finite();
 const transformFields = {
@@ -20,6 +21,7 @@ export const studioLayoutSchema = z.object({
   objects: z.array(z.object({
     ...transformFields, id: z.uuid(), name: z.string().trim().min(1).max(60), slug: z.enum(studioAssetSlugs),
     attachment: z.enum(["none", "left", "right", "both"]), pulleyHeight: finite.min(0.2).max(maxPulleyHeight),
+    poseDriver: z.enum(["arm", "weight", "left-arm", "right-arm"]).optional(),
     frames: z.array(z.object({ ...transformFields, timeMs: z.number().int().min(0).max(60_000), machinePosition: finite.min(0).max(1).optional(), machineHandleHeight: finite.min(0.7).max(1.85).optional() }).strict()).min(1).max(24).optional(),
     machinePosition: finite.min(0).max(1).optional(),
     machineHandleHeight: finite.min(0.7).max(1.85).optional(),
@@ -32,6 +34,10 @@ export const studioLayoutSchema = z.object({
     cableAttachment: z.enum(cableAttachmentSlugs).optional(),
     cuffPosition: z.enum(["wrist", "upper-arm"]).optional(),
     shoulderAlignment: z.enum(["left", "right"]).optional(),
+    gripOffsets: z.object({
+      left: z.object({ x: finite.min(-2).max(2), y: finite.min(-2).max(2), z: finite.min(-2).max(2) }).strict().optional(),
+      right: z.object({ x: finite.min(-2).max(2), y: finite.min(-2).max(2), z: finite.min(-2).max(2) }).strict().optional(),
+    }).strict().optional(),
     elbowLocks: z.object({
       left: z.object({ x: finite.min(-10).max(10), y: finite.min(-3).max(10), z: finite.min(-10).max(10) }).strict().optional(),
       right: z.object({ x: finite.min(-10).max(10), y: finite.min(-3).max(10), z: finite.min(-10).max(10) }).strict().optional(),
@@ -43,6 +49,7 @@ export const studioLayoutSchema = z.object({
   const hands = new Set<string>();
   if (layout.objects.filter(object => object.machineUse).length > 1) context.addIssue({ code: "custom", path: ["objects"], message: "Use one machine at a time" });
   for (const [index, object] of layout.objects.entries()) {
+    if (object.poseDriver !== undefined && !["dumbbell", "barbell", "kettlebell"].includes(object.slug)) context.addIssue({ code: "custom", path: ["objects", index, "poseDriver"], message: "Pose driving requires a held weight" });
     if (object.slug !== "cable-row-machine") {
       if (object.machineHandleHeight !== undefined) context.addIssue({ code: "custom", path: ["objects", index, "machineHandleHeight"], message: "Handle height requires a cable row" });
       object.frames?.forEach((frame, frameIndex) => { if (frame.machineHandleHeight !== undefined) context.addIssue({ code: "custom", path: ["objects", index, "frames", frameIndex, "machineHandleHeight"], message: "Handle height requires a cable row" }); });
@@ -62,9 +69,7 @@ export const studioLayoutSchema = z.object({
     for (const side of ["left", "right"] as const) {
       if (object.elbowLocks?.[side] && (!["barbell", "dumbbell", "kettlebell"].includes(object.slug) || ![side, "both"].includes(object.attachment))) context.addIssue({ code: "custom", path: ["objects", index, "elbowLocks", side], message: "Elbow locks require a weight held by that hand" });
     }
-    if (object.attachment !== "none" && !["barbell", "dumbbell", "kettlebell", "cable-machine", "cable-row-machine"].includes(object.slug)
-      || object.slug === "cable-row-machine" && object.attachment !== "none" && !object.cableAttachment
-      || object.attachment === "both" && !["barbell", "kettlebell"].includes(object.slug) && !(["cable-machine", "cable-row-machine"].includes(object.slug) && !["d-handle", "cuff"].includes(object.cableAttachment ?? "d-handle"))) context.addIssue({ code: "custom", path: ["objects", index, "attachment"], message: "This equipment cannot use that grip" });
+    if (object.attachment !== "none" && !equipmentGripHands(object).includes(object.attachment)) context.addIssue({ code: "custom", path: ["objects", index, "attachment"], message: "This equipment cannot use that grip" });
     for (const hand of studioAttachmentSlots(object)) {
       if (hands.has(hand)) context.addIssue({ code: "custom", path: ["objects", index, "attachment"], message: "A hand can hold one item at a time" });
       hands.add(hand);

@@ -40,8 +40,10 @@ test("row start and finish heights move independently and survive private save/r
     await inspectMachineMoment(page, "Cable row", "Start");
     await expect(height).toHaveValue("1.23");
     await height.fill("1.1"); await height.press("Enter");
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
     await inspectMachineMoment(page, "Cable row", "Finish");
     await height.fill("1.45"); await height.press("Enter");
+    await page.getByRole("button", { name: "Save pose", exact: true }).click();
     await setWorkshopMode(page, "quick");
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await page.getByRole("button", { name: "Save privately", exact: true }).click();

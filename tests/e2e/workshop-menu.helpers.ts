@@ -91,7 +91,12 @@ export async function selectWorkshopObject(page: Page, name: string) {
 
 export async function selectWorkshopJoint(page: Page, name: string) {
   await openWorkshopTool(page, "Pose");
-  await page.getByRole("combobox", { name: "Body joint", exact: true }).selectOption(name.toLowerCase().replaceAll(" ", "-"));
+  const [side, family] = name.trim().toLowerCase().split(/\s+/, 2);
+  await page.getByRole("combobox", { name: "Body joint", exact: true }).selectOption(family ?? side);
+  if (family) {
+    const sideName = side.charAt(0).toUpperCase() + side.slice(1);
+    await page.getByRole("group", { name: "Body side", exact: true }).getByRole("button", { name: sideName, exact: true }).click();
+  }
 }
 
 export function jointField(page: Page, axis: "x" | "y" | "z", range = false) {

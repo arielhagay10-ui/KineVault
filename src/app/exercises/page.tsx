@@ -69,6 +69,7 @@ export default async function ExplorePage({ searchParams }: Props) {
       cursor_name: params.cursor?.name,
       cursor_published_at: params.cursor?.publishedAt,
       cursor_favorite_count: params.cursor?.favoriteCount,
+      cursor_score: params.cursor?.score,
       cursor_id: params.cursor?.id,
       page_size: 24,
     }),
@@ -91,6 +92,7 @@ export default async function ExplorePage({ searchParams }: Props) {
   let nextCursor: ExploreCursor | null = null;
   if (hasMore && last) {
     nextCursor = { sort: params.sort, id: last.exercise_id };
+    if (params.sort === "recommended") { nextCursor.score = last.discovery_score; nextCursor.publishedAt = last.published_at; }
     if (params.sort === "alphabetical") nextCursor.name = last.normalized_name;
     if (params.sort === "newest") nextCursor.publishedAt = last.published_at;
     if (params.sort === "most_favorited") nextCursor.favoriteCount = last.favorite_count;
@@ -160,6 +162,7 @@ export default async function ExplorePage({ searchParams }: Props) {
               <label className="mt-4 block text-sm font-semibold" htmlFor="sort">Sort by</label>
               <select id="sort" name="sort" defaultValue={params.sort}
                 className="mt-2 min-h-11 w-full rounded-[8px] border border-input bg-card px-3 py-2.5 text-sm">
+                <option value="recommended">Recommended</option>
                 <option value="alphabetical">Alphabetical</option>
                 <option value="newest">Newest</option>
                 <option value="most_favorited">Most favorited</option>
@@ -180,7 +183,7 @@ export default async function ExplorePage({ searchParams }: Props) {
                 const label = taxonomy?.find(option => option.slug === value)?.name ?? value.replaceAll("_", " ").replaceAll("-", " ");
                 const query = new URLSearchParams();
                 if (params.query) query.set("q", params.query);
-                if (params.sort !== "alphabetical") query.set("sort", params.sort);
+                if (params.sort !== "recommended") query.set("sort", params.sort);
                 for (const [otherField, otherName] of filterParamNames) for (const selected of params[otherField]) {
                   if (otherName !== name || selected !== value) query.append(otherName, selected);
                 }

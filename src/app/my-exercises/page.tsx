@@ -18,7 +18,7 @@ export default async function MyExercisesPage({ searchParams }: { searchParams: 
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, 10000) : 1;
   const pageSize = 12;
   const { data: exercises, error, count } = await supabase.from("private_exercises")
-    .select("id,content_id,updated_at,exercise_content(name,short_description)", { count: "exact" })
+    .select("id,content_id,catalog_candidate_id,updated_at,exercise_content(name,short_description)", { count: "exact" })
     .eq("owner_id", identity.userId).order("updated_at", { ascending: false }).order("id")
     .range((page - 1) * pageSize, page * pageSize - 1);
   const drafts = await Promise.all((exercises ?? []).map(async item => {
@@ -33,7 +33,7 @@ export default async function MyExercisesPage({ searchParams }: { searchParams: 
           <div>
 
             <h1 className="mt-2 text-[1.9375rem] font-semibold leading-[1.16] tracking-[-0.035em] sm:text-[2.375rem] sm:leading-[1.15]">My exercises</h1>
-            <p className="mt-3 text-[0.9375rem] leading-[1.65] text-muted-foreground">Your drafts stay private until you decide to share or submit them.</p>
+            <p className="mt-3 text-[0.9375rem] leading-[1.65] text-muted-foreground">Your drafts stay private until you share a link or publish a public copy.</p>
           </div>
           <Link href="/my-exercises/new" className="inline-flex min-h-11 items-center gap-2 rounded-[8px] bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Plus size={17} aria-hidden /> New exercise</Link>
         </div>
@@ -50,6 +50,7 @@ export default async function MyExercisesPage({ searchParams }: { searchParams: 
                 <div className="mt-5 flex flex-wrap items-center gap-3">
                   <Link href={`/my-exercises/${item.id}/workshop`} className="inline-flex min-h-11 items-center gap-2 rounded-[8px] bg-primary px-4 py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90">Resume draft <ArrowRight size={16} /></Link>
                   <Link href={`/my-exercises/${item.id}/edit`} className="min-h-11 py-3 text-base text-primary underline">Optional details</Link>
+                  <Link href={`/my-exercises/${item.id}/submit`} className="min-h-11 py-3 text-base text-primary underline">{item.catalog_candidate_id ? "Submit for review" : "Publish exercise"}</Link>
                   <DuplicatePrivateButton privateId={item.id} />
                 </div>
               </article>

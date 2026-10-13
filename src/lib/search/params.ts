@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
-export type ExploreSort = "alphabetical" | "newest" | "most_favorited";
+export type ExploreSort = "recommended" | "alphabetical" | "newest" | "most_favorited";
 
 const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const slugs = z.array(slug).max(20);
-const sort = z.enum(["alphabetical", "newest", "most_favorited"]);
+const sort = z.enum(["recommended", "alphabetical", "newest", "most_favorited"]);
 const filters = z.object({
   query: z.string().max(100),
   muscles: slugs,
@@ -39,6 +39,7 @@ const cursorSchema = z.object({
   name: z.string().optional(),
   publishedAt: z.iso.datetime({ offset: true }).optional(),
   favoriteCount: z.number().int().nonnegative().optional(),
+  score: z.number().finite().min(0).max(1_000_000).optional(),
 });
 
 export type ExploreCursor = z.infer<typeof cursorSchema>;
@@ -83,7 +84,7 @@ export function encodeCursor(cursor: ExploreCursor): string {
 export function parseExploreParams(raw: RawSearchParams): ExploreParams | null {
   const input: Record<string, unknown> = {
     query: first(raw.q) ?? "",
-    sort: first(raw.sort) ?? "alphabetical",
+    sort: first(raw.sort) ?? "recommended",
   };
   for (const [field, paramName] of filterParamNames) input[field] = list(raw[paramName]);
   const parsed = filters.safeParse(input);
@@ -97,6 +98,7 @@ export function parseExploreParams(raw: RawSearchParams): ExploreParams | null {
       const decoded: unknown = JSON.parse(Buffer.from(rawCursor, "base64url").toString("utf8"));
       const result = cursorSchema.safeParse(decoded);
       if (!result.success || result.data.sort !== parsed.data.sort) return null;
+      if (result.data.sort === "recommended" && (result.data.score === undefined || result.data.publishedAt === undefined)) return null;
       if (result.data.sort === "alphabetical" && result.data.name === undefined) return null;
       if (result.data.sort === "newest" && result.data.publishedAt === undefined) return null;
       if (result.data.sort === "most_favorited" && result.data.favoriteCount === undefined) return null;
@@ -115,7 +117,7 @@ export function nextPageUrl(params: ExploreParams, cursor: ExploreCursor): strin
   for (const [field, name] of filterParamNames) {
     for (const value of params[field]) query.append(name, value);
   }
-  if (params.sort !== "alphabetical") query.set("sort", params.sort);
+  if (params.sort !== "recommended") query.set("sort", params.sort);
   query.set("cursor", encodeCursor(cursor));
   return `/exercises?${query.toString()}`;
 }

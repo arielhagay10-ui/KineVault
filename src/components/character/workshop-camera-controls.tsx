@@ -17,18 +17,18 @@ export function WorkshopPreviewFallback({ state, onRetry }: { state: "loading" |
   </div>;
 }
 
-export function WorkshopCameraControls({ view, mode, editable, ready, selectionLabel, faded, fullscreen, onViewChange, onModeChange, onAction, onFadeChange, onFullscreen, viewsOnly = false, hideViews = false, hideInteraction = false, hideCommonActions = false }: {
+export function WorkshopCameraControls({ view, mode, editable, ready, selectionLabel, faded, fullscreen, onViewChange, onModeChange, onAction, onFadeChange, onFullscreen, viewsOnly = false, hideViews = false, hideInteraction = false, hideCommonActions = false, flushTop = false }: {
   view: ScenePresentation["view"]; mode: WorkshopInteractionMode; editable: boolean; ready: boolean;
   selectionLabel: string | null; faded: boolean; fullscreen: boolean;
   onViewChange: (view: ScenePresentation["view"]) => void;
   onModeChange: (mode: WorkshopInteractionMode) => void;
   onAction: (action: WorkshopCameraAction) => void; onFadeChange: (value: boolean) => void; onFullscreen: () => void;
-  viewsOnly?: boolean; hideViews?: boolean; hideInteraction?: boolean; hideCommonActions?: boolean;
+  viewsOnly?: boolean; hideViews?: boolean; hideInteraction?: boolean; hideCommonActions?: boolean; flushTop?: boolean;
 }) {
   const { t } = useWorkshopLanguage();
   const button = "min-h-11 rounded-lg border border-border bg-card px-3 py-2 text-base disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
   const selected = "border-primary bg-primary text-primary-foreground";
-  return <div role="group" className="mt-3 space-y-3" aria-label={t("Preview controls")}>
+  return <div role="group" className={`${flushTop ? "" : "mt-3 "}space-y-3`} aria-label={t("Preview controls")}>
     {editable && !viewsOnly && !hideInteraction && <div>
       <div className="flex flex-wrap gap-2" aria-label={t("Interaction mode")}>
         {(["camera", "edit"] as const).map(value => <button key={value} type="button" aria-pressed={mode === value} onClick={() => onModeChange(value)} className={`${button} ${mode === value ? selected : ""}`}>{t(value === "camera" ? "Camera" : "Edit")}</button>)}

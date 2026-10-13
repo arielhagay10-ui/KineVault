@@ -24,3 +24,26 @@ export async function reviseExercise(_previous: ReviewActionState, form: FormDat
   revalidatePath("/families", "layout");
   return { error: null, message: "A new reviewed version was published. Earlier versions are preserved." };
 }
+
+export type ModerationState = { error: string | null; updated: boolean };
+
+export async function moderatePublicExercise(_previous: ModerationState, formData: FormData): Promise<ModerationState> {
+  await requireRole(["reviewer", "admin"]);
+  const parsed = z.object({ exerciseId: z.uuid(), action: z.enum(["verify", "hide", "restore", "unverify", "resolve_reports"]),
+    comment: z.string().trim().min(1, "Enter a moderation reason.").max(2000) })
+    .safeParse({ exerciseId: formData.get("exerciseId"), action: formData.get("action"), comment: formData.get("comment") });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the decision.", updated: false };
+  const input = parsed.data;
+  const supabase = await createClient();
+  const { data: exercise, error: loadError } = await supabase.from("exercises").select("slug").eq("id", input.exerciseId).maybeSingle();
+  if (loadError || !exercise) return { error: "The exercise is unavailable.", updated: false };
+  const result = input.action === "verify"
+    ? await supabase.rpc("verify_community_exercise", { p_exercise_id: input.exerciseId, p_comment: input.comment })
+    : await supabase.rpc("moderate_public_exercise", { p_exercise_id: input.exerciseId, p_action: input.action, p_comment: input.comment });
+  if (result.error) return { error: "Could not apply this decision. Reload and try again.", updated: false };
+  revalidatePath("/exercises");
+  revalidatePath(`/exercises/${exercise.slug}`);
+  revalidatePath("/admin/exercises");
+  revalidatePath(`/admin/exercises/${input.exerciseId}`);
+  return { error: null, updated: true };
+}

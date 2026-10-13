@@ -8,6 +8,7 @@ import { createQuickScene } from "./quick-create";
 import { limbPoseBlock, solveLimbPose, type PoseLimb } from "./limb-pose";
 import { createStudioObject } from "./studio";
 import { forearmRotationForScene } from "./equipment-motion";
+import { studioGripOffset } from "./studio-grip";
 
 async function loadRig() {
   const bytes = await readFile("public/models/z-anatomy/model.glb");
@@ -65,11 +66,13 @@ describe("direct hand and foot posing", () => {
     } finally { rig.dispose(); }
   });
 
-  it("keeps machine, seated and held contacts in charge", () => {
+  it("allows posing with held weights while keeping machine, seated and elbow supports in charge", () => {
     const scene = structuredClone(blankWorkshopScene);
     expect(limbPoseBlock(scene, "left-hand")).toBeUndefined();
     const weight = createStudioObject("dumbbell", "weight", 0); weight.attachment = "left"; scene.studio!.objects.push(weight);
-    expect(limbPoseBlock(scene, "left-hand")).toMatch(/attached equipment/);
+    expect(limbPoseBlock(scene, "left-hand")).toBeUndefined();
+    weight.elbowLocks = { left: { x: .3, y: 1, z: 0 } };
+    expect(limbPoseBlock(scene, "left-hand")).toMatch(/support/i);
     expect(limbPoseBlock(scene, "right-hand")).toBeUndefined();
     expect(limbPoseBlock(scene, "left-foot")).toBeUndefined();
     scene.studio!.objects = [];
@@ -79,6 +82,77 @@ describe("direct hand and foot posing", () => {
     expect(limbPoseBlock(scene, "left-hand")).toBeUndefined();
     scene.motionStyle = "squat";
     expect(limbPoseBlock(scene, "right-foot")).toMatch(/Free posing/);
+  });
+
+  it.each(["left", "right"] as const)("preserves deliberately set %s shoulder twist through a hand drag and return", async side => {
+    const rig = await loadRig();
+    const shoulder = `${side}-shoulder` as const, elbow = `${side}-elbow` as const;
+    let pose: RigPose = { [shoulder]: { x: -25, y: 20, z: side === "left" ? -15 : 15 }, [elbow]: { x: 35, y: 0, z: 0 } };
+    try {
+      for (let step = 0; step <= 32; step++) {
+        const progress = Math.sin(step / 32 * Math.PI);
+        poseAnatomyRig(rig, { [shoulder]: { x: -25 - 45 * progress, y: 20, z: (side === "left" ? -1 : 1) * (15 + 30 * progress) }, [elbow]: { x: 35 + 50 * progress, y: 0, z: 0 } });
+        const target = rig.handBones[side].getWorldPosition(new Vector3());
+        poseAnatomyRig(rig, pose);
+        const previousShoulder = rig.bones[shoulder].quaternion.clone();
+        const result = solveLimbPose(rig, `${side}-hand`, pose, target);
+        expect(result.error).toBeLessThan(.008);
+        expect(result.poses[shoulder]!.y).toBeCloseTo(20, 8);
+        pose = { ...pose, ...result.poses };
+        poseAnatomyRig(rig, pose);
+        expect(rig.handBones[side].getWorldPosition(new Vector3()).distanceTo(target)).toBeLessThan(.008);
+        expect(rig.bones[shoulder].quaternion.angleTo(previousShoulder)).toBeLessThan(.35);
+      }
+    } finally { rig.dispose(); }
+  });
+
+  it.each((["left", "right"] as const).flatMap(side => [-90, -85, 85, 90].map(twist => ({ side, twist }))))("keeps $side hand movements reachable near $twist degrees of shoulder twist at 17 points", async ({ side, twist }) => {
+    const rig = await loadRig();
+    const shoulder = `${side}-shoulder` as const;
+    const pose: RigPose = { [shoulder]: { x: 0, y: twist, z: 0 }, [`${side}-elbow`]: { x: 60, y: 0, z: 0 } };
+    try {
+      for (let step = 0; step <= 16; step++) {
+        const progress = step / 16;
+        poseAnatomyRig(rig, { ...pose, [shoulder]: { x: -60 * progress, y: twist, z: (twist > 0 ? -60 : 60) * progress } });
+        const target = rig.handBones[side].getWorldPosition(new Vector3());
+        poseAnatomyRig(rig, pose);
+        if (Math.abs(twist) === 90) target.copy(rig.handBones[side].getWorldPosition(new Vector3())).add(new Vector3((side === "left" ? -.025 : .025) * progress, 0, 0));
+        const original = rig.bones[shoulder].quaternion.clone();
+        const result = solveLimbPose(rig, `${side}-hand`, pose, target);
+        expect(result.error).toBeLessThan(.008);
+        expect(Math.abs(result.poses[shoulder]!.y - twist)).toBeLessThanOrEqual(10);
+        expect(rig.bones[shoulder].quaternion.toArray()).toEqual(original.toArray());
+        poseAnatomyRig(rig, { ...pose, ...result.poses });
+        expect(rig.handBones[side].getWorldPosition(new Vector3()).distanceTo(target)).toBeLessThan(.008);
+        expect(rig.bones[shoulder].quaternion.angleTo(original)).toBeLessThan(.35);
+      }
+    } finally { rig.dispose(); }
+  });
+
+  it.each((["left", "right"] as const).flatMap(side => [-90, 90].map(twist => ({ side, twist }))))("replays $side palm contacts near $twist shoulder twist in world space at 17 points", async ({ side, twist }) => {
+    const rig = await loadRig(), body = new Group();
+    body.position.set(.4, .2, -.6); body.rotation.set(.1, .4, -.05); body.scale.setScalar(1.2); body.add(rig.root);
+    const shoulder = `${side}-shoulder` as const, elbow = `${side}-elbow` as const;
+    const pose: RigPose = { [shoulder]: { x: 0, y: twist, z: 0 }, [elbow]: { x: 60, y: 0, z: 0 }, [`${side}-wrist`]: { x: 20, y: 30, z: 10 } };
+    const offset = studioGripOffset(side), hand = rig.handBones[side];
+    try {
+      for (let step = 0; step <= 16; step++) {
+        const progress = step / 16;
+        poseAnatomyRig(rig, { ...pose, [shoulder]: { x: -8 * progress, y: twist - Math.sign(twist) * 4 * progress, z: Math.sign(twist) * 8 * progress } });
+        const target = hand.localToWorld(offset.clone());
+        poseAnatomyRig(rig, pose);
+        const original = rig.bones[shoulder].quaternion.clone(), originalElbow = rig.bones[elbow].quaternion.clone();
+        const length = hand.getWorldPosition(new Vector3()).distanceTo(rig.bones[elbow].getWorldPosition(new Vector3()));
+        const result = solveLimbPose(rig, `${side}-hand`, pose, target, false, offset, .0005);
+        expect(result.error).toBeLessThan(.002);
+        expect(rig.bones[shoulder].quaternion.toArray()).toEqual(original.toArray());
+        expect(rig.bones[elbow].quaternion.toArray()).toEqual(originalElbow.toArray());
+        poseAnatomyRig(rig, { ...pose, ...result.poses });
+        expect(hand.localToWorld(offset.clone()).distanceTo(target)).toBeLessThan(.002);
+        expect(hand.getWorldPosition(new Vector3()).distanceTo(rig.bones[elbow].getWorldPosition(new Vector3()))).toBeCloseTo(length, 8);
+        expect(Math.abs(result.poses[shoulder]!.y - twist)).toBeLessThanOrEqual(10);
+      }
+    } finally { rig.dispose(); }
   });
 
   it("keeps the frontal constraint and restores the rig after unreachable or invalid targets", async () => {

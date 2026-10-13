@@ -2,6 +2,22 @@ import { describe, expect, it } from "vitest";
 import { encodeCursor, nextPageUrl, parseExploreParams } from "./params";
 
 describe("Explore URL parameters", () => {
+  it("defaults to recommendations and preserves explicit alphabetical sorting", () => {
+    expect(parseExploreParams({})?.sort).toBe("recommended");
+    expect(parseExploreParams({ sort: "alphabetical" })?.sort).toBe("alphabetical");
+  });
+
+  it("round-trips recommendation score boundaries and rejects incomplete cursors", () => {
+    const params = parseExploreParams({ q: "raise", equipment: "cable" })!;
+    const cursor = { sort: "recommended" as const, id: "00000000-0000-4000-8000-000000000001",
+      publishedAt: "2026-10-11T10:00:00.000Z", score: 7.125 };
+    const url = new URL(nextPageUrl(params, cursor), "https://kinevault.example");
+    expect(url.searchParams.has("sort")).toBe(false);
+    expect(parseExploreParams(Object.fromEntries(url.searchParams))?.cursor).toEqual(cursor);
+    expect(parseExploreParams({ cursor: encodeCursor({ ...cursor, score: undefined }) })).toBeNull();
+    expect(parseExploreParams({ cursor: encodeCursor({ ...cursor, score: -1 }) })).toBeNull();
+    expect(parseExploreParams({ cursor: encodeCursor({ ...cursor, publishedAt: undefined }) })).toBeNull();
+  });
   it("keeps repeated filters and applies all-value groups", () => {
     const parsed = parseExploreParams({
       jointAction: ["shoulder-abduction", "scapular-upward-rotation"],

@@ -113,7 +113,7 @@ describe("pose operations", () => {
     object.frames = [{ ...identityTransform, timeMs: 0, machinePosition: 0.1 }, { ...identityTransform, x: 1, timeMs: 1600, machinePosition: 0.8 }, { ...identityTransform, x: 2, timeMs: 3200, machinePosition: 0.6 }];
     original.keyframes[0].poses.torso = { x: 10, y: 0, z: 0 };
     const result = matchWorkshopLoop(original);
-    expect(result.keyframes.at(-1)?.poses).toEqual({ torso: { x: 10, y: 0, z: 0 } });
+    expect(result.keyframes.at(-1)?.poses).toEqual(original.keyframes[0].poses);
     expect(result.studio!.objects[0].frames?.at(-1)).toEqual({ ...identityTransform, timeMs: 3200, machinePosition: 0.1 });
     expect(result.studio!.objects[0].frames?.[1]).toEqual(object.frames[1]);
   });

@@ -1,7 +1,8 @@
 import { Euler, Group, Quaternion, Vector3 } from "three";
 import { correctAuthoredArmPath, createAnatomyRig, plantAnatomyFeet, poseAnatomyRig, type AnatomyRig } from "./anatomy";
+import { poseArmDrivenWeight } from "./automatic-weight-grip";
 import { forearmRotationForScene } from "./equipment-motion";
-import { sampleStudioObject } from "./studio";
+import { sampleStudioObject, updateStudioObjectTransform } from "./studio";
 import { applyStudioSeating } from "./studio-seat";
 import { identityTransform, sampleWorkshopPose, type CableAttachment, type RigPose, type SceneTransform, type StudioObject, type WorkshopScene } from "./workshop";
 
@@ -23,7 +24,7 @@ export function setFrontalPlane(scene: WorkshopScene, locked: boolean): Workshop
 
 export function setCableAttachment(object: StudioObject, cableAttachment: CableAttachment): StudioObject {
   // Keep cuffPosition as the cable's remembered preference while a handle is used.
-  return { ...object, cableAttachment, cuffPosition: object.cuffPosition ?? (cableAttachment === "cuff" ? "wrist" : undefined),
+  return { ...object, cableAttachment, gripOffsets: cableAttachment === (object.cableAttachment ?? "d-handle") ? object.gripOffsets : undefined, cuffPosition: object.cuffPosition ?? (cableAttachment === "cuff" ? "wrist" : undefined),
     attachment: ["d-handle", "cuff"].includes(cableAttachment) && object.attachment === "both" ? "left" : object.attachment };
 }
 
@@ -42,7 +43,9 @@ export function alignedCableTransform(rig: AnatomyRig, object: StudioObject): Sc
 
 export function resolveStudioObject(scene: WorkshopScene, object: StudioObject, timeMs: number): StudioObject {
   const sampled = sampleStudioObject(object, timeMs);
-  if (sampled.slug !== "cable-machine" || !sampled.shoulderAlignment) return sampled;
+  const armDriven = ["dumbbell", "barbell", "kettlebell"].includes(sampled.slug) && sampled.poseDriver !== undefined && sampled.poseDriver !== "weight"
+    && sampled.attachment !== "none" && !["left", "right"].some(side => (sampled.attachment === side || sampled.attachment === "both") && sampled.elbowLocks?.[side as "left" | "right"]);
+  if (!armDriven && (sampled.slug !== "cable-machine" || !sampled.shoulderAlignment)) return sampled;
   // A mesh-free rig gives numeric controls the same position as the live figure.
   const rig = createAnatomyRig(new Group());
   try {
@@ -54,6 +57,35 @@ export function resolveStudioObject(scene: WorkshopScene, object: StudioObject, 
     poseAnatomyRig(rig, pose, false, forearmRotationForScene(scene));
     plantAnatomyFeet(rig, scene.motionStyle, pose); correctAuthoredArmPath(rig, scene.motionStyle, pose);
     applyStudioSeating(rig, scene.studio, timeMs, pose);
-    return { ...sampled, ...alignedCableTransform(rig, sampled) };
+    return { ...sampled, ...(armDriven ? poseArmDrivenWeight(rig, sampled, pose, scene.studio?.frontalPlane).transform : alignedCableTransform(rig, sampled)) };
   } finally { rig.dispose(); }
+}
+
+/** Preserve the visible arm path before a caller releases its hand attachment. */
+export function materializeArmDrivenWeight(scene: WorkshopScene, object: StudioObject, timeMs: number): StudioObject {
+  if (!["dumbbell", "barbell", "kettlebell"].includes(object.slug) || !object.poseDriver || object.poseDriver === "weight"
+    || object.attachment === "none" || ["left", "right"].some(side => (object.attachment === side || object.attachment === "both") && object.elbowLocks?.[side as "left" | "right"])) return object;
+  const support = scene.studio?.objects.find(item => item.id === scene.studio?.seating?.benchId);
+  const times = [...new Set([timeMs, ...scene.keyframes.map(frame => frame.timeMs),
+    ...(object.frames?.map(frame => frame.timeMs) ?? []), ...(support?.frames?.map(frame => frame.timeMs) ?? []),
+  ])].sort((a, b) => a - b);
+  if (times.length > 24) throw new Error("This change needs more than 24 weight moments. Remove unused moments in Timeline first.");
+  const current = resolveStudioObject(scene, object, timeMs);
+  let materialized = current;
+  for (const time of times) materialized = updateStudioObjectTransform(materialized, time === timeMs ? current : resolveStudioObject(scene, object, time), time, true);
+  return materialized;
+}
+
+export function materializeReleasedArmWeights(previous: WorkshopScene, next: WorkshopScene, timeMs: number): WorkshopScene {
+  if (!previous.studio || !next.studio) return next;
+  let changed = false;
+  const objects = next.studio.objects.map(item => {
+    const old = previous.studio!.objects.find(old => old.id === item.id);
+    if (!old || item.slug !== old.slug || !["dumbbell", "barbell", "kettlebell"].includes(old.slug) || !old.poseDriver || old.poseDriver === "weight" || old.attachment === "none" || item.attachment !== "none") return item;
+    const materialized = materializeArmDrivenWeight(previous, old, timeMs), transform = { ...identityTransform };
+    for (const key of Object.keys(transform) as (keyof SceneTransform)[]) transform[key] = materialized[key];
+    changed = true;
+    return { ...item, ...transform, frames: materialized.frames, poseDriver: undefined };
+  });
+  return changed ? { ...next, studio: { ...next.studio, objects } } : next;
 }
