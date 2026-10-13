@@ -32,12 +32,12 @@ test("workshop keeps posing instructions below controls and hides redundant mode
     const folder = ".local-artifacts/workshop/mode-layout";
     mkdirSync(folder, { recursive: true });
     for (const fullscreen of [false, true]) {
-      if (fullscreen) {
-        await page.getByRole("button", { name: "Full screen", exact: true }).click();
-        await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
-      }
       for (const width of [1440, 800, 390]) {
         await page.setViewportSize({ width, height: 1000 });
+        if (fullscreen) {
+          await page.getByRole("button", { name: "Full screen", exact: true }).click();
+          await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+        }
         for (const mode of ["Move with mouse", "Pose hands and feet", "Camera"]) {
           await modes.getByRole("button", { name: mode, exact: true }).click();
           if (mode === "Pose hands and feet") {
@@ -52,8 +52,11 @@ test("workshop keeps posing instructions below controls and hides redundant mode
           if (mode === "Camera") await expect(modes.getByRole("button", { name: "Reset all joints", exact: true })).toBeHidden();
         }
         await page.screenshot({ path: `${folder}/${fullscreen ? "fullscreen" : "window"}-${width}.png` });
+        if (fullscreen) {
+          await page.evaluate(() => document.exitFullscreen());
+          await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(false);
+        }
       }
-      if (fullscreen) await page.evaluate(() => document.exitFullscreen());
     }
   } finally {
     await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password });
