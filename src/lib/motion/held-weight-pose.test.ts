@@ -33,6 +33,7 @@ describe("posing while holding a weight", () => {
       }
     } finally { rig.dispose(); }
   });
+  // Each case solves 156 articulated poses; allow constrained CI CPUs to finish.
   it.each([1, 2].flatMap(bodyScale => [undefined, -90, 0, 90].map(wristRoll => ({ bodyScale, wristRoll }))))("keeps a shared bar continuous throughout the full elbow bend range with body scale $bodyScale and wrist roll $wristRoll", ({ bodyScale, wristRoll }) => {
     let scene = structuredClone(blankWorkshopScene);
     const bar = { ...createStudioObject("barbell", "bar", 0), scale: bodyScale, attachment: "both" as const };
@@ -60,7 +61,7 @@ describe("posing while holding a weight", () => {
         previousAxis = axis; previousShoulder = shoulder;
       }
     } finally { rig.dispose(); }
-  });
+  }, 30_000);
   it("keeps the shared bar and both arms unchanged when editing a knee", () => {
     let scene = structuredClone(blankWorkshopScene);
     const bar = { ...createStudioObject("barbell", "bar", 0), attachment: "both" as const };
