@@ -24,10 +24,13 @@ for (const appearance of ["light", "dark"] as const) {
     const moderation = page.getByRole("main").locator(`a[href="/admin/exercises/${publishedCableRaise.id}"]`).filter({ hasText: /^Review exercise$/ });
     await expect(moderation).toBeVisible();
     await moderation.click();
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/admin/exercises/${publishedCableRaise.id}$`));
+    await expect(page.getByRole("heading", { level: 1, name: publishedCableRaise.name, exact: true })).toBeVisible();
     await auditAccessibility(page, testInfo, `${appearance}-admin-moderation`);
     await page.getByRole("link", { name: "Review metadata", exact: true }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/admin/exercises/${publishedCableRaise.id}/edit$`));
+    await expect(page.getByRole("heading", { name: "Version history", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: publishedCableRaise.name, exact: true })).toBeVisible();
     await auditAccessibility(page, testInfo, `${appearance}-admin-editor`);
   });
 
