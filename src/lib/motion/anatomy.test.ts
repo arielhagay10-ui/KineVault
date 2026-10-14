@@ -3,7 +3,8 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { Group, Quaternion, Vector3 } from "three";
 import { correctAuthoredArmPath, createAnatomyRig, highlightAnatomyRig, plantAnatomyFeet, poseAnatomyRig } from "./anatomy";
-import { defaultScene, sampleWorkshopPose } from "./workshop";
+import { blankWorkshopScene, defaultScene, sampleWorkshopPose } from "./workshop";
+import { studioGripOffset } from "./studio-grip";
 
 let source: Group;
 beforeAll(async () => {
@@ -13,6 +14,31 @@ beforeAll(async () => {
 });
 
 describe("Z-Anatomy integration", () => {
+  it("rests new workshop hands just outside the hips and thighs throughout the blank loop", () => {
+    const rig = createAnatomyRig(source);
+    const body = rig.meshes.filter(mesh => /gluteus|vastus|rectus_femoris|adductor_(longus|brevis|magnus|minimus)|Hip_bone|abdom/i.test(mesh.name));
+    const point = new Vector3();
+    try {
+      for (let step = 0; step <= 16; step++) {
+        poseAnatomyRig(rig, sampleWorkshopPose(blankWorkshopScene.keyframes, blankWorkshopScene.durationMs * step / 16));
+        for (const side of ["left", "right"] as const) {
+          const sign = side === "left" ? 1 : -1;
+          const palm = rig.handBones[side].localToWorld(studioGripOffset(side));
+          let edge = 0;
+          for (const mesh of body) {
+            const positions = mesh.geometry.getAttribute("position");
+            for (let vertex = 0; vertex < positions.count; vertex++) {
+              mesh.localToWorld(mesh.getVertexPosition(vertex, point));
+              if (Math.abs(point.y - palm.y) < .15) edge = Math.max(edge, point.x * sign);
+            }
+          }
+          const clearance = palm.x * sign - edge;
+          expect(clearance, `${side} palm clearance at ${step}/16`).toBeGreaterThan(.065);
+          expect(clearance).toBeLessThan(.18);
+        }
+      }
+    } finally { rig.dispose(); }
+  });
   it("keeps the home demo dumbbells clear of the torso, hips and thighs throughout the loop", () => {
     const rig = createAnatomyRig(source);
     const body = rig.meshes.filter(mesh => /gluteus|vastus|rectus_femoris|adductor|Hip_bone|abdom|pectoralis|latissimus/i.test(mesh.name));
@@ -146,10 +172,23 @@ describe("Z-Anatomy integration", () => {
   it("turns palms down on lateral raises without bending the wrists", () => {
     const rig = createAnatomyRig(source);
     try {
+      poseAnatomyRig(rig, { "left-shoulder": { x: 0, y: 0, z: -90 }, "right-shoulder": { x: 0, y: 0, z: 90 } }, "left", 0);
+      const before = (["left", "right"] as const).map(side => ({
+        wrist: rig.handBones[side].getWorldPosition(new Vector3()),
+        palm: new Vector3(0, 0, 1).applyQuaternion(rig.handBones[side].getWorldQuaternion(new Quaternion())),
+      }));
       poseAnatomyRig(rig, { "left-shoulder": { x: 0, y: 0, z: -90 }, "right-shoulder": { x: 0, y: 0, z: 90 } }, "left");
-      for (const side of ["left", "right"] as const) {
+      for (const [index, side] of (["left", "right"] as const).entries()) {
         const palm = new Vector3(0, 0, 1).applyQuaternion(rig.handBones[side].getWorldQuaternion(new Quaternion()));
-        expect(palm.y).toBeLessThan(-0.99);
+        const forearm = rig.handBones[side].getWorldPosition(new Vector3()).sub(rig.bones[`${side}-elbow`].getWorldPosition(new Vector3())).normalize();
+        // Native forearms and hand frames are oblique. A palm turn keeps the
+        // wrist fixed and rotates its normal a quarter turn around that forearm.
+        expect(rig.handBones[side].getWorldPosition(new Vector3()).distanceTo(before[index].wrist)).toBeLessThan(.000001);
+        expect(palm.dot(forearm)).toBeCloseTo(before[index].palm.dot(forearm), 6);
+        const originalNormal = before[index].palm.clone().addScaledVector(forearm, -before[index].palm.dot(forearm)).normalize();
+        const turnedNormal = palm.clone().addScaledVector(forearm, -palm.dot(forearm)).normalize();
+        expect(originalNormal.angleTo(turnedNormal)).toBeCloseTo(Math.PI / 2, 6);
+        expect(palm.y).toBeLessThan(-Math.cos(Math.PI / 9));
         expect(rig.handBones[side].rotation.x).toBe(0);
       }
       expect(rig.fingerSegments.filter(segment => segment.side === "right").every(segment => segment.bone.rotation.x === 0)).toBe(true);

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
@@ -14,9 +14,10 @@ async function withAdminFixture(page: Page, run: (fixture: { id: string; slug: s
   const result = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (result.error || !result.data.user) throw result.error ?? new Error("Admin fixture creation failed");
   const id = result.data.user.id;
-  appendFileSync(".local-artifacts/qa/admin-regression-fixtures.jsonl", `${JSON.stringify({ id, email, password, slug })}\n`);
   const sql = (statement: string) => execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", statement], { stdio: "pipe" });
   try {
+    mkdirSync(".local-artifacts/qa", { recursive: true });
+    appendFileSync(".local-artifacts/qa/admin-regression-fixtures.jsonl", `${JSON.stringify({ id, slug })}\n`);
     sql(`begin; select set_config('app.audit_comment','Authorized temporary local admin browser QA.',true); update public.roles set role='admin',assigned_by=user_id where user_id='${id}'; commit;`);
     await page.goto("/sign-in");
     await page.getByLabel("Email", { exact: true }).fill(email);
@@ -85,5 +86,23 @@ test("candidate searches remain bounded without dropping the query", async ({ pa
     await expect(page.getByText("No candidates on this page.", { exact: true })).toBeVisible();
     await page.goto(`/admin/candidates?q=${"x".repeat(101)}`);
     await expect(page.getByText("No candidates on this page.", { exact: true })).toBeVisible();
+  });
+});
+
+test("original candidates keep the review path and canonical identity", async ({ page }) => {
+  await withAdminFixture(page, async () => {
+    await page.goto("/admin/candidates");
+    const candidate = page.getByRole("button", { name: "Prepare demonstration", exact: true }).first();
+    await expect(candidate).toBeVisible();
+    await candidate.click();
+    await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit$/);
+    await page.getByRole("link", { name: "Submit for review", exact: true }).click();
+    await expect(page).toHaveURL(/\/submit$/);
+    await expect(page.getByRole("heading", { name: "Ready for review", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Publish exercise", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Submit for review", exact: true })).toBeVisible();
+    await page.goto("/my-exercises");
+    await expect(page.getByRole("link", { name: "Submit for review", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Publish exercise", exact: true })).toHaveCount(0);
   });
 });

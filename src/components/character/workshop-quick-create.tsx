@@ -11,7 +11,7 @@ import { WorkshopGuidance, useWorkshopGuidance } from "./workshop-guidance";
 
 const button = "inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-base font-semibold disabled:opacity-40";
 const steps = ["Choose equipment", "Start and finish", "Preview", "Name and save"];
-export function WorkshopQuickCreate({ scene, step, onStep, onAddEquipment, onAdd, onPreviewTime, onPoseMoment, onMatchReturn, name, onName, onSave, onDetails, saving, savedId, currentConfirmed, confirmedName, language, onAdvanced, reachWarning, showAddEquipment = true, showSaveAction = true }: {
+export function WorkshopQuickCreate({ scene, step, onStep, onAddEquipment, onAdd, onPreviewTime, onPoseMoment, onMatchReturn, name, onName, onSave, onDetails, saving, savedId, currentConfirmed, confirmedName, language, onAdvanced, reachWarning, showAddEquipment = true, showSaveAction = true, firstPoseSaved = true, finishPoseSaved = true }: {
   scene: WorkshopScene; step: number; onStep: (step: number) => void;
   onAddEquipment: (slug: StudioObject["slug"]) => void; onAdd: () => void; onPreviewTime: (timeMs: number) => void;
   onPoseMoment: (timeMs: number) => void; onMatchReturn: () => void;
@@ -19,6 +19,7 @@ export function WorkshopQuickCreate({ scene, step, onStep, onAddEquipment, onAdd
   language: "en" | "he"; onAdvanced: () => void; reachWarning: boolean;
   currentConfirmed: boolean; confirmedName: string; onDetails: () => void;
   showAddEquipment?: boolean; showSaveAction?: boolean;
+  firstPoseSaved?: boolean; finishPoseSaved?: boolean;
 }) {
   const { t } = useWorkshopLanguage();
   const guidance = useWorkshopGuidance();
@@ -41,8 +42,10 @@ export function WorkshopQuickCreate({ scene, step, onStep, onAddEquipment, onAdd
     </>}
     {step === 1 && <>
       <div className="space-y-3 rounded-xl border p-4">
-        <p className="text-sm leading-6">{t("Edit start, then edit finish. Each change updates that pose.")}</p>
-        <div data-tutorial-target="pose" className="flex w-fit max-w-full flex-wrap gap-2"><button type="button" onClick={() => onPoseMoment(0)} className={button}>{t("Edit start")}</button><button type="button" onClick={() => onPoseMoment(scene.durationMs / 2)} className={button}>{t("Edit finish")}</button></div>
+        <p className="text-sm leading-6">{t("Arrange the first position, then choose Save first pose below the preview. Edit finish and choose Save pose. You can return to either pose anytime.")}</p>
+        <div data-tutorial-target="pose" className="flex w-fit max-w-full flex-wrap gap-2"><button type="button" onClick={() => onPoseMoment(0)} className={button}>{t("Edit start")}</button><button type="button" disabled={!firstPoseSaved} onClick={() => onPoseMoment(scene.durationMs / 2)} className={button}>{t("Edit finish")}</button><button type="button" disabled={!firstPoseSaved} onClick={() => onPoseMoment(scene.durationMs)} className={button}>{t("Edit return")}</button></div>
+        <p className="text-sm text-muted-foreground">{t("Moving the figure edits a draft pose. The pose is recorded when you press Save pose.")}</p>
+        <p className="text-sm text-muted-foreground">{t("Saving the start pose also sets the return. You can edit the return separately.")}</p>
         <button type="button" onClick={onAdvanced} className={button}>{t("Pose body in Advanced")}</button>
         <button type="button" onClick={onMatchReturn} className={button}>{t("Match return to start")}</button>
       {showAddEquipment && <button type="button" onClick={event => { event.currentTarget.focus(); onAdd(); }} className={button}>{t("Add equipment")}</button>}
@@ -60,10 +63,10 @@ export function WorkshopQuickCreate({ scene, step, onStep, onAddEquipment, onAdd
       <div data-tutorial-target="save" className="space-y-3">
       <label className="block text-base font-semibold">{t("Exercise name")}<input value={name} maxLength={160} onChange={event => onName(event.target.value)} autoComplete="off" className="mt-2 min-h-12 w-full rounded-lg border bg-background p-3 font-normal" placeholder={t("For example, seated cable row")} /></label>
       <WorkshopGuidance className="text-sm text-muted-foreground">{t("This stays private. Muscles, classifications and instructions can be added later.")}</WorkshopGuidance>
-      {showSaveAction && <button type="button" onClick={onSave} disabled={saving || name.trim().length < 2} className={`${button} bg-primary text-primary-foreground`}>{t(saving ? "Saving…" : "Save privately")}</button>}
+      {showSaveAction && <button type="button" onClick={onSave} aria-busy={saving} className={`${button} bg-primary text-primary-foreground`}>{t("Save privately")}</button>}
       </div>
       {savedId && currentConfirmed && <article aria-label={t("Saved private exercise")} className="space-y-3 rounded-xl border bg-muted/30 p-4"><h3 className="text-lg font-semibold"><span data-workshop-translate="false">{confirmedName || "Your exercise"}</span> <span className="ms-2 rounded border px-2 py-1 text-sm font-normal">{t("Private")}</span></h3><WorkshopGuidance className="text-sm">{t("Your playable preview is above. Keep editing or add optional details.")}</WorkshopGuidance><button type="button" disabled={saving} onClick={onDetails} className={button}>{t("Add optional details")}</button><Link href="/my-exercises" className={`${button} ms-2`}>{t("My exercises")}</Link></article>}
     </>}
-    <nav aria-label={t("Creation steps")} className="flex flex-wrap justify-between gap-3 border-t pt-4"><button type="button" disabled={step === 0} onClick={() => onStep(step - 1)} className={button}>{t("Back")}</button>{step < 3 && <button type="button" onClick={() => onStep(step + 1)} className={`${button} bg-primary text-primary-foreground`}>{t("Next")}</button>}</nav>
+    <nav aria-label={t("Creation steps")} className="flex flex-wrap justify-between gap-3 border-t pt-4"><button type="button" disabled={step === 0} onClick={() => onStep(step - 1)} className={button}>{t("Back")}</button>{step < 3 && <button type="button" disabled={step === 1 && (!firstPoseSaved || !finishPoseSaved)} onClick={() => onStep(step + 1)} className={`${button} bg-primary text-primary-foreground`}>{t("Next")}</button>}</nav>
   </section>);
 }

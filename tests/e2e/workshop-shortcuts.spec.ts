@@ -65,7 +65,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).not.toBeVisible();
     await setWorkshopMode(page, "advanced");
     const name = page.getByLabel("Exercise name", { exact: true });
-    await name.focus(); await page.keyboard.press("End"); await page.keyboard.type(" revised");
+    await name.focus(); await page.keyboard.press("End"); await page.keyboard.insertText(" revised");
     await page.keyboard.press("Control+z");
     await expect(name).toHaveValue("Keyboard fixture");
     await inspectMachineMoment(page, "Cable row", "Finish");
@@ -91,22 +91,22 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(travel).toHaveValue("31");
     await page.getByRole("tab", { name: "Equipment", exact: true }).click();
     await workshop.focus(); await page.keyboard.press("Control+d");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toBeVisible();
     await page.keyboard.press("Control+z");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(0);
     await page.keyboard.press("Control+Shift+z");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toBeVisible();
-    await selectWorkshopObject(page, "Cable row copy");
+    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true }).click();
     await page.getByRole("tab", { name: "Equipment", exact: true }).click();
     await workshop.focus(); await page.keyboard.press("Delete");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(0);
     await page.keyboard.press("Control+z");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toBeVisible();
     // Modal search keeps its keys; no scene commands leak through the picker.
     await page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
     await page.getByRole("dialog").getByRole("searchbox").press("Control+z");
     await page.getByRole("dialog").getByRole("searchbox").press("Escape");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: "Cable row copy", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toBeVisible();
     await openWorkshopRecovery(page);
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
     mkdirSync(".local-artifacts/workshop/shortcuts", { recursive: true });

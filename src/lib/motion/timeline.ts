@@ -1,5 +1,39 @@
-import { identityTransform, type SceneTransform, type WorkshopScene } from "./workshop";
-import { sampleStudioObject } from "./studio";
+import { identityTransform, sampleWorkshopPose, type SceneTransform, type WorkshopScene, type StudioObject } from "./workshop";
+import { sampleStudioObject, updateStudioObjectTransform } from "./studio";
+import { canCarryWithArm, sampleHeldWeightPose } from "./held-weight-pose";
+
+/** Add sampled moments in each half, retaining every authored moment. */
+export function addEvenlySpacedWorkshopFrames(scene: WorkshopScene, posesPerHalf: number): WorkshopScene {
+  if (!Number.isInteger(posesPerHalf) || posesPerHalf < 2 || posesPerHalf > 12) throw Error("Choose between 2 and 12 poses per movement.");
+  const times = new Set(scene.keyframes.map(frame => frame.timeMs));
+  for (let index = 0; index <= 2 * (posesPerHalf - 1); index++) times.add(Math.round(scene.durationMs * index / (2 * (posesPerHalf - 1))));
+  if (times.size > 24) throw Error("Keep at most 24 poses. Choose fewer evenly spaced poses.");
+  return { ...scene, keyframes: [...times].sort((a, b) => a - b).map(timeMs => scene.keyframes.find(frame => frame.timeMs === timeMs)
+    ?? { timeMs, poses: sampleWorkshopPose(scene.keyframes, timeMs) }) };
+}
+
+export type WorkshopFrameClipboard = { poses: WorkshopScene["keyframes"][number]["poses"]; objects: StudioObject[] };
+
+export function captureWorkshopFrame(scene: WorkshopScene, index: number): WorkshopFrameClipboard {
+  const frame = scene.keyframes[index];
+  if (!frame) throw Error("Select a frame to copy.");
+  const poses = scene.studio?.objects.some(canCarryWithArm) ? sampleHeldWeightPose(scene, frame.timeMs) : frame.poses;
+  return structuredClone({ poses, objects: scene.studio?.objects.filter(item => item.frames?.length).map(item => sampleStudioObject(item, frame.timeMs)) ?? [] });
+}
+
+export function pasteWorkshopFrame(scene: WorkshopScene, index: number, clipboard: WorkshopFrameClipboard): WorkshopScene {
+  const frame = scene.keyframes[index];
+  if (!frame) throw Error("Select a frame to paste.");
+  return { ...scene, keyframes: scene.keyframes.map((item, position) => position === index ? { ...item, poses: structuredClone(clipboard.poses) } : item),
+    ...(scene.studio ? { studio: { ...scene.studio, objects: scene.studio.objects.map(item => {
+      const copied = clipboard.objects.find(object => object.id === item.id);
+      if (!copied) return item;
+      const next = updateStudioObjectTransform(item, copied, frame.timeMs, true);
+      if (next.frames && next.frames.length > 24) throw Error("This change needs more than 24 weight moments. Remove unused moments in Timeline first.");
+      return { ...next, frames: next.frames?.map(point => point.timeMs === frame.timeMs ? { ...point, machinePosition: copied.machinePosition, machineHandleHeight: copied.machineHandleHeight } : point) };
+    }) } } : {}),
+  };
+}
 
 export function retimeWorkshopFrame(scene: WorkshopScene, index: number, timeMs: number): WorkshopScene {
   const frame = scene.keyframes[index];

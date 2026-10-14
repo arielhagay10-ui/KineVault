@@ -1,10 +1,12 @@
 import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { expect, test, type BrowserContext } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { execFileSync } from "node:child_process";
+import { z } from "zod";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { jointField, openWorkshopMenu, selectWorkshopJoint } from "./workshop-menu.helpers";
+import { jointField, openWorkshopMenu, openWorkshopTool, selectWorkshopJoint } from "./workshop-menu.helpers";
 
-test("an owner can save, share, and revoke a private exercise", async ({ page, browser }) => {
+test("an owner can publish a snapshot, keep private edits independent, share and revoke", async ({ page, browser }) => {
   test.setTimeout(90_000);
   page.setDefaultTimeout(15_000);
   const email = `kinevault-e2e-${Date.now()}@example.test`;
@@ -26,7 +28,10 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   userId = account.data.user.id;
 
   await page.goto("/my-exercises/new");
-    await dismissWorkshopTutorial(page);
+  await dismissWorkshopTutorial(page);
+  await page.getByRole("button", { name: "Save first pose", exact: true }).click();
+  await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
+  await page.getByRole("button", { name: "Save pose", exact: true }).click();
   await page.getByRole("button", { name: "Name and save", exact: true }).click();
   await page.getByLabel("Exercise name", { exact: true }).fill("Private Cable Raise");
   await openWorkshopMenu(page);
@@ -39,6 +44,7 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
   await page.getByText("Anatomy (optional)", { exact: true }).click();
   await page.getByRole("group", { name: "Primary muscles" }).getByLabel("Lateral Deltoid").check();
   await page.getByRole("group", { name: "Joint actions" }).getByLabel("Shoulder Abduction", { exact: true }).check();
+  await page.getByText("Edit equipment", { exact: true }).click();
   await page.getByRole("group", { name: "Equipment" }).getByLabel("Cable", { exact: true }).check();
   await page.getByText("Instructions and detailed classifications (optional)", { exact: true }).click();
   await page.getByLabel("Execution", { exact: true }).fill("Raise the upper arm with a controlled motion.");
@@ -53,45 +59,53 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
 
   await page.getByRole("link", { name: "Open motion workshop" }).click();
   await expect(page.getByRole("heading", { name: "Private Cable Raise" })).toBeVisible();
-  await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
-  await page.getByRole("tab", { name: "Settings", exact: true }).click();
-  await page.getByText("Advanced settings", { exact: true }).click();
+  await openWorkshopTool(page, "Settings");
   await page.getByLabel("Legacy demo equipment").selectOption("single-cable");
-  await page.getByRole("tab", { name: "Timeline", exact: true }).click();
-  await page.getByRole("button", { name: /^Finish ·/ }).click();
-  await page.getByRole("tab", { name: "Pose", exact: true }).click();
+  await openWorkshopTool(page, "Timeline");
+  await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
+  await openWorkshopTool(page, "Pose");
   await selectWorkshopJoint(page, "Left shoulder");
   await jointField(page, "z").fill("-80");
   await jointField(page, "z").blur();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
-  await page.getByRole("tab", { name: "Timeline", exact: true }).click();
-  await page.getByRole("button", { name: /^Finish ·/ }).click();
-  await page.getByRole("tab", { name: "Pose", exact: true }).click();
+  await openWorkshopTool(page, "Timeline");
+  await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
+  await openWorkshopTool(page, "Pose");
   await selectWorkshopJoint(page, "Left shoulder");
   await expect(jointField(page, "z")).toHaveValue("-80");
   await openWorkshopMenu(page);
   await page.getByRole("button", { name: "Save & add details", exact: false }).click();
+  await expect(page).toHaveURL(/\/edit(?:\?.*)?$/);
 
-  await page.getByRole("link", { name: "Submit for review" }).click();
-  await expect(page.getByRole("heading", { name: "Ready for review" })).toBeVisible();
-  await page.getByRole("button", { name: "Submit for review" }).click();
-  await expect(page).toHaveURL(/\/submissions\/[0-9a-f-]+$/);
-  await expect(page.getByText(/submitted ·/)).toBeVisible();
+  const privateEditUrl = page.url();
+  await page.getByRole("link", { name: "Publish exercise", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Publish exercise", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Publish exercise", exact: true }).click();
+  await expect(page).toHaveURL(/\/exercises\/[^/]+$/);
+  const publicUrl = page.url();
+  await expect(page.getByText("Community", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Private Cable Raise", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Inspect motion in 3D", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Motion study" })).toBeVisible();
-  await page.getByRole("link", { name: "Edit my private copy" }).click();
+  await page.goto(privateEditUrl);
+  await page.getByLabel("Name", { exact: true }).fill("Private Cable Raise revision");
+  await page.getByRole("button", { name: "Save privately", exact: true }).click();
+  await expect(page).toHaveURL(/saved=1/);
+
+  anonymous = await browser.newContext();
+  const sharedPage = await anonymous.newPage();
+  await sharedPage.goto(publicUrl);
+  await expect(sharedPage.getByRole("heading", { name: "Private Cable Raise", exact: true })).toBeVisible();
+  await expect(sharedPage.getByText("Community", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Create share link" }).click();
   const relativeLink = await page.getByRole("textbox", { name: "Share link" }).inputValue();
   expect(relativeLink).toMatch(/^\/shared\/[A-Za-z0-9_-]{43}$/);
 
-  anonymous = await browser.newContext();
-  const sharedPage = await anonymous.newPage();
   await sharedPage.goto(relativeLink);
-  await expect(sharedPage.getByRole("heading", { name: "Private Cable Raise" })).toBeVisible();
+  await expect(sharedPage.getByRole("heading", { name: "Private Cable Raise revision", exact: true })).toBeVisible();
   await expect(sharedPage.getByText("My cable raise variation.")).toBeVisible();
   await expect(sharedPage.getByRole("heading", { name: "Motion study" })).toBeVisible();
   await expect(sharedPage.getByText("Raise the upper arm with a controlled motion.", { exact: true })).toBeVisible();
@@ -110,7 +124,12 @@ test("an owner can save, share, and revoke a private exercise", async ({ page, b
         const account = await owner.auth.signInWithPassword({ email, password });
         userId = account.data.user?.id;
       }
-      if (userId) await cleanupLocalFixture({ admin, userId, email, password });
+      if (userId) {
+        const fixtureUserId = z.uuid().parse(userId);
+        execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres",
+          "-v", "ON_ERROR_STOP=1", "-c", `update public.exercises set status = 'withdrawn' where created_by = '${fixtureUserId}' and status = 'published';`], { stdio: "pipe" });
+        await cleanupLocalFixture({ admin, userId, email, password });
+      }
     }
   }
 });

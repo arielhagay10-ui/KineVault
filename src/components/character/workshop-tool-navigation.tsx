@@ -12,7 +12,7 @@ export type WorkshopTool = typeof workshopTools[number][0];
 export function WorkshopToolNavigation({ selected, onSelect }: { selected: WorkshopTool | null; onSelect: (tool: WorkshopTool) => void }) {
   const { t, language } = useWorkshopLanguage();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
-  return <div role="tablist" aria-label={t("Workshop tools")} className="grid grid-cols-4 border-b bg-card px-2">
+  return <div role="tablist" aria-label={t("Workshop tools")} className="grid grid-cols-[repeat(auto-fit,minmax(5.25rem,1fr))] gap-x-1 border-b bg-card px-2">
     {workshopTools.map(([tool, name], index) => <button key={tool} ref={element => { buttons.current[index] = element; }} id={`workshop-tool-${tool}`} type="button" role="tab"
       aria-controls={`workshop-panel-${tool}`} aria-selected={selected === tool} tabIndex={selected === tool || !selected && index === 0 ? 0 : -1}
       onClick={() => onSelect(tool)} onKeyDown={event => {

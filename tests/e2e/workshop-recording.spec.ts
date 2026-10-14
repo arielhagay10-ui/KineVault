@@ -1,0 +1,146 @@
+import { randomUUID } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
+import { expect, test } from "@playwright/test";
+import type { Database } from "../../src/lib/database.types";
+import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { automaticWeightTransform } from "../../src/lib/motion/automatic-weight-grip";
+import { createStudioObject } from "../../src/lib/motion/studio";
+import { blankWorkshopScene, type StudioLayout } from "../../src/lib/motion/workshop";
+import { dismissWorkshopTutorial, jointField, openWorkshopTool, selectWorkshopJoint, setWorkshopMode } from "./workshop-menu.helpers";
+
+test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+test("held dumbbells follow bench positions and first/finish poses are recorded explicitly", async ({ page }) => {
+  test.setTimeout(180_000);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
+  const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const email = `pose-recording-${randomUUID()}@example.test`, password = "PoseRecording2026!";
+  const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (account.error) throw account.error;
+  const evidence = ".local-artifacts/workshop/recording"; mkdirSync(evidence, { recursive: true });
+  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+  try {
+    const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const scene = structuredClone(blankWorkshopScene);
+    const bench = { ...createStudioObject("bench", randomUUID(), 0), benchAngle: 45, x: 0, z: 0 };
+    const weights = (["left", "right"] as const).map((side, index) => ({ ...createStudioObject("dumbbell", randomUUID(), index + 1), attachment: side }));
+    scene.studio!.objects = [bench, ...weights.map(item => ({ ...item, ...automaticWeightTransform(scene.studio!.body, item, item.attachment, scene, 0) }))];
+    const created = await owner.rpc("save_workshop_draft", { p_scene: scene, p_name: "Bench carrying regression" });
+    if (created.error) throw created.error;
+    await page.setViewportSize({ width: 1500, height: 1100 });
+    await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
+    await page.goto(`/my-exercises/${created.data}/workshop`); await dismissWorkshopTutorial(page);
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await openWorkshopTool(page, "Contacts");
+    const selected = page.getByLabel("Selected equipment", { exact: true });
+    for (const position of ["Sit", "Lie face up", "Lie face down"] as const) {
+      await selected.selectOption(bench.id);
+      await page.getByRole("button", { name: position, exact: true }).click();
+      for (const weight of weights) {
+        await selected.selectOption(weight.id);
+        await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
+      }
+      await page.getByRole("button", { name: "Side", exact: true }).click();
+      await page.locator("canvas").screenshot({ path: `${evidence}/${position.replaceAll(" ", "-")}.png` });
+    }
+    await selected.selectOption(bench.id); await page.getByRole("button", { name: "Lie face up", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await openWorkshopTool(page, "Contacts");
+    for (const weight of weights) {
+      await selected.selectOption(weight.id);
+      await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
+    }
+    const saved = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
+    const layout = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", saved.data!.content_id).single();
+    expect((layout.data!.studio_layout as StudioLayout).seating?.facing).toBe("supine");
+    expect((layout.data!.studio_layout as StudioLayout).objects.find(item => item.id === weights[0].id)!.y).not.toBeCloseTo(scene.studio!.objects[1].y, 1);
+
+    await page.goto("/my-exercises/new"); await dismissWorkshopTutorial(page);
+    await page.getByRole("button", { name: "Start and finish", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Edit finish", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+    await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
+    await page.getByLabel("Exercise name", { exact: true }).fill("Explicit pose capture regression");
+    await jointField(page, "x").fill("70"); await jointField(page, "x").press("Enter");
+    const prematureSave = page.waitForRequest(request => request.method() === "POST" && request.url().includes("/my-exercises/new"), { timeout: 1800 }).then(() => true, () => false);
+    expect(await prematureSave).toBe(false);
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
+    await expect(page.locator('[data-pose-save-state]')).toHaveAttribute("data-pose-save-state", "saved");
+    await setWorkshopMode(page, "quick");
+    await page.getByRole("button", { name: "Edit finish", exact: true }).click();
+    await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
+    await jointField(page, "x").fill("110"); await jointField(page, "x").press("Enter");
+    await expect(page.locator('[data-pose-save-state]')).toHaveAttribute("data-pose-save-state", "unsaved");
+    await page.getByRole("button", { name: "Save pose", exact: true }).click();
+    await page.getByRole("button", { name: "View start", exact: true }).click();
+    await expect(jointField(page, "x")).toHaveValue("70");
+    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await expect(jointField(page, "x")).toHaveValue("110");
+    await expect(page.locator('[data-pose-save-state]')).toHaveAttribute("data-pose-save-state", "saved");
+    await page.screenshot({ path: `${evidence}/saved-pose-desktop.png` });
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
+    const recorded = await owner.from("private_exercises").select("id,exercise_content(name)");
+    const recordedId = recorded.data!.find(item => item.exercise_content?.name === "Explicit pose capture regression")!.id;
+    await page.goto(`/my-exercises/${recordedId}/workshop`); await dismissWorkshopTutorial(page); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
+    await page.getByRole("button", { name: "View start", exact: true }).click(); await expect(jointField(page, "x")).toHaveValue("70");
+    await page.getByRole("button", { name: "View finish", exact: true }).click(); await expect(jointField(page, "x")).toHaveValue("110");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("region", { name: "Playback controls", exact: true }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole("button", { name: "Save pose", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `${evidence}/saved-pose-mobile.png`, fullPage: true });
+    // A whole-draft save before individual capture must not reseed later poses.
+    await page.setViewportSize({ width: 1500, height: 1100 });
+    await page.goto("/my-exercises/new"); await dismissWorkshopTutorial(page);
+    await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
+    await jointField(page, "x").fill("30"); await jointField(page, "x").press("Enter");
+    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await jointField(page, "x").fill("95"); await jointField(page, "x").press("Enter");
+    await page.getByLabel("Exercise name", { exact: true }).fill("Whole draft recording regression");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+    await page.getByRole("button", { name: "View start", exact: true }).click();
+    await jointField(page, "x").fill("45"); await jointField(page, "x").press("Enter");
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
+    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await expect(jointField(page, "x")).toHaveValue("95");
+    // Reopen the saved exercise to recover its draft; re-capturing start preserves finish.
+    await jointField(page, "x").fill("96"); await jointField(page, "x").press("Enter");
+    const wholeDrafts = await owner.from("private_exercises").select("id,exercise_content(name)");
+    const wholeId = wholeDrafts.data!.find(item => item.exercise_content?.name === "Whole draft recording regression")!.id;
+    await page.goto(`/my-exercises/${wholeId}/workshop`);
+    await page.getByRole("button", { name: "Restore recovered draft", exact: true }).click();
+    await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
+    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await expect(jointField(page, "x")).toHaveValue("96");
+    await page.getByRole("button", { name: "View start", exact: true }).click();
+    await jointField(page, "x").fill("55"); await jointField(page, "x").press("Enter");
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
+    await setWorkshopMode(page, "quick");
+    await page.getByRole("button", { name: "Edit return", exact: true }).click();
+    await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
+    await expect(jointField(page, "x")).toHaveValue("55");
+    await expect(page.locator('[data-pose-save-state]')).toHaveAttribute("data-pose-save-state", "saved");
+    await jointField(page, "x").fill("65"); await jointField(page, "x").press("Enter");
+    await page.getByRole("button", { name: "Save pose", exact: true }).click();
+    await page.getByRole("button", { name: "View start", exact: true }).click();
+    await expect(jointField(page, "x")).toHaveValue("55");
+    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await expect(jointField(page, "x")).toHaveValue("96");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+    await page.reload(); await dismissWorkshopTutorial(page);
+    await setWorkshopMode(page, "quick");
+    await page.getByRole("button", { name: "Edit return", exact: true }).click();
+    await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
+    await expect(jointField(page, "x")).toHaveValue("65");
+    expect(errors).toEqual([]);
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
+});

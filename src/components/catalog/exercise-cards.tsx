@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { PublicationBadge } from "@/components/catalog/publication-badge";
 import { Dumbbell } from "@/components/ui/icons";
 import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
@@ -30,7 +31,7 @@ export async function ExerciseCards({ rows }: { rows: ExerciseRow[] }) {
                 : <Dumbbell size={42} strokeWidth={1.2} aria-hidden />}
             </div>
             <div className="px-5 pb-5 pt-[18px]">
-              <p className="text-xs font-medium capitalize text-primary">{exercise.family_slug?.replaceAll("-", " ") ?? "Exercise"}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium capitalize text-primary">{exercise.family_slug?.replaceAll("-", " ") ?? "Exercise"}</p><PublicationBadge verifiedAt={exercise.verified_at} /></div>
               <h2 className="mt-[7px] text-[1.1875rem] font-semibold leading-[1.35] tracking-[-0.025em] group-hover:text-primary">{exercise.name}</h2>
               {exercise.short_description && <p className="mt-[9px] line-clamp-2 text-sm leading-[1.6] text-muted-foreground">{exercise.short_description}</p>}
             </div>

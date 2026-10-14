@@ -1,4 +1,4 @@
-import { Box3, Line, Mesh, Vector3, type Object3D } from "three";
+import { Box3, Color, Line, Mesh, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { cameraDistanceForPoints, studioCameraPoints } from "./studio-camera";
 import { studioPointToWorld } from "./studio";
 import { resolveStudioObject } from "./studio-constraints";
@@ -49,17 +49,27 @@ export function oppositeCameraPosition(position: Vector3, target: Vector3) {
 
 /** Clone first so fading cannot alter body materials or authored presentation. */
 export function fadeWorkshopEquipment(root: Object3D) {
+  return styleWorkshopEquipment(root, { faded: true });
+}
+
+/** One material owner combines selection and fading, then restores original materials. */
+export function styleWorkshopEquipment(root: Object3D, { faded = false, selectedId }: { faded?: boolean; selectedId?: string | null }) {
   const restore: (() => void)[] = [];
   root.traverse(object => {
     if (!(object instanceof Mesh || object instanceof Line)) return;
+    let selected = false;
+    for (let parent: Object3D | null = object; parent && parent !== root; parent = parent.parent) if (selectedId && parent.userData.workshopObjectId === selectedId) { selected = true; break; }
+    if (!faded && !selected) return;
     const original = object.material;
     const originals = Array.isArray(original) ? original : [original];
-    const faded = originals.map(material => {
-      const clone = material.clone(); clone.transparent = true; clone.opacity *= 0.22; clone.depthWrite = false;
+    const styled = originals.map(material => {
+      const clone = material.clone();
+      if (faded) { clone.transparent = true; clone.opacity *= 0.22; clone.depthWrite = false; }
+      if (selected && clone instanceof MeshStandardMaterial) { clone.color.lerp(new Color("#74b8c9"), .24); clone.emissive.set("#74b8c9"); clone.emissiveIntensity = .12; }
       return clone;
     });
-    object.material = Array.isArray(original) ? faded : faded[0];
-    restore.push(() => { object.material = original; faded.forEach(material => material.dispose()); });
+    object.material = Array.isArray(original) ? styled : styled[0];
+    restore.push(() => { object.material = original; styled.forEach(material => material.dispose()); });
   });
   return () => restore.forEach(reset => reset());
 }

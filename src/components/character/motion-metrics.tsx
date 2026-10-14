@@ -68,7 +68,12 @@ export function MotionMetrics({ wrapper, solvesRef, onMetrics }: { wrapper: RefO
       capture.current.triangles = Math.max(capture.current.triangles, gl.info.render.triangles);
       capture.current.calls = Math.max(capture.current.calls, gl.info.render.calls);
     }
-    if (!enabled.current || pending.current || performance.now() - last.current < 250) return;
+    if (!enabled.current) return;
+    // Demand rendering can stop inside the sampling interval. Publish each
+    // completed pose solve so the next camera frame cannot report stale work.
+    const poseSolves = String(solvesRef.current);
+    if (wrapper.current && wrapper.current.dataset.poseSolves !== poseSolves) wrapper.current.setAttribute("data-pose-solves", poseSolves);
+    if (pending.current || performance.now() - last.current < 250) return;
     pending.current = requestAnimationFrame(() => {
       pending.current = 0; last.current = performance.now();
       const sample = { calls: gl.info.render.calls, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, poseSolves: solvesRef.current };
@@ -76,7 +81,6 @@ export function MotionMetrics({ wrapper, solvesRef, onMetrics }: { wrapper: RefO
         wrapper.current.dataset.renderCalls = String(sample.calls);
         wrapper.current.dataset.renderGeometries = String(sample.geometries);
         wrapper.current.dataset.renderTextures = String(sample.textures);
-        wrapper.current.dataset.poseSolves = String(sample.poseSolves);
         wrapper.current.dataset.cameraPosition = JSON.stringify(camera.position.toArray());
       }
       onMetrics?.(sample);

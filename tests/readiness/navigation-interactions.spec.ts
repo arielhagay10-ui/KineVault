@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "../e2e/published-catalog.helpers";
 import { expectModalFocus } from "./accessibility.helpers";
 
 test("navigation dialog contains keyboard focus and returns it after Escape", async ({ page }) => {
@@ -30,7 +31,7 @@ test("navigation dialog contains keyboard focus and returns it after Escape", as
   await expect(dialog).toBeHidden();
 });
 
-test("touch navigation and combined catalog filters open the matching exercise", async ({ page, hasTouch }) => {
+test("touch navigation and combined catalog filters open the matching exercise", async ({ page, hasTouch, publishedCableRaise }) => {
   test.skip(!hasTouch, "Requires an emulated touch project; real-device checks remain manual.");
   await page.goto("/exercises");
   const trigger = page.getByRole("button", { name: "Site menu", exact: true });
@@ -48,7 +49,7 @@ test("touch navigation and combined catalog filters open the matching exercise",
   await expect(page).toHaveURL(/jointAction=shoulder-abduction/);
   await expect(page).toHaveURL(/equipment=cable/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const detail = page.getByRole("main").locator('a[href^="/exercises/"]').first();
+  const detail = page.getByRole("main").locator(`a[href="/exercises/${publishedCableRaise.slug}"]`);
   await expect(detail).toBeVisible();
   await detail.tap();
   await expect(page).toHaveURL(/\/exercises\/[^/?]+$/);

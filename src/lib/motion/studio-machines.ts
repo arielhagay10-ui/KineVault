@@ -3,6 +3,7 @@ import type { AnatomyRig } from "./anatomy";
 import { reachStudioGrip, studioGripOffset } from "./studio-grip";
 import { cableLocalGrip, studioCableFrame } from "./studio-cable";
 import { rowCarriagePoint, rowHandleHeight } from "./studio-row";
+import { gripOffset } from "./grip-edit";
 export { rowHandleHeight, rowPulleyPoint } from "./studio-row";
 import { sampleStudioObject, studioAssetNames, studioPointToWorld } from "./studio";
 import { identityTransform, sampleWorkshopPose, type StudioObject, type WorkshopScene } from "./workshop";
@@ -98,6 +99,10 @@ export function setPecDeckMode(scene: WorkshopScene, id: string, machineMode: "r
   } };
 }
 
+export function machineGripPoint(object: StudioObject, side: "left" | "right"): Vector3 {
+  return machineHandlePoint(object, side).add(gripOffset(object, side));
+}
+
 function plantMachineFoot(rig: AnatomyRig, side: "left" | "right", target: Vector3, facing: Quaternion, footRotation: Quaternion) {
   const hip = rig.bones[`${side}-hip`], knee = rig.bones[`${side}-knee`], foot = rig.footBones[side];
   const scale = rig.root.getWorldScale(new Vector3()).x;
@@ -156,7 +161,7 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
     if (object.slug === "leg-press") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -3 * Math.PI / 4));
     plantMachineFoot(rig, side, studioPointToWorld(footPoint, object), bodyFacing, footRotation);
     if (object.slug === "cable-row-machine" && object.cableAttachment) continue;
-    const grip = machineHandlePoint(object, side);
+    const grip = machineGripPoint(object, side);
     if (object.slug === "lat-pulldown-machine" && object.machineGrip === "pronated") reachFrontalPulldownGrip(rig, side, studioPointToWorld(grip, object), facing);
     else if (object.slug === "smith-machine") reachSmithBar(rig, side, studioPointToWorld(grip, object), facing);
     else if (object.slug === "cable-row-machine" || object.slug === "pec-deck") reachSeatedMachineGrip(rig, side, studioPointToWorld(grip, object), bodyFacing, object);
@@ -190,10 +195,11 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
     if (cableFrame && ![side, "both"].includes(object.attachment)) continue;
     if (cableFrame?.kind === "cuff") continue;
     const hand = rig.handBones[side], elbow = rig.bones[`${side}-elbow`], shoulder = rig.bones[`${side}-shoulder`];
-    const cableGrip = cableFrame?.kind === "rope" ? cableFrame.ropeGrips.find(grip => grip.side === side)?.point
-      : cableFrame ? cableLocalGrip(cableFrame.kind, side).point.multiplyScalar(cableFrame.scale).applyQuaternion(cableFrame.rotation).add(cableFrame.center) : undefined;
+    const ropeGrip = cableFrame?.ropeGrips.find(grip => grip.side === side);
+    const cableGrip = cableFrame?.kind === "rope" && ropeGrip ? gripOffset(object, side).multiplyScalar(cableFrame.scale).applyQuaternion(ropeGrip.rotation).add(ropeGrip.point)
+      : cableFrame ? cableLocalGrip(cableFrame.kind, side, object).point.multiplyScalar(cableFrame.scale).applyQuaternion(cableFrame.rotation).add(cableFrame.center) : undefined;
     const contactError = cableGrip ? hand.localToWorld(studioGripOffset(side)).distanceTo(cableGrip)
-      : hand.localToWorld(new Vector3(side === "left" ? 0.03 : -0.03, -0.11, 0.12)).distanceTo(studioPointToWorld(machineHandlePoint(object, side), object));
+      : hand.localToWorld(new Vector3(side === "left" ? 0.03 : -0.03, -0.11, 0.12)).distanceTo(studioPointToWorld(machineGripPoint(object, side), object));
     const wristBendDegrees = new Vector3(0, -1, 0).applyQuaternion(hand.getWorldQuaternion(new Quaternion()))
       .angleTo(hand.getWorldPosition(new Vector3()).sub(elbow.getWorldPosition(new Vector3()))) * 180 / Math.PI;
     const relativeElbow = elbow.getWorldPosition(new Vector3()).sub(shoulder.getWorldPosition(new Vector3())).applyQuaternion(inverseFacing);
@@ -317,5 +323,4 @@ export function machineDemoScene(slug: MachineSlug, id: string, machineGrip: "su
     studio: { body: { ...identityTransform }, frontalPlane: slug === "lat-pulldown-machine" && machineGrip === "pronated" ? true : undefined, objects: [{ ...transform, id, slug, name: studioAssetNames[slug], attachment: "none", pulleyHeight: 2.6, machineUse: true, machineGrip: slug === "lat-pulldown-machine" ? machineGrip : undefined, machineMode: slug === "pec-deck" ? machineMode : undefined, machinePosition: frames[0].machinePosition, frames }],
       presentation: { highlight: slug === "pec-deck" ? machineMode === "reverse" ? "group:reardelts" : "group:chest" : slug === "lat-pulldown-machine" || slug === "cable-row-machine" ? "group:lats" : "group:quadriceps", isolate: false, view: slug === "leg-press" ? "side" : slug === "lat-pulldown-machine" && machineGrip === "pronated" ? "front" : "three_quarter" } } };
 }
-
 

@@ -26,7 +26,7 @@ import { applyStudioSeating } from "@/lib/motion/studio-seat";
 import { applyStudioMachine, type MachineReachReport } from "@/lib/motion/studio-machines";
 import { constrainFrontalPose, resolveStudioObject } from "@/lib/motion/studio-constraints";
 import { cameraDistanceForPoints, studioCameraPoints } from "@/lib/motion/studio-camera";
-import { fadeWorkshopEquipment, fitWorkshopCamera, oppositeCameraPosition, workshopCameraView, zoomCameraPosition, type WorkshopCameraAction, type WorkshopCameraCommand } from "@/lib/motion/workshop-camera";
+import { styleWorkshopEquipment, fadeWorkshopEquipment, fitWorkshopCamera, oppositeCameraPosition, workshopCameraView, zoomCameraPosition, type WorkshopCameraAction, type WorkshopCameraCommand } from "@/lib/motion/workshop-camera";
 import { workshopEditorForInteraction } from "@/lib/motion/workshop-interaction";
 import { muscleGroups } from "@/lib/motion/anatomy";
 import { ZoomIn, ZoomOut, Scan } from "@/components/ui/icons";
@@ -120,6 +120,7 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
   const lastSolve = useRef<{ scene: WorkshopScene; timeMs: number; dragging: boolean } | null>(null);
   const equipmentGroup = useRef<Group>(null);
   const activeEditor = workshopEditorForInteraction(editor, interactive);
+  const selectedEquipmentId = !activeEditor?.playing && activeEditor?.selection?.kind === "object" ? activeEditor.selection.id : null;
   const lastMachineReport = useRef<string | null>(null);
   const lastMachineReportAt = useRef(-Infinity);
   const invalidate = useThree(state => state.invalidate);
@@ -159,8 +160,8 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
   // Camera mode may have no changed mesh props to schedule a demand frame.
   useLayoutEffect(() => { if (editor?.captureElbow) invalidate(); }, [editor?.captureElbow, invalidate]);
   useLayoutEffect(() => {
-    if (faded && equipmentGroup.current) return fadeWorkshopEquipment(equipmentGroup.current);
-  }, [faded, scene.studio?.objects, scene.equipment, rig]);
+    if (equipmentGroup.current) return styleWorkshopEquipment(equipmentGroup.current, { faded, selectedId: selectedEquipmentId });
+  }, [faded, selectedEquipmentId, scene.studio?.objects, scene.equipment, rig]);
   useLayoutEffect(() => {
     onHighlight(highlightAnatomyRig(rig, target, isolate)); invalidate();
   }, [rig, target, isolate, onHighlight, invalidate]);
@@ -169,7 +170,7 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
       <primitive object={rig.root} dispose={null} />
     </StudioBody>
     <group ref={equipmentGroup}>
-    {(!isolate || editor) && scene.studio && <StudioEquipment objects={scene.studio.objects} body={scene.studio.body} rig={rig} pose={pose} timeMs={timeMs} editor={activeEditor} />}
+    {(!isolate || editor) && scene.studio && <StudioEquipment objects={scene.studio.objects} body={scene.studio.body} rig={rig} pose={pose} timeMs={timeMs} editor={activeEditor} frontalPlane={scene.studio.frontalPlane} />}
     {scene.motionStyle === "incline-curl" && !isolate && <AdjustableBench />}
     {scene.motionStyle === "seated-curl" && !isolate && <group>
       <mesh position={[0, 0.77, 0.06]} castShadow><boxGeometry args={[0.48, 0.12, 0.5]} /><meshStandardMaterial color="#263b3b" /></mesh>
@@ -340,7 +341,7 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
   const styleTargets: Record<string, string> = { squat: "group:quadriceps", "split-squat": "group:quadriceps", hinge: "group:hamstrings", row: "group:lats", "bench-press": "group:chest" };
   const initialTarget = styleTargets[scene.motionStyle ?? ""] ?? (elbowMotion ? scene.equipment?.slug === "single-cable" ? "group:triceps" : "group:biceps" : "group:deltoid");
   const [targetChoice, setTarget] = useState<string | null>(null);
-  const target = (editor ? null : targetChoice) ?? scene.studio?.presentation?.highlight ?? initialTarget;
+  const target = (editor ? null : targetChoice) ?? scene.studio?.presentation?.highlight ?? (editor ? "none" : initialTarget);
   const overhead = scene.equipment?.slug === "single-cable" || scene.studio?.objects.some(object => object.slug === "cable-machine") || scene.keyframes.some(frame => Math.abs(frame.poses["left-shoulder"]?.z ?? 0) > 120
     || (Math.abs(frame.poses["left-shoulder"]?.x ?? 0) >= 60 && Math.abs(frame.poses["left-shoulder"]?.z ?? 0) >= 60));
   const [isolateChoice, setIsolate] = useState<boolean | null>(null);
@@ -399,7 +400,7 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
     <div role="group" className={`relative overflow-hidden rounded-2xl bg-muted ${fullscreen ? "h-[60vh] min-h-52" : className}`} aria-label={t("3D exercise preview")} aria-busy={!failure && !muscles.length}>
       <AnatomyBoundary key={attempt} onRetry={retryPreview} onError={() => setFailure("error")}>
         <PreviewGraphicsGuard onUnsupported={onUnsupported} fallback={<WorkshopPreviewFallback state="unsupported" onRetry={retryPreview} />}>
-        <Canvas camera={camera} frameloop="demand" dpr={[1, 1.75]} fallback={<span aria-hidden="true" />}>
+        <Canvas camera={camera} frameloop="demand" dpr={[1, 1.75]} style={{ cursor: editor?.gripEdit?.picking ? "crosshair" : undefined }} fallback={<span aria-hidden="true" />}>
           <color attach="background" args={["#f7f8f8"]} />
           <hemisphereLight args={["#ffffff", "#85989b", 0.95]} />
           <directionalLight position={[-3, 5, 6]} color="#fff4e7" intensity={2.4} />
@@ -407,7 +408,7 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
           {editor && <gridHelper args={[20, 100, "#adbfc0", "#dce5e5"]} />}
           <Suspense fallback={null}><Figure pose={pose} scene={scene} target={target} isolate={isolate} onLoaded={setMuscles} onHighlight={setCount} editor={canvasEditor} timeMs={timeMs} playback={playback} solvesRef={solvesRef} interactive={mode === "edit"} faded={faded} onRigReady={onRigReady} onMachineReachChange={onMachineReachChange} /></Suspense>
           <MotionMetrics wrapper={wrapper} solvesRef={solvesRef} onMetrics={onMetrics} />
-          <OrbitControls makeDefault enabled={!editor?.dragging} enableDamping={!onCameraChange} rotateSpeed={editor?.sensitivity ?? 1} panSpeed={editor?.sensitivity ?? 1} zoomSpeed={editor?.sensitivity ?? 1} mouseButtons={{ LEFT: simplifiedControls && mode === "edit" ? undefined : MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: simplifiedControls && mode === "edit" ? MOUSE.ROTATE : MOUSE.PAN }} touches={{ ONE: simplifiedControls && mode === "edit" ? undefined : TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }} target={simplifiedControls ? undefined : [0, 1.38, 0]} enablePan={!!editor || !!onCameraChange} minDistance={simplifiedControls ? 1 : 2.5} maxDistance={simplifiedControls ? 100 : editor ? 25 : 12} />
+          <OrbitControls makeDefault enabled={!editor?.dragging && !editor?.gripEdit?.picking} enableDamping={!onCameraChange} rotateSpeed={editor?.sensitivity ?? 1} panSpeed={editor?.sensitivity ?? 1} zoomSpeed={editor?.sensitivity ?? 1} mouseButtons={{ LEFT: simplifiedControls && mode === "edit" ? undefined : MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: simplifiedControls && mode === "edit" ? MOUSE.ROTATE : MOUSE.PAN }} touches={{ ONE: simplifiedControls && mode === "edit" ? undefined : TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }} target={simplifiedControls ? undefined : [0, 1.38, 0]} enablePan={!!editor || !!onCameraChange} minDistance={simplifiedControls ? 1 : 2.5} maxDistance={simplifiedControls ? 100 : editor ? 25 : 12} />
           {simplifiedControls ? <WorkshopCameraDriver scene={scene} view={view} command={command} getFocus={getFocus} /> : <CameraView view={view} overhead={overhead} bench={scene.motionStyle === "bench-press"} scene={scene} contentHeight={Math.max(2.75 * (scene.studio?.body.scale ?? 1) + (scene.studio?.body.y ?? 0), ...(scene.studio?.objects.filter(object => object.slug === "cable-machine").map(object => object.y + (maxPulleyHeight + 0.15) * object.scale) ?? []))} />}
           {onCameraChange && <LinkedCamera value={linkedCamera} onChange={onCameraChange} />}
         </Canvas>
@@ -424,8 +425,8 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
           {t("creativecommons.org/licenses/by-sa/4.0/ · creativecommons.org/licenses/by-sa/2.1/jp/")}</div>}
     </div>
     {simplifiedControls && !compact && <>
-      <WorkshopCameraControls viewsOnly={!!controlsTarget && !fullscreen} view={view} mode={mode} editable={!!editor} ready={!!muscles.length && !failure} selectionLabel={selectionLabel} faded={faded} fullscreen={fullscreen} onViewChange={changeView} onModeChange={changeMode} onAction={cameraAction} onFadeChange={setFaded} onFullscreen={toggleFullscreen} />
-      <p role="status" className={fillViewport ? "mt-2 min-h-5 shrink-0 text-sm" : "mt-2 text-sm"}>{previewMessage}</p>
+      <WorkshopCameraControls flushTop={fillViewport} viewsOnly={!!controlsTarget && !fullscreen} view={view} mode={mode} editable={!!editor} ready={!!muscles.length && !failure} selectionLabel={selectionLabel} faded={faded} fullscreen={fullscreen} onViewChange={changeView} onModeChange={changeMode} onAction={cameraAction} onFadeChange={setFaded} onFullscreen={toggleFullscreen} />
+      <p role="status" className={fillViewport ? "sr-only" : "mt-2 text-sm"}>{previewMessage}</p>
       <details hidden={!!controlsTarget && !failure && !fullscreen} className="mt-3 text-base" open={!!failure}><summary className="min-h-11 cursor-pointer py-2">{t("Text scene summary")}</summary><div className="space-y-2 py-2 text-sm">
         <p><span data-workshop-translate="false">{scene.studio?.objects.length ? equipmentNames : t(equipmentNames)}</span>. {t("{count} poses over {duration} seconds. Current preview time: {time} seconds.", { count: scene.keyframes.length, duration: scene.durationMs / 1000, time: Math.round(timeMs / 100) / 10 })}</p>
         <p>{selectionLabel ? <>{t("Selected:")} <span data-workshop-translate="false">{selection?.kind === "object" ? selectionLabel : t(selectionLabel)}</span>.</> : t("Nothing selected.")} {target === "none" ? t("No muscle highlight.") : <>{t("Muscle highlight:")} {t(selectedHighlight)}.</>} {t(isolate ? "Only selected anatomy is shown." : "Whole body is shown.")}</p>

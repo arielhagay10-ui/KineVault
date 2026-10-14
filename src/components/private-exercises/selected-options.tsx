@@ -4,10 +4,11 @@ import { useId, useState } from "react";
 import type { Option } from "@/lib/private-exercises/options";
 import { searchPrivateOptions } from "@/lib/private-exercises/details";
 
-export function SelectedPrivateOptions({ title, name, options, selected, roles, rolePrefix, onChange }: {
+export function SelectedPrivateOptions({ title, name, options, selected, roles, rolePrefix, onChange, editLabel }: {
   title: string; name: string; options: Option[]; selected: readonly string[];
   roles?: { slug: string; role: string }[]; rolePrefix?: "jointRole" | "actionRole" | "equipmentRole";
   onChange?: (slugs: string[]) => void;
+  editLabel?: string;
 }) {
   const id = useId();
   const [query, setQuery] = useState("");
@@ -21,13 +22,7 @@ export function SelectedPrivateOptions({ title, name, options, selected, roles, 
     const next = enabled ? [...checked, slug] : checked.filter(value => value !== slug);
     if (onChange) onChange(next); else setLocal(next);
   }
-  return <fieldset className="min-w-0">
-    <legend className="text-base font-semibold">{title}</legend>
-    <div className="mt-2 flex flex-wrap gap-2" aria-live="polite">
-      {checked.length ? checked.map(slug => <span key={slug} className="rounded-lg border border-border bg-muted px-3 py-2 text-sm">
-        {options.find(option => option.slug === slug)?.name ?? slug}
-      </span>) : <p className="text-sm text-muted-foreground">Unknown / not reviewed</p>}
-    </div>
+  const editor = <>
     <label htmlFor={id} className="mt-3 block text-sm">Search {title.toLowerCase()}</label>
     <input id={id} type="search" value={query} onChange={event => setQuery(event.target.value)}
       placeholder="Name or body area" className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-base" />
@@ -54,5 +49,17 @@ export function SelectedPrivateOptions({ title, name, options, selected, roles, 
       })}
     </div>
     {query && !matches.length && <p role="status" className="mt-3 text-sm text-muted-foreground">No match. Try a familiar area such as chest or shoulders, or a formal name. Selected entries stay above. You can leave this unknown.</p>}
+  </>;
+  return <fieldset className="min-w-0">
+    <legend className="text-base font-semibold">{title}</legend>
+    <div className="mt-2 flex flex-wrap gap-2" aria-live="polite">
+      {checked.length ? checked.map(slug => <span key={slug} className="rounded-lg border border-border bg-muted px-3 py-2 text-sm">
+        {options.find(option => option.slug === slug)?.name ?? slug}
+      </span>) : <p className="text-sm text-muted-foreground">Unknown / not reviewed</p>}
+    </div>
+    {editLabel ? <details className="mt-3">
+      <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{editLabel}</summary>
+      {editor}
+    </details> : editor}
   </fieldset>;
 }

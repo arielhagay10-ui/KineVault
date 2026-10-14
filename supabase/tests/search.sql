@@ -148,16 +148,16 @@ select is((select slug from public.explore_exercises(search_text => 'Cable Later
   'behind-body-cable-lateral-raise', 'ranking preserves combined filters');
 select is((select array_agg(page.slug) from public.explore_exercises(search_text => 'Cable Lateral Raise',
   equipment_slugs => array['cable'],
-  cursor_name => 'cable lateral raise', cursor_id => (select id from public.exercises where slug = 'cable-lateral-raise')) page),
+  sort_key => 'alphabetical', cursor_name => 'cable lateral raise', cursor_id => (select id from public.exercises where slug = 'cable-lateral-raise')) page),
   array['cross-body-cable-lateral-raise','behind-body-cable-lateral-raise'],
   'cursor after exact name includes alphabetically earlier related results');
 select is((select array_agg(page.slug) from public.explore_exercises(search_text => 'Cable Lateral Raise',
   equipment_slugs => array['cable'],
-  cursor_name => 'cross body cable lateral raise', cursor_id => (select id from public.exercises where slug = 'cross-body-cable-lateral-raise')) page),
+  sort_key => 'alphabetical', cursor_name => 'cross body cable lateral raise', cursor_id => (select id from public.exercises where slug = 'cross-body-cable-lateral-raise')) page),
   array['behind-body-cable-lateral-raise'], 'cursor after alias crosses to related results without duplicates');
 select is((select count(*)::integer from public.explore_exercises(search_text => 'Cable Lateral Raise',
   equipment_slugs => array['cable'],
-  cursor_name => 'behind body cable lateral raise', cursor_id => (select id from public.exercises where slug = 'behind-body-cable-lateral-raise'))),
+  sort_key => 'alphabetical', cursor_name => 'behind body cable lateral raise', cursor_id => (select id from public.exercises where slug = 'behind-body-cable-lateral-raise'))),
   0, 'cursor after final related match returns no duplicate exact results');
 select is((select array_agg(page.slug) from public.explore_exercises(search_text => 'Cable Lateral Raise', equipment_slugs => array['cable'], sort_key => 'newest') page),
   (select array_agg(e.slug order by e.published_at desc,e.id desc) from public.exercises e where e.status = 'published' and e.slug like '%cable-lateral-raise'),
@@ -167,14 +167,14 @@ select is((select array_agg(page.slug) from public.explore_exercises(search_text
   'explicit favorite sorting keeps favorite order during search');
 select is((select count(*)::integer from public.explore_exercises(search_text => 'Dumbbell Curl') where slug = 'dumbbell-curl'),
   0, 'exact search cannot expose an unpublished exercise');
-select is((select array_agg(page.slug) from public.explore_exercises() page),
+select is((select array_agg(page.slug) from public.explore_exercises(sort_key => 'alphabetical') page),
   array['barbell-bench-press','barbell-romanian-deadlift','behind-body-cable-lateral-raise',
     'cable-lateral-raise','cross-body-cable-lateral-raise','dumbbell-lateral-raise'],
-  'unsearched catalog keeps alphabetical order');
+  'explicit alphabetical catalog keeps name order');
 select is((select count(*)::integer from public.explore_exercises(search_text => 'Cable Lateral Raise', page_size => 1)),
   2, 'ranked pages retain exactly one look-ahead row');
 select throws_ok($$select * from public.explore_exercises(search_text => 'Cable Lateral Raise',
-  cursor_name => 'dumbbell curl', cursor_id => current_setting('kinevault.test_unpublished_cursor')::uuid)$$,
+  sort_key => 'alphabetical', cursor_name => 'dumbbell curl', cursor_id => current_setting('kinevault.test_unpublished_cursor')::uuid)$$,
   'P0001','invalid cursor','ranked cursor cannot refer to an unpublished exercise');
 
 reset role;

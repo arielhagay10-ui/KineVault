@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { defaultScene, type JointSlug, type RigPose, type WorkshopScene } from "./workshop";
 import { workshopSceneSchema } from "./scene-schema";
 import { correctEquipmentMotion } from "./equipment-motion";
+import { normalizeLegacyStudioLayout } from "./equipment-capabilities";
 
 const degrees = (radians: number) => Math.round((radians * 180 / Math.PI) * 100) / 100;
 const quaternionPose = z.object({
@@ -38,7 +39,7 @@ export function decodeSharedScene(raw: unknown): WorkshopScene | null {
     return { timeMs: frame.timeMs, poses };
   });
   const validated = workshopSceneSchema.safeParse({
-    studio: scene.studio ?? undefined,
+    studio: normalizeLegacyStudioLayout(scene.studio) ?? undefined,
     motionStyle: scene.motionStyle,
     durationMs: scene.durationMs, cameraAngle: scene.cameraAngle,
     equipment: scene.equipment, keyframes, annotations: scene.annotations,
@@ -84,7 +85,7 @@ export async function loadWorkshopScene(contentId: string): Promise<WorkshopScen
     return { timeMs: frame.position_ms, poses };
   });
   const parsed = workshopSceneSchema.safeParse({
-    studio: scene.studio_layout ?? undefined,
+    studio: normalizeLegacyStudioLayout(scene.studio_layout) ?? undefined,
     motionStyle: scene.motion_style,
     durationMs: scene.duration_ms,
     cameraAngle: scene.default_camera_angle,

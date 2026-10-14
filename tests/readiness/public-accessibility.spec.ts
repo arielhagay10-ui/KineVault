@@ -1,8 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "../e2e/published-catalog.helpers";
 import { auditAccessibility, setAppearance } from "./accessibility.helpers";
 
 for (const appearance of ["light", "dark"] as const) {
-  test(`public pages and open navigation meet automated accessibility checks in ${appearance}`, async ({ page, isMobile }, testInfo) => {
+  test(`public pages and open navigation meet automated accessibility checks in ${appearance}`, async ({ page, isMobile, publishedCableRaise }, testInfo) => {
     await page.goto("/");
     await setAppearance(page, appearance);
     for (const path of ["/", "/exercises", "/sign-in", "/sign-up", "/reset-password", "/joint-actions/shoulder-abduction"]) {
@@ -14,10 +15,11 @@ for (const appearance of ["light", "dark"] as const) {
       });
     }
     await page.goto("/exercises?jointAction=shoulder-abduction&equipment=cable");
-    const detail = page.getByRole("main").locator('a[href^="/exercises/"]').first();
+    const detail = page.getByRole("main").locator(`a[href="/exercises/${publishedCableRaise.slug}"]`);
     await expect(detail).toBeVisible();
     await detail.click();
     await expect(page).toHaveURL(/\/exercises\/[^/?]+$/);
+    await expect(page.getByRole("heading", { level: 1, name: publishedCableRaise.name, exact: true })).toBeVisible();
     await auditAccessibility(page, testInfo, `${appearance}-exercise-detail`);
     await page.getByRole("button", { name: "Site menu", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Site navigation" })).toBeVisible();
@@ -30,7 +32,9 @@ for (const appearance of ["light", "dark"] as const) {
     await page.getByLabel("Email", { exact: true }).fill("readiness-missing@example.test");
     await page.getByLabel("Password", { exact: true }).fill("InvalidReadinessPassword!");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
+    const authenticationError = page.getByRole("main").getByRole("alert");
+    await expect(authenticationError).toBeVisible();
+    await expect(authenticationError).toHaveText("Those sign-in details did not work.");
     await auditAccessibility(page, testInfo, `${appearance}-authentication-error`);
   });
 }

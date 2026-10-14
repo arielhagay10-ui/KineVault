@@ -33,7 +33,6 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-        <h1 className="sr-only">{exercise.exercise_content?.name}</h1>
         <MotionWorkshop privateId={id} ownerId={identity.userId} initialName={exercise.exercise_content?.name ?? "Untitled exercise"} initialScene={initial} equipmentOptions={equipmentOptions} jointActions={jointActions} />
     </main>
   );

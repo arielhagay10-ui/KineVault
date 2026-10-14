@@ -50,6 +50,9 @@ export async function cleanupLocalFixture({ admin, userId, email, password, owne
         or exists(select 1 from public.moderation_reviews where reviewer_id = '${userId}')
         or exists(select 1 from public.moderation_events where actor_id = '${userId}')
         or exists(select 1 from public.admin_events where actor_id = '${userId}')
+        or exists(select 1 from public.exercise_publications where owner_id = '${userId}')
+        or exists(select 1 from public.exercise_reports where reporter_id = '${userId}' or resolved_by = '${userId}')
+        or exists(select 1 from public.exercise_moderation_events where actor_id = '${userId}')
         or exists(select 1 from public.notifications where user_id = '${userId}');`], { encoding: "utf8" }).trim();
     if (!["t", "f"].includes(references)) throw new Error("Fixture audit references could not be checked");
     softDelete = references === "t";

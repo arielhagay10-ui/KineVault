@@ -16,10 +16,8 @@ export function forearmRotationForScene(scene: WorkshopScene) {
   return isCablePushdown(scene) ? 180 : isCurl ? 0 : 90;
 }
 
-export function automaticWristAngles(scene: WorkshopScene, side: "left" | "right") {
-  const heldWeight = scene.studio?.objects.some(object => ["barbell", "dumbbell", "kettlebell"].includes(object.slug)
-    && (object.attachment === side || object.attachment === "both"));
-  return { x: heldWeight ? -90 : forearmRotationForScene(scene) - 90, y: 0, z: 0 };
+export function automaticWristAngles(scene: WorkshopScene) {
+  return { x: forearmRotationForScene(scene) - 90, y: 0, z: 0 };
 }
 
 // Adapt the original atlas demos without altering their frozen source scenes.

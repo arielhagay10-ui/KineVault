@@ -13,7 +13,7 @@ export function SiteMenu({ theme, signedIn, role }: { theme: Theme; signedIn: bo
   return <>
     <a href="#main-content" className="sr-only fixed start-4 top-4 z-[100] rounded-lg bg-card p-3 focus:not-sr-only">Skip to content</a>
     <button ref={button} data-site-menu type="button" aria-label="Site menu" onClick={() => dialog.current?.showModal()}
-      className="fixed bottom-4 end-4 z-50 flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-border bg-card text-primary shadow-md hover:bg-muted"><Menu /></button>
+      className="fixed end-4 top-4 z-50 flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"><Menu /></button>
     <dialog ref={dialog} aria-label="Site navigation" onCancel={close}
       onClick={event => { if (event.target === event.currentTarget) close(); }}
       className="m-auto w-[min(24rem,calc(100%-2rem))] rounded-2xl border bg-card p-6 text-foreground backdrop:bg-black/50">

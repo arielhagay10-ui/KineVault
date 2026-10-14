@@ -1,7 +1,11 @@
+import { readFile } from "node:fs/promises";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { identityTransform } from "./workshop";
+import { createStudioObject, heldEquipmentTransform } from "./studio";
 import { describe, expect, it } from "vitest";
 import { Group, Quaternion, Vector3 } from "three";
 import { createAnatomyRig, poseAnatomyRig } from "./anatomy";
-import { constrainSupportedWeight, reachStudioGrip, studioForearmReach, studioGripOffset } from "./studio-grip";
+import { constrainSupportedWeight, reachStudioGrip, studioForearmReach, studioGripOffset, weightGripPoint } from "./studio-grip";
 
 describe("studio weight grips", () => {
   it("keeps grip contact on the locked curl arc when equipment keyframes interpolate in a straight line", () => {
@@ -172,6 +176,50 @@ describe("studio weight grips", () => {
           if (previous) expect(current.angleTo(previous), `${side} step ${step}`).toBeLessThan(0.6);
           previous = current;
         }
+      }
+    } finally { rig.dispose(); }
+  });
+});
+
+describe("barbell hand contacts", () => {
+  it.each(["left", "right"] as const)("holds a barbell at its center with only the %s hand", async side => {
+    const bytes = await readFile("public/models/z-anatomy/model.glb");
+    const model = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const rig = createAnatomyRig(model.scene), bar = new Group();
+    const object = { ...createStudioObject("barbell", "bar", 0), attachment: side };
+    const transform = heldEquipmentTransform(identityTransform, object, side);
+    const other = side === "left" ? "right" : "left";
+    try {
+      for (let step = 0; step <= 32; step++) {
+        poseAnatomyRig(rig, {}, side);
+        const otherHand = rig.handBones[other].getWorldPosition(new Vector3());
+        bar.position.set(transform.x, transform.y + .15 * Math.sin(step / 32 * Math.PI), transform.z);
+        bar.rotation.set(0, 0, -.4 + .8 * step / 32); bar.updateMatrixWorld(true);
+        const center = bar.localToWorld(new Vector3(0, .2, 0));
+        const target = bar.localToWorld(weightGripPoint(object, side));
+        expect(reachStudioGrip(rig, side, target, bar.getWorldQuaternion(new Quaternion()))).toBeLessThan(.005);
+        expect(rig.handBones[side].localToWorld(studioGripOffset(side)).distanceTo(center)).toBeLessThan(.005);
+        expect(rig.handBones[other].getWorldPosition(new Vector3()).distanceTo(otherHand)).toBeLessThan(1e-8);
+      }
+    } finally { rig.dispose(); }
+  });
+
+  it.each(["left", "right"] as const)("keeps the %s elbow continuous when a held bar rotates through vertical", async side => {
+    const bytes = await readFile("public/models/z-anatomy/model.glb");
+    const model = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const rig = createAnatomyRig(model.scene), bar = new Group();
+    const object = { ...createStudioObject("barbell", "bar", 0), attachment: side };
+    let previous: Vector3 | undefined;
+    try {
+      for (let step = 0; step <= 32; step++) {
+        poseAnatomyRig(rig, {}, side);
+        bar.position.set(side === "left" ? .45 : -.45, 2.1, .4);
+        bar.rotation.z = Math.PI / 2 - .15 + .3 * step / 32; bar.updateMatrixWorld(true);
+        const target = bar.localToWorld(weightGripPoint(object, side));
+        expect(reachStudioGrip(rig, side, target, bar.getWorldQuaternion(new Quaternion()))).toBeLessThan(.005);
+        const elbow = rig.bones[`${side}-elbow`].getWorldPosition(new Vector3());
+        if (previous) expect(elbow.distanceTo(previous)).toBeLessThan(.03);
+        previous = elbow;
       }
     } finally { rig.dispose(); }
   });

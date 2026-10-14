@@ -21,6 +21,7 @@ describe("equipment-only workshop instructions", () => {
     expect(markup).not.toMatch(/Arms long|Handle near torso|Arms open|Hands together/);
     expect(markup).toContain("Edit start");
     expect(markup).toContain("Edit finish");
+    expect(markup).toContain("Edit return");
     expect(markup).toContain("Match return to start");
     expect(markup).not.toMatch(/percent|Pec deck mode|Grip options|Small range|Full range|Create repetition|Adjust fit|Use seated row/);
     expect(markup).toBe(renderControls("bodyweight"));

@@ -225,6 +225,25 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"exercise_engagement": {
+                  Row: {
+                    "created_at": string,"exercise_id": string,"id": string,"kind": string,"user_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"exercise_id": string,"id"?: string,"kind": string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"exercise_id"?: string,"id"?: string,"kind"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_engagement_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"exercise_equipment": {
                   Row: {
                     "content_id": string,"equipment_id": string,"notes": string | null,"role": Database["public"]['Enums']["equipment_role"]
@@ -344,6 +363,25 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"exercise_moderation_events": {
+                  Row: {
+                    "action": string,"actor_id": string,"comment": string | null,"created_at": string,"exercise_id": string,"from_status": Database["public"]['Enums']["publication_status"] | null,"id": string,"to_status": Database["public"]['Enums']["publication_status"]
+                  }
+                  Insert: {
+                    "action": string,"actor_id": string,"comment"?: string | null,"created_at"?: string,"exercise_id": string,"from_status"?: Database["public"]['Enums']["publication_status"] | null,"id"?: string,"to_status": Database["public"]['Enums']["publication_status"]
+                  }
+                  Update: {
+                    "action"?: string,"actor_id"?: string,"comment"?: string | null,"created_at"?: string,"exercise_id"?: string,"from_status"?: Database["public"]['Enums']["publication_status"] | null,"id"?: string,"to_status"?: Database["public"]['Enums']["publication_status"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_moderation_events_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"exercise_movement_patterns": {
                   Row: {
                     "content_id": string,"movement_pattern_id": string
@@ -394,6 +432,31 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"exercise_publications": {
+                  Row: {
+                    "created_at": string,"exercise_id": string,"id": string,"owner_id": string,"source_private_exercise_id": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"exercise_id": string,"id"?: string,"owner_id": string,"source_private_exercise_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"exercise_id"?: string,"id"?: string,"owner_id"?: string,"source_private_exercise_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_publications_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: true
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "exercise_publications_source_private_exercise_id_fkey"
+      columns: ["source_private_exercise_id"]
+isOneToOne: true
+      referencedRelation: "private_exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"exercise_relations": {
                   Row: {
                     "created_at": string,"id": string,"notes": string | null,"relation_type": Database["public"]['Enums']["exercise_relation_type"],"source_exercise_id": string,"target_exercise_id": string
@@ -414,6 +477,25 @@ isOneToOne: false
     },{
       foreignKeyName: "exercise_relations_target_exercise_id_fkey"
       columns: ["target_exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"exercise_reports": {
+                  Row: {
+                    "created_at": string,"exercise_id": string,"id": string,"reason": string,"reporter_id": string,"resolved_at": string | null,"resolved_by": string | null,"status": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"exercise_id": string,"id"?: string,"reason": string,"reporter_id": string,"resolved_at"?: string | null,"resolved_by"?: string | null,"status"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"exercise_id"?: string,"id"?: string,"reason"?: string,"reporter_id"?: string,"resolved_at"?: string | null,"resolved_by"?: string | null,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_reports_exercise_id_fkey"
+      columns: ["exercise_id"]
 isOneToOne: false
       referencedRelation: "exercises"
       referencedColumns: ["id"]
@@ -563,13 +645,13 @@ isOneToOne: false
                   ]
                 },"exercises": {
                   Row: {
-                    "created_by": string | null,"current_content_id": string,"favorite_count": number,"id": string,"published_at": string | null,"reviewed_by": string | null,"slug": string,"status": Database["public"]['Enums']["publication_status"],"updated_at": string
+                    "created_by": string | null,"current_content_id": string,"discovery_score": number | null,"favorite_count": number,"id": string,"published_at": string | null,"reviewed_by": string | null,"slug": string,"status": Database["public"]['Enums']["publication_status"],"updated_at": string,"use_count": number,"verified_at": string | null,"view_count": number
                   }
                   Insert: {
-                    "created_by"?: string | null,"current_content_id": string,"favorite_count"?: number,"id"?: string,"published_at"?: string | null,"reviewed_by"?: string | null,"slug": string,"status"?: Database["public"]['Enums']["publication_status"],"updated_at"?: string
+                    "created_by"?: string | null,"current_content_id": string,"discovery_score"?: never,"favorite_count"?: number,"id"?: string,"published_at"?: string | null,"reviewed_by"?: string | null,"slug": string,"status"?: Database["public"]['Enums']["publication_status"],"updated_at"?: string,"use_count"?: number,"verified_at"?: string | null,"view_count"?: number
                   }
                   Update: {
-                    "created_by"?: string | null,"current_content_id"?: string,"favorite_count"?: number,"id"?: string,"published_at"?: string | null,"reviewed_by"?: string | null,"slug"?: string,"status"?: Database["public"]['Enums']["publication_status"],"updated_at"?: string
+                    "created_by"?: string | null,"current_content_id"?: string,"discovery_score"?: never,"favorite_count"?: number,"id"?: string,"published_at"?: string | null,"reviewed_by"?: string | null,"slug"?: string,"status"?: Database["public"]['Enums']["publication_status"],"updated_at"?: string,"use_count"?: number,"verified_at"?: string | null,"view_count"?: number
                   }
                   Relationships: [
                     {
@@ -1168,8 +1250,8 @@ isOneToOne: false
 { Args: { "p_comment": string,"p_patch": Json,"p_submission_id": string }; Returns: undefined
                            },
 "explore_exercises":
-{ Args: { "attachment_slugs"?: (string)[],"body_position_slugs"?: (string)[],"cursor_favorite_count"?: number,"cursor_id"?: string,"cursor_name"?: string,"cursor_published_at"?: string,"difficulty_values"?: (Database["public"]['Enums']["exercise_difficulty"])[],"equipment_category_slugs"?: (string)[],"equipment_slugs"?: (string)[],"family_slugs"?: (string)[],"force_type_values"?: (Database["public"]['Enums']["force_type"])[],"joint_action_slugs"?: (string)[],"joint_slugs"?: (string)[],"laterality_values"?: (Database["public"]['Enums']["laterality"])[],"mechanic_values"?: (Database["public"]['Enums']["exercise_mechanic"])[],"movement_pattern_slugs"?: (string)[],"muscle_slugs"?: (string)[],"page_size"?: number,"peak_resistance_positions"?: (Database["public"]['Enums']["peak_resistance_position"])[],"plane_slugs"?: (string)[],"primary_muscle_slugs"?: (string)[],"resistance_profiles"?: (Database["public"]['Enums']["resistance_profile"])[],"resistance_source_slugs"?: (string)[],"search_text"?: string,"secondary_muscle_slugs"?: (string)[],"sort_key"?: string,"stabilizer_muscle_slugs"?: (string)[] }; Returns: {
-              "content_id": string,"exercise_id": string,"family_slug": string,"favorite_count": number,"name": string,"normalized_name": string,"published_at": string,"short_description": string,"slug": string
+{ Args: { "attachment_slugs"?: (string)[],"body_position_slugs"?: (string)[],"cursor_favorite_count"?: number,"cursor_id"?: string,"cursor_name"?: string,"cursor_published_at"?: string,"cursor_score"?: number,"difficulty_values"?: (Database["public"]['Enums']["exercise_difficulty"])[],"equipment_category_slugs"?: (string)[],"equipment_slugs"?: (string)[],"family_slugs"?: (string)[],"force_type_values"?: (Database["public"]['Enums']["force_type"])[],"joint_action_slugs"?: (string)[],"joint_slugs"?: (string)[],"laterality_values"?: (Database["public"]['Enums']["laterality"])[],"mechanic_values"?: (Database["public"]['Enums']["exercise_mechanic"])[],"movement_pattern_slugs"?: (string)[],"muscle_slugs"?: (string)[],"page_size"?: number,"peak_resistance_positions"?: (Database["public"]['Enums']["peak_resistance_position"])[],"plane_slugs"?: (string)[],"primary_muscle_slugs"?: (string)[],"resistance_profiles"?: (Database["public"]['Enums']["resistance_profile"])[],"resistance_source_slugs"?: (string)[],"search_text"?: string,"secondary_muscle_slugs"?: (string)[],"sort_key"?: string,"stabilizer_muscle_slugs"?: (string)[] }; Returns: {
+              "content_id": string,"discovery_score": number,"exercise_id": string,"family_slug": string,"favorite_count": number,"name": string,"normalized_name": string,"published_at": string,"short_description": string,"slug": string,"use_count": number,"verified_at": string,"view_count": number
             }[]
                            },
 "fail_notification_delivery":
@@ -1199,6 +1281,9 @@ isOneToOne: false
 "merge_submission":
 { Args: { "p_comment": string,"p_exercise_id": string,"p_submission_id": string }; Returns: undefined
                            },
+"moderate_public_exercise":
+{ Args: { "p_action": string,"p_comment": string,"p_exercise_id": string }; Returns: undefined
+                           },
 "prepare_catalog_candidate":
 { Args: { "p_exercise_id": string }; Returns: string
                            },
@@ -1206,6 +1291,9 @@ isOneToOne: false
 { Args: { "p_delivery_id": string,"p_html": string,"p_sender": string,"p_subject": string,"p_text": string }; Returns: {
               "html_body": string,"recipient_email": string,"sender": string,"subject": string,"text_body": string
             }[]
+                           },
+"publish_private_exercise":
+{ Args: { "p_private_id": string }; Returns: string
                            },
 "read_render_refresh_scene":
 { Args: { "p_asset_group_id": string }; Returns: Json
@@ -1222,6 +1310,9 @@ isOneToOne: false
 "read_shared_private_scene":
 { Args: { "p_token_hash": string }; Returns: Json
                            },
+"record_exercise_engagement":
+{ Args: { "p_exercise_id": string,"p_kind": string }; Returns: undefined
+                           },
 "register_render_replacements":
 { Args: { "p_asset_group_id": string,"p_renderer_version": string }; Returns: undefined
                            },
@@ -1230,6 +1321,9 @@ isOneToOne: false
                            },
 "replace_private_share":
 { Args: { "p_private_id": string,"p_token_hash": string }; Returns: string
+                           },
+"report_public_exercise":
+{ Args: { "p_exercise_id": string,"p_reason": string }; Returns: string
                            },
 "request_submission_changes":
 { Args: { "p_comment": string,"p_reason": Database["public"]['Enums']["moderation_reason"],"p_submission_id": string }; Returns: undefined
@@ -1257,6 +1351,9 @@ isOneToOne: false
                            },
 "submit_private_exercise":
 { Args: { "p_allow_motion_reuse"?: boolean,"p_duplicate_disposition": string,"p_private_id": string,"p_related_exercise_id"?: string,"p_revision_of_id"?: string,"p_suggestions"?: Json }; Returns: string
+                           },
+"verify_community_exercise":
+{ Args: { "p_comment"?: string,"p_exercise_id": string }; Returns: undefined
                            },
 "withdraw_submission":
 { Args: { "p_submission_id": string }; Returns: undefined

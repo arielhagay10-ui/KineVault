@@ -61,7 +61,7 @@ function Feet({ width, front, back }: { width: number; front: number; back: numb
 export function StudioMachine({ object, currentObject, editor, rig, group, pose }: { object: StudioObject; currentObject?: React.RefObject<StudioObject>; editor?: StudioEditor; rig: AnatomyRig; group: React.RefObject<Group>; pose: RigPose }) {
   return <><MachineGeometry object={object} currentObject={currentObject} />
     {object.slug === "cable-row-machine" && object.cableAttachment && <StudioCable object={object} currentObject={currentObject} rig={rig} group={group} pose={pose} editor={editor} showTower={false} />}
-    {editor?.interactionEnabled !== false && editor && !editor.playing && editor.tool === "select" && editor.onMachineHandleChange && (object.slug !== "cable-row-machine" || object.machineUse) && <>
+    {editor?.interactionEnabled !== false && editor && !editor.gripEdit?.picking && !editor.playing && editor.tool === "select" && editor.onMachineHandleChange && (object.slug !== "cable-row-machine" || object.machineUse) && <>
     <StudioMachineDrag object={object} currentObject={currentObject} editor={editor} />
     {object.slug === "pec-deck" && <StudioMachineDrag object={object} currentObject={currentObject} editor={editor} side="right" />}
   </>}</>;
@@ -178,4 +178,3 @@ function MachineGeometry({ object, currentObject }: { object: StudioObject; curr
     </MovingGroup>
   </>;
 }
-

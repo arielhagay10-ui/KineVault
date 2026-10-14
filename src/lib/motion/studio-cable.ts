@@ -3,16 +3,17 @@ import type { AnatomyRig } from "./anatomy";
 import { constrainSupportedWeight, reachStudioGrip, studioGripOffset } from "./studio-grip";
 import type { CableAttachment, RigPose, StudioObject } from "./workshop";
 import { rowCarriagePoint, rowPulleyPoint } from "./studio-row";
+import { gripOffset } from "./grip-edit";
 
 export const cableAttachmentNames: Record<CableAttachment, string> = {
   "d-handle": "D handle", rope: "Rope", "straight-bar": "Straight bar", "angled-bar": "Angled bar", "lat-bar": "Wide-grip lat bar", "v-bar": "V bar", cuff: "Cuff",
 };
 
-export function cableLocalGrip(kind: CableAttachment, side: "left" | "right") {
+export function cableLocalGrip(kind: CableAttachment, side: "left" | "right", object?: StudioObject) {
   const sign = side === "left" ? 1 : -1;
   const angle = kind === "angled-bar" ? -sign * Math.PI / 9 : kind === "lat-bar" ? -sign * Math.atan2(.16, .24) : kind === "v-bar" ? -sign * Math.PI / 4 : 0;
   return {
-    point: new Vector3(kind === "d-handle" ? 0 : sign * (kind === "lat-bar" ? .5 : kind === "v-bar" ? 0.13 : 0.24), kind === "angled-bar" ? -.24 * Math.tan(Math.PI / 9) : kind === "lat-bar" ? -.08 : kind === "v-bar" ? -0.13 : 0, 0),
+    point: new Vector3(kind === "d-handle" ? 0 : sign * (kind === "lat-bar" ? .5 : kind === "v-bar" ? 0.13 : 0.24), kind === "angled-bar" ? -.24 * Math.tan(Math.PI / 9) : kind === "lat-bar" ? -.08 : kind === "v-bar" ? -0.13 : 0, 0).add(object ? gripOffset(object, side) : new Vector3()),
     rotation: new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), angle),
   };
 }
@@ -45,6 +46,7 @@ export function studioCableFrame(rig: AnatomyRig, object: StudioObject, tower: O
       }
       outward.normalize();
       rotation = new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(axis.clone().cross(outward).normalize(), axis, outward));
+      center.sub(gripOffset(object, side).multiplyScalar(scale).applyQuaternion(rotation));
       // Cuffs fit the body independently of tower scale.
       cuffRadius = (upper ? 0.075 : 0.055) * rig.root.getWorldScale(new Vector3()).x / 0.85 / scale;
     }
@@ -55,12 +57,12 @@ export function studioCableFrame(rig: AnatomyRig, object: StudioObject, tower: O
   let reachable = true;
   if (fixed && kind !== "rope") {
     for (const side of sides) {
-      const grip = cableLocalGrip(kind, side);
+      const grip = cableLocalGrip(kind, side, object);
       const target = grip.point.multiplyScalar(scale).applyQuaternion(rotation).add(center);
       reachable = reachStudioGrip(rig, side, target, rotation.clone().multiply(grip.rotation), pose[`${side}-wrist`]) < .005 && reachable;
     }
   } else if (kind !== "rope" && palms.length === 1) {
-    const grip = cableLocalGrip(kind, palms[0].side);
+    const grip = cableLocalGrip(kind, palms[0].side, object);
     rotation = palms[0].rotation.clone().multiply(grip.rotation.clone().invert());
     center = palms[0].point.clone().sub(grip.point.clone().multiplyScalar(scale).applyQuaternion(rotation));
   } else if (kind !== "rope" && palms.length === 2) {
@@ -77,11 +79,12 @@ export function studioCableFrame(rig: AnatomyRig, object: StudioObject, tower: O
     if (y.lengthSq() < 1e-8) y.set(0, 0, 1).addScaledVector(x, -x.z);
     y.normalize();
     rotation = new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(x, y, x.clone().cross(y)));
-    center.sub(cableLocalGrip(kind, "left").point.clone().multiplyScalar(scale).applyQuaternion(rotation).projectOnVector(y));
+    const middle = cableLocalGrip(kind, "left", object).point.add(cableLocalGrip(kind, "right", object).point).multiplyScalar(.5 * scale).applyQuaternion(rotation);
+    center.sub(middle);
     // Forward clearance can move a fully extended resting arm beyond its reach.
     // Fit the shared frame to each arm's reachable plane before solving the rig.
     for (let iteration = 0; iteration < 4; iteration++) for (const side of sides) {
-      const grip = cableLocalGrip(kind, side);
+      const grip = cableLocalGrip(kind, side, object);
       const shaft = rotation.clone().multiply(grip.rotation);
       const origin = rig.bones[`${side}-shoulder`].getWorldPosition(new Vector3());
       const target = grip.point.multiplyScalar(scale).applyQuaternion(rotation).add(center);
@@ -103,19 +106,22 @@ export function studioCableFrame(rig: AnatomyRig, object: StudioObject, tower: O
       if (distance > radius) center.add(new Vector3(0, gap.y, gap.z).multiplyScalar(radius / distance - 1).applyQuaternion(shaft));
     }
     for (const side of sides) {
-      const grip = cableLocalGrip(kind, side);
+      const grip = cableLocalGrip(kind, side, object);
       const target = grip.point.multiplyScalar(scale).applyQuaternion(rotation).add(center);
       reachable = reachStudioGrip(rig, side, target, rotation.clone().multiply(grip.rotation), pose[`${side}-wrist`]) < 0.005 && reachable;
     }
   }
   let connection = new Vector3(0, kind === "d-handle" ? 0.21 : 0.08, 0).multiplyScalar(scale).applyQuaternion(rotation).add(center);
-  const ropeGrips = kind !== "rope" ? [] : palms.length && !fixed ? palms : (["left", "right"] as const).map(side => {
+  const ropeGrips = kind !== "rope" ? [] : palms.length && !fixed ? palms.map(palm => ({ ...palm,
+    point: palm.point.clone().sub(gripOffset(object, palm.side).multiplyScalar(scale).applyQuaternion(palm.rotation)),
+  })) : (["left", "right"] as const).map(side => {
     const sign = side === "left" ? 1 : -1;
     return { side, point: new Vector3(sign * 0.13, fixed ? -.08 : -.28, 0).multiplyScalar(scale).applyQuaternion(rotation).add(center),
       rotation: rotation.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), -sign * Math.PI / 3)) };
   });
   if (fixed && kind === "rope") for (const grip of ropeGrips.filter(grip => sides.includes(grip.side))) {
-    reachable = reachStudioGrip(rig, grip.side, grip.point, grip.rotation, pose[`${grip.side}-wrist`]) < .005 && reachable;
+    const contact = gripOffset(object, grip.side).multiplyScalar(scale).applyQuaternion(grip.rotation).add(grip.point);
+    reachable = reachStudioGrip(rig, grip.side, contact, grip.rotation, pose[`${grip.side}-wrist`]) < .005 && reachable;
   }
   if (ropeGrips.length) {
     const supports = ropeGrips.map(grip => ({ center: new Vector3(grip.side === "left" ? -0.08 : 0.08, 0, 0).multiplyScalar(scale).applyQuaternion(grip.rotation).add(grip.point), radius: 0.4 * scale }));

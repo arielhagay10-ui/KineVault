@@ -1,10 +1,11 @@
-import { expect, test as publicTest } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test as publicTest } from "../e2e/published-catalog.helpers";
 import { openWorkshopTool } from "../e2e/workshop-menu.helpers";
 import { auditAccessibility, setAppearance } from "./accessibility.helpers";
 import { test } from "./workshop.fixture";
 
 for (const appearance of ["light", "dark"] as const) {
-  publicTest(`public content reflows at 320 CSS pixels in ${appearance}`, async ({ page }, testInfo) => {
+  publicTest(`public content reflows at 320 CSS pixels in ${appearance}`, async ({ page, publishedCableRaise }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto("/");
     await setAppearance(page, appearance);
@@ -15,7 +16,7 @@ for (const appearance of ["light", "dark"] as const) {
       await auditAccessibility(page, testInfo, `${appearance}-320px-${path.split("?")[0]}`);
     }
     await page.goto("/exercises?jointAction=shoulder-abduction&equipment=cable");
-    await page.getByRole("main").locator('a[href^="/exercises/"]').first().click();
+    await page.getByRole("main").locator(`a[href="/exercises/${publishedCableRaise.slug}"]`).click();
     await expect(page).toHaveURL(/\/exercises\/[^/?]+$/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBeTruthy();
     await auditAccessibility(page, testInfo, `${appearance}-320px-detail`);

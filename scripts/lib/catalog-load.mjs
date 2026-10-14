@@ -37,7 +37,7 @@ export function runCatalogLoad({ container, database, options, deadline }) {
       .replace("__FIXTURE_ROWS__", String(options.rows))));
     if (report.fixture.syntheticRows !== options.rows) throw new Error("Catalog load fixture row count mismatch");
     const cursor = (order, offset) => JSON.parse(sql(`select row_to_json(c) from (
-      select s.normalized_name,e.id,e.published_at,e.favorite_count from public.exercises e
+      select s.normalized_name,e.id,e.published_at,e.favorite_count,e.discovery_score from public.exercises e
       join public.exercise_search s on s.exercise_id=e.id where e.status='published'
       order by ${order} offset ${offset} limit 1) c;`));
     const alpha = cursor("s.normalized_name,e.id", 23);
@@ -45,10 +45,12 @@ export function runCatalogLoad({ container, database, options, deadline }) {
     const deepAlpha = cursor("s.normalized_name,e.id", deepOffset);
     const deepNewest = cursor("e.published_at desc,e.id desc", deepOffset);
     const deepFavorites = cursor("e.favorite_count desc,e.id desc", deepOffset);
-    const searchCursor = JSON.parse(sql("set role anon; select row_to_json(c) from (select * from public.explore_exercises(search_text=>'press') offset 23 limit 1) c;"));
-    const alphaArgs = c => `cursor_name=>${literal(c.normalized_name)},cursor_id=>${literal(c.id ?? c.exercise_id)}::uuid`;
+    const deepRecommended = cursor("e.discovery_score desc,e.published_at desc,e.id desc", deepOffset);
+    const searchCursor = JSON.parse(sql("set role anon; select row_to_json(c) from (select * from public.explore_exercises(search_text=>'press',sort_key=>'alphabetical') offset 23 limit 1) c;"));
+    const alphaArgs = c => `sort_key=>'alphabetical',cursor_name=>${literal(c.normalized_name)},cursor_id=>${literal(c.id ?? c.exercise_id)}::uuid`;
     const cases = [
-      { name: "alphabetical", args: "page_size=>24" },
+      { name: "recommended", args: "page_size=>24" },
+      { name: "alphabetical", args: "sort_key=>'alphabetical',page_size=>24" },
       { name: "exact_name", args: "search_text=>'Dumbbell Lateral Raise'" },
       { name: "broad_search", args: "search_text=>'press'" },
       { name: "alias", args: "search_text=>'side lift'" },
@@ -62,6 +64,7 @@ export function runCatalogLoad({ container, database, options, deadline }) {
       { name: "deep_alphabetical", args: alphaArgs(deepAlpha), cursorOffset: deepOffset },
       { name: "deep_newest", args: `sort_key=>'newest',cursor_published_at=>${literal(deepNewest.published_at)}::timestamptz,cursor_id=>${literal(deepNewest.id)}::uuid`, cursorOffset: deepOffset },
       { name: "deep_favorites", args: `sort_key=>'most_favorited',cursor_favorite_count=>${deepFavorites.favorite_count},cursor_id=>${literal(deepFavorites.id)}::uuid`, cursorOffset: deepOffset },
+      { name: "deep_recommended", args: `cursor_score=>${deepRecommended.discovery_score},cursor_published_at=>${literal(deepRecommended.published_at)}::timestamptz,cursor_id=>${literal(deepRecommended.id)}::uuid`, cursorOffset: deepOffset },
     ];
     for (const item of cases) {
       // The preflight also verifies fixtures really exercise each intended branch.

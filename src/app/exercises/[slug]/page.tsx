@@ -10,6 +10,9 @@ import { getIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { mediaObjectKey, signResolvedMediaObjects } from "@/lib/media/signed-media";
 import { resolveRenderReplacements } from "@/lib/media/render-replacements";
+import { PublicationBadge } from "@/components/catalog/publication-badge";
+import { ExerciseReport } from "@/components/catalog/exercise-report";
+import { ExerciseViewTracker } from "@/components/catalog/exercise-view-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +27,7 @@ export default async function ExercisePage({ params }: Props) {
   const supabase = await createClient();
   const identityPromise = getIdentity();
   const { data: exercise, error: exerciseError } = await supabase.from("exercises")
-    .select("id,slug,current_content_id,status,favorite_count")
+    .select("id,slug,current_content_id,status,favorite_count,verified_at")
     .eq("slug", slug).eq("status", "published").maybeSingle();
   if (exerciseError) throw new Error("The exercise could not be loaded");
   if (!exercise) notFound();
@@ -91,11 +94,12 @@ export default async function ExercisePage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
+      {identity && <ExerciseViewTracker exerciseId={exercise.id} />}
       <div className="mx-auto max-w-7xl px-6 pb-20 pt-10 lg:px-10">
         <Link href="/exercises" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft size={16} /> Back to Explore</Link>
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
           <div className="min-w-0 lg:col-start-2 lg:row-start-1">
-
+            <PublicationBadge verifiedAt={exercise.verified_at} />
             <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">{content.name}</h1>
             {content.short_description && <p className="mt-5 text-lg leading-8 text-muted-foreground">{content.short_description}</p>}
             {family && <Link href={`/families/${family.slug}`} className="mt-4 inline-flex rounded-full bg-muted px-3 py-1.5 text-sm font-semibold text-primary">{family.name} family</Link>}
@@ -116,9 +120,10 @@ export default async function ExercisePage({ params }: Props) {
             {identity && <form action={copyPublicExercise} className="mt-4">
               <input type="hidden" name="exerciseId" value={exercise.id} />
               <button type="submit" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring">Copy to my exercises</button>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">Make an independent private copy of the reviewed classifications. The motion is included when its creator allowed reuse.</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">Make an independent private copy of this exercise. The motion is included when its creator allowed reuse.</p>
             </form>}
-
+            {identity ? <ExerciseReport exerciseId={exercise.id} /> : <Link href={`/sign-in?next=${encodeURIComponent(`/exercises/${exercise.slug}`)}`} className="mt-6 inline-flex min-h-11 items-center text-sm text-muted-foreground underline">Sign in to report</Link>}
+            {identity && identity.role !== "user" && <Link href={`/admin/exercises/${exercise.id}`} className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">Moderate exercise</Link>}
           </div>
           <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2">
             <MediaGallery groups={[...groups.values()]} annotations={scene?.annotations} />

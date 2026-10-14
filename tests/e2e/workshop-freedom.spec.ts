@@ -49,6 +49,7 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
     await page.getByRole("dialog").getByRole("button", { name: "Cable row", exact: true }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByRole("button", { name: "Leave machine", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
     await page.getByRole("button", { name: "Edit finish", exact: true }).click();
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await openWorkshopTool(page, "Contacts");
@@ -64,6 +65,7 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
     await setWorkshopMode(page, "quick");
     await page.getByRole("button", { name: "Edit start", exact: true }).click();
     await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("0");
+    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
     await page.getByRole("button", { name: "Edit finish", exact: true }).click();
     await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("1");
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
@@ -86,6 +88,7 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
     await selectWorkshopJoint(page, "Left hip");
     await expect(jointField(page, "x")).toHaveValue("25");
     await setWorkshopMode(page, "quick");
+    await page.getByRole("button", { name: "Save pose", exact: true }).click();
     await page.getByRole("button", { name: "Match return to start", exact: true }).click();
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await page.getByLabel("Exercise name", { exact: true }).fill("Free cable movement fixture");
@@ -98,9 +101,10 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
       const persisted = await owner.from("motion_keyframes").select("motion_joint_poses(rotation_x)").eq("scene_id", saved.data.id).order("position_ms"); if (persisted.error) throw persisted.error;
       return persisted.data[1].motion_joint_poses.length;
     }).toBeGreaterThanOrEqual(8);
-    const frames = await owner.from("motion_keyframes").select("position_ms,motion_joint_poses(rotation_x,rig_joints(slug))").eq("scene_id", saved.data.id).order("position_ms"); if (frames.error) throw frames.error;
-    expect(frames.data[0].motion_joint_poses).toHaveLength(0);
-    expect(frames.data[2].motion_joint_poses).toHaveLength(0);
+    const frames = await owner.from("motion_keyframes").select("position_ms,motion_joint_poses(rotation_x,rotation_y,rotation_z,rig_joints(slug))").eq("scene_id", saved.data.id).order("position_ms"); if (frames.error) throw frames.error;
+    for (const frame of [frames.data[0], frames.data[2]]) {
+      expect(frame.motion_joint_poses.every(pose => pose.rotation_x === 0 && pose.rotation_y === 0 && pose.rotation_z === 0)).toBe(true);
+    }
     expect(frames.data[1].motion_joint_poses.length).toBeGreaterThanOrEqual(8);
     await page.goto(`/my-exercises/${records.data.id}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });

@@ -1,5 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { setWorkshopLanguage, selectWorkshopObject, expandWorkshopControls, openWorkshopRecovery } from "./workshop-menu.helpers";
+import { setWorkshopLanguage, selectWorkshopJoint, selectWorkshopObject, expandWorkshopControls, openWorkshopRecovery } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -48,15 +48,16 @@ test("workshop tools are directly accessible without scrolling through unrelated
     expect((await page.locator('[data-workshop="studio"]').boundingBox())!.y).toBe(0);
     await page.getByRole("button", { name: "Full screen", exact: true }).click();
     await expect.poll(() => page.locator('[data-workshop="studio"]').evaluate(element => document.fullscreenElement === element)).toBe(true);
-    await page.setViewportSize({ width: 1280, height: 900 });
+    // Chromium on Linux rejects native window resizing while in fullscreen.
+    await page.evaluate(() => window.dispatchEvent(new Event("resize")));
     // Entering fullscreen resizes a real browser; it must stay open afterward.
     await page.waitForTimeout(750);
     expect(await page.locator('[data-workshop="studio"]').evaluate(element => document.fullscreenElement === element)).toBe(true);
     mkdirSync(".local-artifacts/workshop/tools", { recursive: true });
     await page.screenshot({ path: ".local-artifacts/workshop/tools/fullscreen.png" });
     await page.getByRole("button", { name: "Exit full screen", exact: true }).click();
-    await page.setViewportSize({ width: 1024, height: 900 });
     await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+    await page.setViewportSize({ width: 1024, height: 900 });
     // Embedded browsers can leave the Fullscreen API promise pending indefinitely.
     const fullscreenMethod = await page.evaluateHandle(() => Element.prototype.requestFullscreen);
     await page.evaluate(() => {
@@ -104,7 +105,7 @@ test("workshop tools are directly accessible without scrolling through unrelated
     await open("Equipment"); await selectWorkshopObject(page, "Cable machine");
     await expect(page.getByRole("button", { name: "Hold with right hand", exact: true })).toBeInViewport();
     await page.getByRole("button", { name: "Hold with right hand", exact: true }).click();
-    await open("Pose"); await page.getByLabel("Body joint", { exact: true }).selectOption("left-elbow");
+    await open("Pose"); await selectWorkshopJoint(page, "Left elbow");
     await expect(page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true })).toBeInViewport();
     await page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true }).fill("70");
     await page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true }).press("Enter");

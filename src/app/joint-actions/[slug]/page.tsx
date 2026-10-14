@@ -86,7 +86,7 @@ export default async function JointActionPage({ params, searchParams }: Props) {
             </div>
             {error ? <p className="text-sm text-red-700 dark:text-red-300">Exercises could not be loaded.</p>
               : rows?.length ? <ExerciseCards rows={rows.slice(0, 24)} />
-                : <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center text-muted-foreground">No reviewed demonstrations match these filters yet.</div>}
+                : <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center text-muted-foreground">No exercises match these filters yet.</div>}
             {(rows?.length ?? 0) > 24 && <Link href={fullExploreUrl} className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary">View more <ArrowRight size={16} /></Link>}
           </section>
         </div>

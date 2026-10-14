@@ -35,7 +35,7 @@ test("metadata warns only for actual edits and keeps them after cancelled naviga
     await page.getByLabel("Name", { exact: true }).fill("Unsaved metadata");
     let warnings = 0;
     page.on("dialog", async dialog => { warnings++; await dialog.dismiss(); });
-    await page.getByRole("link", { name: "Submit for review", exact: false }).click();
+    await page.getByRole("link", { name: "Publish exercise", exact: true }).click();
     await expect(page).toHaveURL(/\/edit$/);
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Unsaved metadata");
     expect(warnings).toBe(1);

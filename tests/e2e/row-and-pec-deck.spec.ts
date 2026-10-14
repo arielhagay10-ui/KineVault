@@ -49,7 +49,7 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
       for (const view of ["Three-quarter", "Side"]) {
         await page.getByRole("button", { name: view, exact: true }).click();
         for (let step = 0; step <= 8; step++) {
-          await page.getByLabel("Scrub timeline", { exact: true }).fill(String(step * 600));
+          await page.getByLabel("Preview time", { exact: true }).fill(String(step * 600));
           await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
           await page.locator("canvas").screenshot({ path: `${artifacts}/${view.toLowerCase()}-${step}.png` });
         }
@@ -62,8 +62,8 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
         await expect(page.getByText("Arm opening", { exact: true })).toBeVisible();
       }
       await page.getByRole("button", { name: "Play", exact: true }).click();
-      const first = await page.getByLabel("Scrub timeline", { exact: true }).inputValue();
-      await expect.poll(() => page.getByLabel("Scrub timeline", { exact: true }).inputValue()).not.toBe(first);
+      const first = await page.getByLabel("Preview time", { exact: true }).inputValue();
+      await expect.poll(() => page.getByLabel("Preview time", { exact: true }).inputValue()).not.toBe(first);
       await page.getByRole("button", { name: "Pause", exact: true }).click();
       await page.getByRole("button", { name: /^Start ·/ }).click();
       await openWorkshopTool(page, "Timeline");

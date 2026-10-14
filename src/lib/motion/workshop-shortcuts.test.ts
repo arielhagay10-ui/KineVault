@@ -5,6 +5,15 @@ const key = (key: string, extra = {}) => ({ key, code: "", ctrlKey: false, metaK
 const canvas = { typing: false, interactive: false, blocked: false };
 
 describe("workshop keyboard commands", () => {
+  it("edits timeline rows while retaining native text and control shortcuts", () => {
+    const timeline = { ...canvas, interactive: true, timeline: true };
+    for (const [event, command] of [[key("Delete"), "remove"], [key("ArrowLeft"), "previous"], [key("ArrowDown"), "next"],
+      [key("x", { ctrlKey: true }), "cut"], [key("c", { metaKey: true }), "copy"], [key("v", { ctrlKey: true }), "paste"]] as const) {
+      expect(workshopShortcut(event, timeline)).toBe(command);
+      expect(workshopShortcut(event, { ...timeline, typing: true })).toBeNull();
+    }
+    expect(workshopShortcut(key("c", { ctrlKey: true }), canvas)).toBeNull();
+  });
   it.each([
     [key("z", { ctrlKey: true }), "undo"],
     [key("Z", { metaKey: true, shiftKey: true }), "redo"],

@@ -1,6 +1,6 @@
 type ShortcutKey = Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey" | "repeat" | "isComposing" | "defaultPrevented">;
-type ShortcutContext = { typing: boolean; interactive: boolean; blocked: boolean };
-export type WorkshopShortcut = "undo" | "redo" | "save" | "duplicate" | "remove" | "play" | "previous" | "next" | "edit" | "camera" | "help" | "escape";
+type ShortcutContext = { typing: boolean; interactive: boolean; blocked: boolean; timeline?: boolean };
+export type WorkshopShortcut = "undo" | "redo" | "save" | "duplicate" | "remove" | "cut" | "copy" | "paste" | "play" | "previous" | "next" | "edit" | "camera" | "help" | "escape";
 
 export function workshopShortcut(event: ShortcutKey, context: ShortcutContext): WorkshopShortcut | null {
   if (context.blocked || event.defaultPrevented || event.repeat || event.isComposing || event.altKey || event.ctrlKey && event.metaKey) return null;
@@ -13,10 +13,18 @@ export function workshopShortcut(event: ShortcutKey, context: ShortcutContext): 
     if (event.shiftKey) return null;
     if (letter === "y") return "redo";
     if (letter === "d") return "duplicate";
+    if (context.timeline && letter === "x") return "cut";
+    if (context.timeline && letter === "c") return "copy";
+    if (context.timeline && letter === "v") return "paste";
     return null;
   }
   if (context.typing) return null;
   if (key === "escape") return "escape";
+  if (context.timeline && !event.shiftKey) {
+    if (key === "delete" || key === "backspace") return "remove";
+    if (key === "arrowleft" || key === "arrowup" || key === "[") return "previous";
+    if (key === "arrowright" || key === "arrowdown" || key === "]") return "next";
+  }
   if (context.interactive) return null;
   if (key === "?") return "help";
   if (event.shiftKey) return null;

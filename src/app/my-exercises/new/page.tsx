@@ -13,7 +13,6 @@ export default async function NewPrivateExercisePage() {
   const { count, error } = await supabase.from("private_exercises")
     .select("id", { count: "exact", head: true }).eq("owner_id", identity.userId);
   return <main className="min-h-screen bg-background text-foreground">
-      <h1 className="sr-only">Create an exercise</h1>
       <MotionWorkshop tutorialEligible={!error && count === 0} privateId={null} ownerId={identity.userId} initialName="" initialScene={blankWorkshopScene} equipmentOptions={[]} jointActions={[]} />
   </main>;
 }

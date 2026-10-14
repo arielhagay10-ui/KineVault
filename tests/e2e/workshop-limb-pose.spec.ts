@@ -3,9 +3,11 @@ import { mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page, type Locator } from "@playwright/test";
-import { blankWorkshopScene } from "../../src/lib/motion/workshop";
+import { Euler, Quaternion } from "three";
+import { blankWorkshopScene, identityTransform, type JointSlug, type StudioObject } from "../../src/lib/motion/workshop";
 import { setWorkshopLanguage, openWorkshopTool } from "./workshop-menu.helpers";
 import { createQuickScene } from "../../src/lib/motion/quick-create";
+import { createStudioObject } from "../../src/lib/motion/studio";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 const folder = ".local-artifacts/workshop/limb-posing";
@@ -22,8 +24,72 @@ async function drag(page: Page, handle: Locator, dx: number, dy: number, cancel 
 
 test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
+test("one-handed barbell contacts survive grip changes, saving and playback", async ({ page }) => {
+  test.setTimeout(240_000);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
+  const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const email = `barbell-${Date.now()}@example.test`, password = "BarbellFixture2026!";
+  const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (account.error) throw account.error;
+  try {
+    const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    await owner.auth.signInWithPassword({ email, password });
+    const scene = structuredClone(blankWorkshopScene);
+    const bar: StudioObject = { ...createStudioObject("barbell", crypto.randomUUID(), 0), attachment: "left", x: .45, y: 1.3, z: .4 };
+    bar.frames = [0, 1600, 3200].map(timeMs => ({ ...identityTransform, x: .45, y: timeMs === 1600 ? 1.5 : 1.3, z: .4, timeMs, rotationZ: timeMs === 1600 ? 10 : 0 }));
+    scene.studio!.objects = [bar];
+    const created = await owner.rpc("save_workshop_draft", { p_scene: scene, p_name: "One-hand barbell regression" });
+    if (created.error) throw created.error;
+    await page.setViewportSize({ width: 1500, height: 1100 });
+    await page.goto("/sign-in");
+    await page.getByLabel("Email", { exact: true }).fill(email);
+    await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await page.goto(`/my-exercises/${created.data}/workshop`);
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await openWorkshopTool(page, "Contacts");
+    await page.getByLabel("Selected equipment", { exact: true }).selectOption(bar.id);
+    for (const hand of ["both hands", "right hand", "left hand"]) {
+      await page.getByRole("button", { name: `Hold with ${hand}`, exact: true }).click();
+      await expect(page.getByRole("button", { name: `Hold with ${hand}`, exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByText("Too far to reach. Move the weight closer to the figure.", { exact: true })).toHaveCount(0);
+    }
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+    await page.reload();
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await openWorkshopTool(page, "Contacts");
+    await page.getByLabel("Selected equipment", { exact: true }).selectOption(bar.id);
+    await expect(page.getByRole("button", { name: "Hold with left hand", exact: true })).toHaveAttribute("aria-pressed", "true");
+    const evidence = `${folder}/barbell`; mkdirSync(evidence, { recursive: true });
+    for (const view of ["Three-quarter", "Side"]) {
+      await page.getByRole("button", { name: view, exact: true }).click();
+      for (let step = 0; step <= 16; step++) {
+        await page.getByLabel("Preview time", { exact: true }).fill(String(3200 * step / 16));
+        await page.locator("canvas").screenshot({ path: `${evidence}/${view.toLowerCase()}-${step}.png` });
+        await expect(page.getByText("Too far to reach. Move the weight closer to the figure.", { exact: true })).toHaveCount(0);
+      }
+    }
+    await page.getByRole("button", { name: "Play", exact: true }).click();
+    await page.waitForTimeout(3500);
+    await page.getByRole("button", { name: "Pause", exact: true }).click();
+    await page.getByRole("button", { name: "Three-quarter", exact: true }).click();
+    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    for (let zoom = 0; zoom < 3; zoom++) await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await page.locator("canvas").screenshot({ path: `${evidence}/grip-close.png` });
+    const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
+    if (record.error) throw record.error;
+    const saved = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", record.data.content_id).single();
+    if (saved.error) throw saved.error;
+    expect(saved.data.studio_layout).toMatchObject({ objects: [{ id: bar.id, attachment: "left", frames: expect.any(Array) }] });
+  } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
+});
+
 test("hands and feet drag, cancel, undo, and survive saved preview without detaching contacts", async ({ page }) => {
-  test.setTimeout(180_000);
+  // CI captures 34 rendered frames and reloads the full atlas across several previews.
+  test.setTimeout(300_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
@@ -112,14 +178,23 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await expect(page.getByRole("tooltip")).toHaveText("Foot contact changed. Check the sole and floor from Side view before saving.");
     await page.getByRole("button", { name: "Drag Right foot", exact: true }).press("ArrowUp");
     await page.screenshot({ path: `${folder}/controls.png`, fullPage: true });
+    await page.getByRole("button", { name: "Save pose", exact: true }).click();
     await page.getByRole("button", { name: "Name and save", exact: true }).click();
     await page.getByRole("button", { name: "Save privately", exact: true }).click();
     await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();
     const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single(); if (record.error) throw record.error;
     const saved = await owner.from("exercise_scenes").select("id,studio_layout,motion_style").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
     const frames = await owner.from("motion_keyframes").select("position_ms,motion_joint_poses(rotation_x,rotation_y,rotation_z,rotation_w,rig_joints(slug))").eq("scene_id", saved.data.id).order("position_ms"); if (frames.error) throw frames.error;
-    expect(frames.data[0].motion_joint_poses).toHaveLength(0);
-    expect(frames.data[2].motion_joint_poses).toHaveLength(0);
+    for (const index of [0, 2]) {
+      const original = scene.keyframes[index].poses;
+      expect(frames.data[index].motion_joint_poses).toHaveLength(Object.keys(original).length);
+      for (const pose of frames.data[index].motion_joint_poses) {
+        const joint = [pose.rig_joints].flat()[0];
+        const angles = original[joint.slug as JointSlug]!;
+        const expected = new Quaternion().setFromEuler(new Euler(angles.x * Math.PI / 180, angles.y * Math.PI / 180, angles.z * Math.PI / 180));
+        for (const axis of ["x", "y", "z", "w"] as const) expect(pose[`rotation_${axis}`]).toBeCloseTo(expected[axis], 5);
+      }
+    }
     expect(frames.data[1].motion_joint_poses).toHaveLength(8);
     expect(saved.data.studio_layout).toMatchObject({ presentation: { highlight: "group:abs" }, objects: [] });
     expect(saved.data.motion_style).toBe("free");
@@ -145,7 +220,7 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await page.getByRole("button", { name: "View finish", exact: true }).click();
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await openWorkshopTool(page, "Timeline");
-    await page.getByRole("button", { name: "Edit this moment", exact: true }).click();
+    await page.getByRole("button", { name: "Finish · 1.60s", exact: true }).click();
     await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await setWorkshopLanguage(page, "he");
     await expect(page.getByRole("button", { name: "גרירת יד שמאל", exact: true })).toBeVisible();

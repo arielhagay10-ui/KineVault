@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { expect, test as base } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test as base } from "../e2e/published-catalog.helpers";
 import { createStudioObject } from "../../src/lib/motion/studio";
 import { blankWorkshopScene, type StudioObject, type WorkshopScene } from "../../src/lib/motion/workshop";
 import { dismissWorkshopTutorial } from "../e2e/workshop-menu.helpers";

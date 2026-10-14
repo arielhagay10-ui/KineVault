@@ -25,6 +25,23 @@ const schema = z.object({
 
 export type SubmissionState = { error: string | null };
 
+export async function publishPrivateExercise(_previous: SubmissionState, formData: FormData): Promise<SubmissionState> {
+  if (!await getIdentity()) return { error: "Sign in to publish this exercise." };
+  const parsed = z.uuid().safeParse(formData.get("privateId"));
+  if (!parsed.success) return { error: "Choose a saved private exercise." };
+  const supabase = await createClient();
+  const { data: exerciseId, error } = await supabase.rpc("publish_private_exercise", { p_private_id: parsed.data });
+  if (error || !exerciseId) return { error: error?.message.includes("name")
+    ? "Save an exercise name before publishing." : "Could not publish this exercise. Try again." };
+  const { data: exercise } = await supabase.from("exercises").select("slug,status").eq("id", exerciseId).maybeSingle();
+  if (!exercise || exercise.status !== "published") return { error: "This public exercise is unavailable. Contact a moderator." };
+  revalidatePath("/exercises");
+  revalidatePath("/my-exercises");
+  revalidatePath(`/my-exercises/${parsed.data}/edit`);
+  revalidatePath("/admin/exercises");
+  redirect(`/exercises/${exercise.slug}`);
+}
+
 export async function submitPrivateExercise(_previous: SubmissionState, formData: FormData): Promise<SubmissionState> {
   const identity = await getIdentity();
   if (!identity) return { error: "Sign in to submit this exercise." };

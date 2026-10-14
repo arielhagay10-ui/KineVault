@@ -1,12 +1,18 @@
 import { z } from "zod";
 import { workshopSceneSchema } from "./scene-schema";
 import type { WorkshopScene } from "./workshop";
+import { normalizeLegacyStudioLayout } from "./equipment-capabilities";
 
 export const draftRecoveryKey = (ownerId: string, privateId: string | null) => `kinevault.workshop.draft.${ownerId}.${privateId ?? "new"}`;
 const recoverySchema = z.object({ scene: workshopSceneSchema, name: z.string().max(200), privateId: z.string().nullable(), confirmed: z.boolean().optional(), sessionId: z.string().optional(), updatedAt: z.number().finite() });
 export type DraftRecovery = Omit<z.infer<typeof recoverySchema>, "scene"> & { scene: WorkshopScene };
 export function parseDraftRecovery(value: string | null): DraftRecovery | null {
-  try { const result = recoverySchema.safeParse(JSON.parse(value ?? "null")); return result.success ? result.data : null; } catch { return null; }
+  try {
+    const raw = JSON.parse(value ?? "null");
+    if (raw?.scene && typeof raw.scene === "object") raw.scene.studio = normalizeLegacyStudioLayout(raw.scene.studio);
+    const result = recoverySchema.safeParse(raw);
+    return result.success ? result.data : null;
+  } catch { return null; }
 }
 export type DraftSaveResult = { error: string | null; privateId?: string; current?: boolean };
 type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;

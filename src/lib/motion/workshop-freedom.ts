@@ -1,5 +1,6 @@
 import { clamp, createStudioObject, studioAttachmentSlots, studioPointToWorld } from "./studio";
 import { isStudioMachine } from "./studio-machines";
+import { changeGripAttachment } from "./studio-grip";
 import { identityTransform, sampleWorkshopPose, type SceneTransform, type StudioObject, type WorkshopScene } from "./workshop";
 
 export function cableTowerPlacement(body: SceneTransform, object: StudioObject, side: "front" | "behind" | "left" | "right", lateralOffset = 0): SceneTransform {
@@ -28,7 +29,7 @@ export function addWorkshopEquipment(scene: WorkshopScene, slug: StudioObject["s
   if (slug === "bench" && activeMachine) next.rotationY = activeMachine.rotationY;
   return { ...scene, equipment: engage ? null : scene.equipment, studio: { ...studio,
     seating: engage ? undefined : studio.seating,
-    objects: [...studio.objects.map(item => engage ? { ...item, machineUse: item.machineUse === undefined ? undefined : false, attachment: "none" as const, elbowLocks: undefined } : item),
+    objects: [...studio.objects.map(item => engage ? { ...changeGripAttachment(item, "none"), machineUse: item.machineUse === undefined ? undefined : false, elbowLocks: undefined } : item),
       { ...next, machineUse: isStudioMachine(slug) ? engage : undefined }],
   } };
 }
@@ -40,8 +41,8 @@ export function freeWorkshopBody(scene: WorkshopScene, rowId?: string): Workshop
   const released = row ? { ...row, machineUse: false, cableAttachment: row.cableAttachment ?? "straight-bar" as const, attachment: row.cableAttachment ? row.attachment : "both" as const } : undefined;
   const slots = released ? studioAttachmentSlots(released) : [];
   return { ...scene, equipment: null, motionStyle: "free", studio: { ...studio, seating: undefined, objects: studio.objects.map(item => item.id === row?.id ? released! : {
-    ...item, machineUse: item.machineUse === undefined ? undefined : false,
-    ...(studioAttachmentSlots(item).some(slot => slots.includes(slot)) ? { attachment: "none" as const, elbowLocks: undefined } : {}),
+    ...(studioAttachmentSlots(item).some(slot => slots.includes(slot)) ? { ...changeGripAttachment(item, "none"), elbowLocks: undefined } : item),
+    machineUse: item.machineUse === undefined ? undefined : false,
   }) } };
 }
 
@@ -55,12 +56,12 @@ export function createFreeCableSetup(scene: WorkshopScene, id: string): Workshop
     const position = studioPointToWorld({ x: .95, y: 0, z: 1.2 }, row);
     Object.assign(cable, { x: clamp(position.x, -10, 10), y: clamp(position.y, -3, 10), z: clamp(position.z, -10, 10), rotationX: row.rotationX, rotationY: row.rotationY, rotationZ: row.rotationZ, scale: row.scale });
   }
-  Object.assign(cable, { pulleyHeight: .3, attachment: row?.cableAttachment ? row.attachment : "both", cableAttachment: row?.cableAttachment ?? "straight-bar", cuffPosition: row?.cuffPosition });
+  Object.assign(cable, { pulleyHeight: .3, attachment: row?.cableAttachment ? row.attachment : "both", cableAttachment: row?.cableAttachment ?? "straight-bar", cuffPosition: row?.cuffPosition, gripOffsets: row?.gripOffsets });
   if (!row) Object.assign(cable, cableTowerPlacement(studio.body, cable, "front", studio.objects.length % 2 * .5));
   else cable.rotationY = Math.atan2(studio.body.x - cable.x, studio.body.z - cable.z) * 180 / Math.PI;
   const objects = studio.objects.map(item => item === row ? cable : {
-    ...item, machineUse: item.machineUse === undefined ? undefined : false,
-    ...(studioAttachmentSlots(item).some(slot => slot.endsWith("hand") || slot.endsWith("wrist") || slot.endsWith("upper-arm")) ? { attachment: "none" as const, elbowLocks: undefined } : {}),
+    ...(studioAttachmentSlots(item).some(slot => slot.endsWith("hand") || slot.endsWith("wrist") || slot.endsWith("upper-arm")) ? { ...changeGripAttachment(item, "none"), elbowLocks: undefined } : item),
+    machineUse: item.machineUse === undefined ? undefined : false,
   });
   return { ...scene, equipment: null, motionStyle: "free", studio: { ...studio, seating: undefined, objects: row ? objects : [...objects, cable] } };
 }
