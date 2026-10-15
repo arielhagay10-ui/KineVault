@@ -22,13 +22,25 @@ Copy `.env.example` to `.env.local`, then fill its public Supabase URL and anon 
 
 Local API/database ports are 15421/15422 in `supabase/config.toml`; Windows reserved the former 54321/54322 range. Use the configured ports from `supabase status`, and rebuild after changing `NEXT_PUBLIC_SUPABASE_URL`. Database tests read the configured database port. Restart with `supabase stop` followed by `supabase start` to retain data; never use `--no-backup` for normal restarts.
 
-Set `NEXT_PUBLIC_SITE_URL` to the application origin. The MVP uses Supabase email/password Auth. In production, enable email confirmation, configure custom SMTP, and set the confirmation and recovery email templates to reach `/auth/confirm` with `token_hash` and `type` so the server can establish a cookie session.
+Set `NEXT_PUBLIC_SITE_URL` to the application origin. Email/password Auth includes confirmation, resend recovery, password visibility, and safe continuation to the original page. Local emails are captured in Mailpit at `http://127.0.0.1:15424`. The templates in `supabase/templates/` open `/auth/confirm`; an explicit confirmation action creates the cookie session so opening an email preview does not consume its token.
 
-Use `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` for the confirmation template and the same URL with `type=recovery&next=/reset-password/update` for recovery. Add the site origin to Supabase Auth redirect URLs.
+Google sign-in is available after configuring the Supabase Google provider and setting the server-only `AUTH_GOOGLE_ENABLED=true`. External email requires a verified sender domain and custom SMTP. Follow [Authentication setup](docs/authentication.md) for local testing, Google credentials, exact callback URLs, and Gmail delivery checks.
 
 ```sh
 npm run dev
 ```
+
+## Run the local stack in Docker
+
+Install dependencies with `npm ci`, then start Docker Desktop and run:
+
+```powershell
+npm run docker:up
+```
+
+This starts local Supabase, applies pending local migrations, builds the app and render worker, and waits for the app to be healthy at <http://127.0.0.1:3000>. Containers keep running after the command finishes. The script finds Docker Desktop in its standard system or user installation folder and stores local credentials in the ignored `.env.docker` file. The first run downloads images and can take several minutes. Docker Desktop's Linux engine must be running; Windows installations using WSL require WSL 2.
+
+Run `npm run docker:down` to stop the app, worker and Supabase while preserving local database records and storage. Run `npm run docker:up` again after code changes to rebuild the app.
 
 ## Checks
 
@@ -111,4 +123,4 @@ Run `npm run notify:once` or `npm run notify:worker`. The worker freezes each em
 
 Light/dark/system appearance, mobile filters, complete contributor metadata and aliases, audited timed notes, grouped media controls, and catalog candidate preparation are implemented. See [PROGRESS.md](PROGRESS.md) for verified checks and remaining content work.
 
-Hosting is deferred at the owner's request. Docker/Compose files are future deployment scaffolding and have not been built or used for this local delivery. Keep credentials in ignored environment files. A future release needs verified Auth SMTP, transactional email configuration, backup/restore checks, and final content review.
+Hosting is deferred at the owner's request. `compose.production.yml` remains future deployment scaffolding. Use the local Docker commands above for this computer. Keep credentials in ignored environment files. A future release needs verified Auth SMTP, transactional email configuration, backup/restore checks, and final content review.

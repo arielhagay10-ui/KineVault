@@ -2,6 +2,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
+import { fetchSupabase } from "./fetch-server";
 
 export async function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,6 +13,7 @@ export async function createClient() {
 
   const cookieStore = await cookies();
   return createServerClient<Database>(url, key, {
+    global: { fetch: fetchSupabase },
     cookies: {
       getAll() {
         return cookieStore.getAll();

@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { buildReviewEmail, deliverResendEmail } from "../src/lib/notifications/email.ts";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const url = process.env.SUPABASE_URL_INTERNAL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const apiKey = process.env.RESEND_API_KEY;
 const sender = process.env.NOTIFICATION_EMAIL_FROM;

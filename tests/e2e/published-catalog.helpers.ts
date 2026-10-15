@@ -59,7 +59,9 @@ export const test = base.extend<object, { publishedCableRaise: PublishedExercise
       const contentId = z.uuid().parse(submission.data.original_content_id);
 
       // Leave other queued development jobs intact; move only this job first.
-      localSql(`update public.render_jobs job set queued_at = '1970-01-01'
+      localSql(`update public.render_jobs job set queued_at =
+        (select coalesce(min(queued_at), now()) - interval '1 second'
+          from public.render_jobs where status = 'queued')
         where job.status = 'queued' and job.scene_id in
         (select id from public.exercise_scenes where content_id = '${contentId}');`);
       await run(process.execPath, ["scripts/render-worker.mjs", "--once"], {
