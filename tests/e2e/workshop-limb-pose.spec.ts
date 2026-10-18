@@ -1,3 +1,4 @@
+import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -5,13 +6,15 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page, type Locator } from "@playwright/test";
 import { Euler, Quaternion } from "three";
 import { blankWorkshopScene, identityTransform, type JointSlug, type StudioObject } from "../../src/lib/motion/workshop";
-import { setWorkshopLanguage, openWorkshopTool } from "./workshop-menu.helpers";
+import { enableWorkshopFreeDrag, setWorkshopLanguage, openWorkshopTool } from "./workshop-menu.helpers";
 import { createQuickScene } from "../../src/lib/motion/quick-create";
 import { createStudioObject } from "../../src/lib/motion/studio";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 const folder = ".local-artifacts/workshop/limb-posing";
 async function drag(page: Page, handle: Locator, dx: number, dy: number, cancel = false) {
+  if (!await handle.isVisible()) await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
+  await handle.click(); await enableWorkshopFreeDrag(page);
   await handle.scrollIntoViewIfNeeded();
   const bounds = (await handle.boundingBox())!;
   const x = bounds.x + bounds.width / 2, y = bounds.y + bounds.height / 2;
@@ -50,18 +53,18 @@ test("one-handed barbell contacts survive grip changes, saving and playback", as
     await page.goto(`/my-exercises/${created.data}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
     await openWorkshopTool(page, "Contacts");
-    await page.getByLabel("Selected equipment", { exact: true }).selectOption(bar.id);
+    await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(bar.id);
     for (const hand of ["both hands", "right hand", "left hand"]) {
       await page.getByRole("button", { name: `Hold with ${hand}`, exact: true }).click();
       await expect(page.getByRole("button", { name: `Hold with ${hand}`, exact: true })).toHaveAttribute("aria-pressed", "true");
       await expect(page.getByText("Too far to reach. Move the weight closer to the figure.", { exact: true })).toHaveCount(0);
     }
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
     await page.reload();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
     await openWorkshopTool(page, "Contacts");
-    await page.getByLabel("Selected equipment", { exact: true }).selectOption(bar.id);
+    await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(bar.id);
     await expect(page.getByRole("button", { name: "Hold with left hand", exact: true })).toHaveAttribute("aria-pressed", "true");
     const evidence = `${folder}/barbell`; mkdirSync(evidence, { recursive: true });
     for (const view of ["Three-quarter", "Side"]) {
@@ -76,7 +79,7 @@ test("one-handed barbell contacts survive grip changes, saving and playback", as
     await page.waitForTimeout(3500);
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     await page.getByRole("button", { name: "Three-quarter", exact: true }).click();
-    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await selectWorkshopMoment(page, "Finish");
     for (let zoom = 0; zoom < 3; zoom++) await page.getByRole("button", { name: "Zoom in", exact: true }).click();
     await page.locator("canvas").screenshot({ path: `${evidence}/grip-close.png` });
     const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
@@ -111,15 +114,17 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     const created = await owner.rpc("create_workshop_exercise", { p_scene: scene }); if (created.error) throw created.error;
     await page.goto(`/my-exercises/${created.data}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await selectWorkshopMoment(page, "Finish");
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
     await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("1");
     await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("1600");
-    await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
+    await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await page.getByRole("button", { name: "Front", exact: true }).click();
     // A changing reach advisory must not resize the canvas or disrupt pointer capture.
     const preview = page.getByLabel("3D exercise preview", { exact: true });
-    const hand = page.getByRole("button", { name: "Drag Left hand", exact: true });
+    const hand = page.getByRole("button", { name: /^(Select|Drag) Left hand$/ });
+    await hand.click();
+    await enableWorkshopFreeDrag(page);
     await hand.hover();
     const initialPreview = (await preview.boundingBox())!;
     const handBounds = (await hand.boundingBox())!;
@@ -154,34 +159,39 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     const restoredPreview = (await preview.boundingBox())!;
     expect(restoredPreview.y).toBeCloseTo(initialPreview.y, 0);
     expect(restoredPreview.height).toBeCloseTo(initialPreview.height, 0);
-    await drag(page, page.getByRole("button", { name: "Drag Left hand", exact: true }), 25, -65);
+    await drag(page, page.getByRole("button", { name: /^(Select|Drag) Left hand$/ }), 25, -65);
     await expect(page.getByRole("button", { name: "Undo", exact: true }).first()).toBeEnabled();
     const canvas = page.locator("canvas");
     const hash = async () => {
-      // Escape changes the visible focus ring; compare the pose with no focused button.
-      await page.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); });
-      return createHash("sha256").update(await canvas.screenshot()).digest("hex");
+      // Compare the rendered pose without interactive HTML overlays.
+      await page.mouse.move(0, 0);
+      await page.evaluate(async () => {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame);
+      });
+      return createHash("sha256").update(await canvas.screenshot({ style:
+        "[data-workshop-figure-preview] * { visibility: hidden !important; } [data-workshop-figure-preview] canvas { visibility: visible !important; }",
+      })).digest("hex");
     };
     const moved = await hash();
     await canvas.screenshot({ path: `${folder}/before-cancel.png` });
-    await drag(page, page.getByRole("button", { name: "Drag Left hand", exact: true }), -25, -20, true);
+    await drag(page, page.getByRole("button", { name: /^(Select|Drag) Left hand$/ }), -25, -20, true);
     await canvas.screenshot({ path: `${folder}/after-cancel.png` });
     expect(await hash()).toBe(moved);
     await page.getByRole("button", { name: "Undo", exact: true }).first().click();
     expect(await hash()).not.toBe(moved);
     await page.getByRole("button", { name: "Redo", exact: true }).first().click();
     expect(await hash()).toBe(moved);
-    await drag(page, page.getByRole("button", { name: "Drag Right hand", exact: true }), -25, -65);
+    await drag(page, page.getByRole("button", { name: /^(Select|Drag) Right hand$/ }), -25, -65);
     await page.getByRole("button", { name: "Side", exact: true }).click();
-    await drag(page, page.getByRole("button", { name: "Drag Left foot", exact: true }), 15, -35);
+    await drag(page, page.getByRole("button", { name: /^(Select|Drag) Left foot$/ }), 15, -35);
     await page.getByRole("button", { name: "Check foot contact", exact: true }).focus();
     await expect(page.getByRole("tooltip")).toHaveText("Foot contact changed. Check the sole and floor from Side view before saving.");
-    await page.getByRole("button", { name: "Drag Right foot", exact: true }).press("ArrowUp");
+    await page.getByRole("button", { name: /^(Select|Drag) Right foot$/ }).press("ArrowUp");
     await page.screenshot({ path: `${folder}/controls.png`, fullPage: true });
-    await page.getByRole("button", { name: "Save pose", exact: true }).click();
-    await page.getByRole("button", { name: "Name and save", exact: true }).click();
-    await page.getByRole("button", { name: "Save privately", exact: true }).click();
-    await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();
+    await page.getByRole("button", { name: "Capture pose", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single(); if (record.error) throw record.error;
     const saved = await owner.from("exercise_scenes").select("id,studio_layout,motion_style").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
     const frames = await owner.from("motion_keyframes").select("position_ms,motion_joint_poses(rotation_x,rotation_y,rotation_z,rotation_w,rig_joints(slug))").eq("scene_id", saved.data.id).order("position_ms"); if (frames.error) throw frames.error;
@@ -199,7 +209,7 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     expect(saved.data.studio_layout).toMatchObject({ presentation: { highlight: "group:abs" }, objects: [] });
     expect(saved.data.motion_style).toBe("free");
     await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await selectWorkshopMoment(page, "Finish");
     for (const view of ["Three-quarter", "Side"]) {
       await page.getByRole("button", { name: view, exact: true }).click();
       for (let i = 0; i <= 16; i++) {
@@ -215,13 +225,14 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
       await page.getByRole("button", { name: "Pause", exact: true }).click();
     }
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(0);
-    await expect(page.getByText("Choose Edit this moment to pose the displayed time.")).toBeVisible();
-    await page.getByRole("button", { name: "View finish", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
+    await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Pose hands and feet", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await selectWorkshopMoment(page, "Finish");
+    await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await openWorkshopTool(page, "Timeline");
     await page.getByRole("button", { name: "Finish · 1.60s", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
+    await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(4);
+    await enableWorkshopFreeDrag(page);
     await setWorkshopLanguage(page, "he");
     await expect(page.getByRole("button", { name: "גרירת יד שמאל", exact: true })).toBeVisible();
     await page.setViewportSize({ width: 320, height: 900 });
@@ -239,7 +250,7 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     const machine = await owner.rpc("create_workshop_exercise", { p_scene: pec }); if (machine.error) throw machine.error;
     await page.goto(`/my-exercises/${machine.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(0);
     await expect(page.getByText("Leave the machine to pose hands and feet freely. Move its handles to keep contact.")).toBeVisible();
     expect(errors).toEqual([]);
   } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }

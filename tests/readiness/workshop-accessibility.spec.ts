@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { openWorkshopTool, setWorkshopLanguage } from "../e2e/workshop-menu.helpers";
+import { openWorkshopMenu, openWorkshopTool, setWorkshopLanguage } from "../e2e/workshop-menu.helpers";
 import { auditAccessibility, setAppearance } from "./accessibility.helpers";
 import { test } from "./workshop.fixture";
 
@@ -9,20 +9,27 @@ for (const appearance of ["light", "dark"] as const) {
     await setAppearance(page, appearance);
     await page.goto(`/my-exercises/${workshop.draftId}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-    await auditAccessibility(page, testInfo, `${appearance}-quick-workshop`);
-    const advanced = page.getByRole("button", { name: "Advanced editing", exact: true });
-    await advanced.focus();
-    await advanced.press("Enter");
-    await expect(advanced).toHaveAttribute("aria-pressed", "true");
+    await auditAccessibility(page, testInfo, `${appearance}-workshop`);
+    await openWorkshopMenu(page);
+    await auditAccessibility(page, testInfo, `${appearance}-workshop-menu`);
+    await page.keyboard.press("Escape");
     for (const tool of ["Equipment", "Position", "Pose", "Timeline", "Settings"]) {
       await openWorkshopTool(page, tool);
+      // Scan settled tool colors rather than an intermediate selection transition.
+      await page.getByRole("toolbar", { name: "Movement tools", exact: true, includeHidden: true }).evaluate(async element => {
+        await Promise.all(element.getAnimations({ subtree: true }).map(animation => animation.finished.catch(() => {})));
+      });
       await auditAccessibility(page, testInfo, `${appearance}-tool-${tool}`);
     }
     await openWorkshopTool(page, "View");
     await page.getByRole("button", { name: "Compare start and finish", exact: true }).click();
+    const preview = page.getByRole("button", { name: "Preview", exact: true });
+    if (await preview.isVisible()) await preview.click();
     await expect(page.getByRole("region", { name: "Start and finish comparison", exact: true })).toBeVisible();
     await expect(page.locator('[data-anatomy-state="ready"]')).toHaveCount(2);
     await auditAccessibility(page, testInfo, `${appearance}-start-finish-comparison`);
+    const editControls = page.getByRole("button", { name: "Edit controls", exact: true });
+    if (await editControls.isVisible()) await editControls.click();
     await page.getByRole("button", { name: "Close comparison", exact: true }).click();
     await openWorkshopTool(page, "Equipment");
     await page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();

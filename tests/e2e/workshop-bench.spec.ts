@@ -1,6 +1,6 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
-import { setWorkshopMode, selectWorkshopObject } from "./workshop-menu.helpers";
+import { openWorkshopTool, dismissWorkshopTutorial } from "./workshop-menu.helpers";
+import { selectWorkshopObject } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -43,11 +43,9 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-    await page.getByRole("button", { name: "Start and finish", exact: true }).click();
-    await page.getByText("Grip and equipment options", { exact: true }).click();
+    await openWorkshopTool(page, "Contacts");
     const controls = page.getByRole("region", { name: "Bench body position", exact: true }).filter({ visible: true });
     await expect(controls).toBeVisible();
-    await setWorkshopMode(page, "advanced");
     await selectWorkshopObject(page, "Adjustable bench");
     await expect(page.getByRole("tab", { name: "Contacts", exact: true })).toHaveAttribute("aria-selected", "true");
     await expect(controls).toBeInViewport();
@@ -55,7 +53,7 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
     await page.screenshot({ path: `${artifacts}/desktop-controls.png`, fullPage: true });
     await page.getByRole("button", { name: "Side", exact: true }).click();
     for (const [facing, label] of [["supine", "Lie face up"], ["prone", "Lie face down"]] as const) {
-      await page.getByRole("tab", { name: "Contacts", exact: true }).click();
+      await openWorkshopTool(page, "Contacts");
       await controls.getByRole("button", { name: label, exact: true }).click();
       await expect(controls.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
       await expect(controls.getByLabel("Sitting direction")).toHaveCount(0);
@@ -67,7 +65,7 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
       }
       await controls.getByRole("button", { name: "Flat", exact: true }).click();
       await expect(controls.getByLabel("Bench pad angle degrees", { exact: true })).toHaveValue("0");
-      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.getByRole("button", { name: "Save exercise", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
       const saved = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
       const stored = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", saved.data!.content_id).single();
@@ -75,11 +73,9 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
       expect(stored.data.studio_layout).toMatchObject({ seating: { benchId, facing }, objects: [{ benchAngle: 0 }] });
       await page.reload();
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-      await page.getByRole("button", { name: "Start and finish", exact: true }).click();
-      await page.getByText("Grip and equipment options", { exact: true }).click();
+      await openWorkshopTool(page, "Contacts");
       await expect(controls.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
-      await setWorkshopMode(page, "advanced");
-      await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+      await openWorkshopTool(page, "Timeline");
       for (let frame = 0; frame <= 16; frame++) {
         await page.getByLabel("Preview time").evaluate((element, value) => {
           Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(element, String(value));
@@ -102,9 +98,7 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
       await page.waitForTimeout(3500);
       await page.getByRole("button", { name: "Pause", exact: true }).click();
     }
-    await setWorkshopMode(page, "quick");
-    await page.getByRole("button", { name: "Start and finish", exact: true }).click();
-    await page.getByText("Grip and equipment options", { exact: true }).click();
+    await openWorkshopTool(page, "Contacts");
     await expect(controls).toBeVisible();
     await controls.getByRole("button", { name: "Sit", exact: true }).click();
     for (const facing of ["front", "left", "right"]) {
@@ -129,8 +123,7 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
     await page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
     await page.getByRole("dialog").getByRole("searchbox").fill("bench");
     await page.getByRole("dialog").getByRole("button", { name: "Adjustable bench", exact: true }).first().click();
-    await page.getByRole("button", { name: "Start and finish", exact: true }).click();
-    await page.getByText("Grip and equipment options", { exact: true }).click();
+    await openWorkshopTool(page, "Contacts");
     await expect(controls.getByRole("button", { name: "Lie face up", exact: true })).toBeVisible();
     await controls.getByRole("button", { name: "Lie face up", exact: true }).click();
     await expect(controls.getByRole("button", { name: "Lie face up", exact: true })).toHaveAttribute("aria-pressed", "true");

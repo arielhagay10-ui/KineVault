@@ -45,7 +45,7 @@ test("spaces poses evenly and edits focused timeline rows with recoverable keybo
     await page.keyboard.press("ArrowRight"); await expect(rows.nth(2)).toBeFocused();
     await page.keyboard.press("Backspace"); await expect(rows).toHaveCount(8);
     await page.keyboard.press("Control+z"); await expect(rows).toHaveCount(9);
-    await page.getByRole("button", { name: "Save", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
     await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible(); await openWorkshopTool(page, "Timeline");
     await expect(rows).toHaveCount(9); await rows.nth(1).click(); await selectWorkshopJoint(page, "Left elbow"); await expect(jointField(page, "x")).toHaveValue("80");
     await openWorkshopTool(page, "Timeline"); mkdirSync(".local-artifacts/workshop/timeline", { recursive: true });

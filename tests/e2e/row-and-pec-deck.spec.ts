@@ -33,7 +33,6 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
       const created = await owner.rpc("create_workshop_exercise", { p_scene: scene });
       if (created.error) throw created.error;
       await page.goto(`/my-exercises/${created.data}/workshop`);
-      await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60000 });
       await expect(page.locator("[data-highlight-count]")).not.toHaveAttribute("data-highlight-count", "0");
       await page.getByRole("button", { name: "Add equipment", exact: true }).click();
@@ -70,11 +69,10 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
       const travelLabel = slug === "pec-deck" ? "Arm opening percent" : "Row pull percent";
       await page.getByLabel(travelLabel, { exact: true }).fill("42");
       await page.getByLabel(travelLabel, { exact: true }).press("Enter");
-      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.getByRole("button", { name: "Save exercise", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload();
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-      await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
       await selectWorkshopObject(page, studioAssetNames[slug]);
       await openWorkshopTool(page, "Timeline");
       await expect(page.getByLabel(travelLabel, { exact: true })).toHaveValue("42");
@@ -89,11 +87,10 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
         await page.getByLabel("Pec deck mode", { exact: true }).selectOption("regular");
         await openWorkshopTool(page, "Timeline");
         await expect(page.getByText("Arm closure", { exact: true })).toBeVisible();
-        await page.getByRole("button", { name: "Save", exact: true }).click();
+        await page.getByRole("button", { name: "Save exercise", exact: true }).click();
         await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
         await page.reload();
         await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-        await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
         await selectWorkshopObject(page, studioAssetNames[slug]);
         await expect(page.getByLabel("Pec deck mode", { exact: true })).toHaveValue("regular");
       }

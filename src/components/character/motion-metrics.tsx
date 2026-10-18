@@ -4,12 +4,13 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, type RefObject } from "react";
 import { deviceCaptureSchema, summarizeDeviceFrames } from "@/lib/motion/device-profile";
 
-export type MotionRenderMetrics = { calls: number; geometries: number; textures: number; poseSolves: number };
+export type MotionRenderMetrics = { calls: number; geometries: number; textures: number; poseSolves: number; poseSolveMs: number; renderFrames: number };
 /** Opt-in profiling, sampled after rendering without adding React commits. */
-export function MotionMetrics({ wrapper, solvesRef, onMetrics }: { wrapper: RefObject<HTMLDivElement | null>; solvesRef: RefObject<number>; onMetrics?: (sample: MotionRenderMetrics) => void }) {
+export function MotionMetrics({ wrapper, solvesRef, solveStartedRef, onMetrics }: { wrapper: RefObject<HTMLDivElement | null>; solvesRef: RefObject<number>; solveStartedRef?: RefObject<number | null>; onMetrics?: (sample: MotionRenderMetrics) => void }) {
   const gl = useThree(state => state.gl);
   const camera = useThree(state => state.camera);
   const enabled = useRef(false), pending = useRef(0), last = useRef(-Infinity);
+  const totals = useRef({ poseSolveMs: 0, renderFrames: 0 });
   const capture = useRef<{ timestamps: number[]; hidden: boolean; resized: boolean; triangles: number; calls: number;
     canvas: { width: number; height: number; pixelRatio: number } } | null>(null);
   useEffect(() => {
@@ -39,7 +40,7 @@ export function MotionMetrics({ wrapper, solvesRef, onMetrics }: { wrapper: RefO
         const valid = !recorded.hidden && !recorded.resized && !!frames && frames.frames >= 120 && frames.elapsedMs >= 10_000;
         const result = { ...metadata, captureId: crypto.randomUUID(), measuredAt: new Date().toISOString(), renderer, userAgent: navigator.userAgent,
           viewport: { width: innerWidth, height: innerHeight, pixelRatio: devicePixelRatio },
-          canvas: recorded.canvas,
+          canvas: recorded.canvas, captureState: { hidden: recorded.hidden, resized: recorded.resized },
           hardwareConcurrency: navigator.hardwareConcurrency, frameTiming: "rendered-frame cadence, not GPU execution time",
           frames, maximumTriangles: recorded.triangles, maximumCalls: recorded.calls,
           valid, reason: valid ? null : "Requires stable render dimensions and foreground rendering for 10 seconds and at least 120 intervals" };
@@ -60,6 +61,12 @@ export function MotionMetrics({ wrapper, solvesRef, onMetrics }: { wrapper: RefO
     };
   }, [gl, wrapper]);
   useFrame(() => {
+    totals.current.renderFrames++;
+    // Runs after the -2 pose and -1 equipment callbacks, before drawing.
+    if (solveStartedRef?.current != null) {
+      totals.current.poseSolveMs += performance.now() - solveStartedRef.current;
+      solveStartedRef.current = null;
+    }
     if (capture.current) {
       const canvas = capture.current.canvas;
       if (gl.domElement.width !== canvas.width || gl.domElement.height !== canvas.height
@@ -73,10 +80,15 @@ export function MotionMetrics({ wrapper, solvesRef, onMetrics }: { wrapper: RefO
     // completed pose solve so the next camera frame cannot report stale work.
     const poseSolves = String(solvesRef.current);
     if (wrapper.current && wrapper.current.dataset.poseSolves !== poseSolves) wrapper.current.setAttribute("data-pose-solves", poseSolves);
+    if (wrapper.current) {
+      wrapper.current.setAttribute("data-pose-solve-ms", String(totals.current.poseSolveMs));
+      wrapper.current.setAttribute("data-render-frames", String(totals.current.renderFrames));
+      wrapper.current.setAttribute("data-pixel-ratio", String(gl.getPixelRatio()));
+    }
     if (pending.current || performance.now() - last.current < 250) return;
     pending.current = requestAnimationFrame(() => {
       pending.current = 0; last.current = performance.now();
-      const sample = { calls: gl.info.render.calls, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, poseSolves: solvesRef.current };
+      const sample = { calls: gl.info.render.calls, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, poseSolves: solvesRef.current, ...totals.current };
       if (wrapper.current) {
         wrapper.current.dataset.renderCalls = String(sample.calls);
         wrapper.current.dataset.renderGeometries = String(sample.geometries);

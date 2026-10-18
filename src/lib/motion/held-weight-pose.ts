@@ -8,49 +8,71 @@ import { sampleStudioObject, studioPointToWorld, updateStudioObjectTransform } f
 import { constrainFrontalPose } from "./studio-constraints";
 import { weightGripPoint } from "./studio-grip";
 import { applyStudioSeating } from "./studio-seat";
+import { isSharedDumbbell, supportDumbbellPalm } from "./shared-dumbbell-grip";
 import { identityTransform, sampleWorkshopPose, type RigPose, type StudioObject, type WorkshopScene } from "./workshop";
 
 const sides = ["left", "right"] as const;
 export const canCarryWithArm = (item: StudioObject) => ["dumbbell", "barbell", "kettlebell"].includes(item.slug)
-  && item.attachment !== "none" && (item.attachment !== "both" || item.slug === "barbell")
+  && item.attachment !== "none" && (item.attachment !== "both" || item.slug === "barbell" || isSharedDumbbell(item))
   && !sides.some(side => (item.attachment === side || item.attachment === "both") && item.elbowLocks?.[side]);
 
+/** The caller owns this lazy rig and must release it when its inspector closes. */
+export function createHeldWeightPoseSampler() {
+  let owned: { rig: ReturnType<typeof createAnatomyRig>; parent: Group } | undefined;
+  return {
+    sample(scene: WorkshopScene, timeMs: number): RigPose {
+      return solveHeldWeightPose(scene, timeMs, () => {
+        if (!owned) {
+          const rig = createAnatomyRig(new Group()), parent = new Group();
+          parent.add(rig.root); owned = { rig, parent };
+        }
+        return owned;
+      });
+    },
+    dispose() { owned?.rig.dispose(); owned = undefined; },
+  };
+}
+
 export function sampleHeldWeightPose(scene: WorkshopScene, timeMs: number): RigPose {
+  const sampler = createHeldWeightPoseSampler();
+  try { return sampler.sample(scene, timeMs); } finally { sampler.dispose(); }
+}
+
+function solveHeldWeightPose(scene: WorkshopScene, timeMs: number, acquire: () => { rig: ReturnType<typeof createAnatomyRig>; parent: Group }): RigPose {
   const pose = constrainFrontalPose(sampleWorkshopPose(scene.keyframes, timeMs), scene.studio?.frontalPlane);
   const weights = scene.studio?.objects.filter(item => canCarryWithArm(item) && !(item.poseDriver === "arm" && item.attachment !== "both")) ?? [];
   if (!weights.length) return pose;
-  const rig = createAnatomyRig(new Group()), parent = new Group(), body = scene.studio!.body;
+  const { rig, parent } = acquire(), body = scene.studio!.body;
   parent.position.set(body.x, body.y, body.z);
   parent.rotation.set(body.rotationX * Math.PI / 180, body.rotationY * Math.PI / 180, body.rotationZ * Math.PI / 180);
-  parent.scale.setScalar(body.scale); parent.add(rig.root);
-  try {
-    poseAnatomyRig(rig, pose, true, forearmRotationForScene(scene));
-    plantAnatomyFeet(rig, scene.motionStyle, pose); correctAuthoredArmPath(rig, scene.motionStyle, pose);
-    applyStudioSeating(rig, scene.studio, timeMs, pose);
-    const result = { ...pose };
-    for (const weight of weights) {
-      const item = sampleStudioObject(weight, timeMs);
-      const armDriven = item.poseDriver !== undefined && item.poseDriver !== "weight";
-      if (armDriven) poseArmDrivenWeight(rig, item, pose, scene.studio?.frontalPlane);
-      for (const side of sides.filter(side => item.attachment === side || item.attachment === "both")) {
-        if (armDriven && item.slug === "barbell") result[`${side}-wrist`] = barbellWristPose(rig, side);
-        if (armDriven && (item.attachment !== "both" || side === (item.poseDriver === "right-arm" ? "right" : "left"))) continue;
-        const target = studioPointToWorld(weightGripPoint(item, side), item);
-        if (!armDriven && item.slug === "barbell") solveBarbellGrip(rig, side, pose, target, new Vector3(1, 0, 0).applyEuler(new Euler(
-          item.rotationX * Math.PI / 180, item.rotationY * Math.PI / 180, item.rotationZ * Math.PI / 180)), scene.studio?.frontalPlane);
-        else if (!armDriven) solveDumbbellGrip(rig, { ...item, attachment: side }, pose, target, scene.studio?.frontalPlane);
-        if (item.slug === "barbell") result[`${side}-wrist`] = barbellWristPose(rig, side);
-        for (const part of ["shoulder", "elbow"] as const) {
-          const joint = `${side}-${part}` as const, rotation = rig.bones[joint].rotation;
-          result[joint] = { x: rotation.x * 180 / Math.PI * (part === "elbow" ? -1 : 1), y: rotation.y * 180 / Math.PI, z: -rotation.z * 180 / Math.PI };
-        }
+  parent.scale.setScalar(body.scale);
+  poseAnatomyRig(rig, pose, true, forearmRotationForScene(scene));
+  plantAnatomyFeet(rig, scene.motionStyle, pose); correctAuthoredArmPath(rig, scene.motionStyle, pose);
+  applyStudioSeating(rig, scene.studio, timeMs, pose);
+  const result = { ...pose };
+  for (const weight of weights) {
+    const item = sampleStudioObject(weight, timeMs);
+    const armDriven = item.poseDriver !== undefined && item.poseDriver !== "weight";
+    if (armDriven) poseArmDrivenWeight(rig, item, pose, scene.studio?.frontalPlane);
+    else if (isSharedDumbbell(item)) solveDumbbellGrip(rig, item, pose, new Vector3(), scene.studio?.frontalPlane);
+    for (const side of sides.filter(side => item.attachment === side || item.attachment === "both")) {
+      if (armDriven && (item.slug === "barbell" || isSharedDumbbell(item))) result[`${side}-wrist`] = barbellWristPose(rig, side);
+      if (armDriven && !isSharedDumbbell(item) && (item.attachment !== "both" || side === (item.poseDriver === "right-arm" ? "right" : "left"))) continue;
+      const target = studioPointToWorld(weightGripPoint(item, side), item);
+      if (!armDriven && item.slug === "barbell") solveBarbellGrip(rig, side, pose, target, new Vector3(1, 0, 0).applyEuler(new Euler(
+        item.rotationX * Math.PI / 180, item.rotationY * Math.PI / 180, item.rotationZ * Math.PI / 180)), scene.studio?.frontalPlane);
+      else if (!armDriven && !isSharedDumbbell(item)) solveDumbbellGrip(rig, { ...item, attachment: side }, pose, target, scene.studio?.frontalPlane);
+      if (item.slug === "barbell" || isSharedDumbbell(item)) result[`${side}-wrist`] = barbellWristPose(rig, side);
+      for (const part of ["shoulder", "elbow"] as const) {
+        const joint = `${side}-${part}` as const, rotation = rig.bones[joint].rotation;
+        result[joint] = { x: rotation.x * 180 / Math.PI * (part === "elbow" ? -1 : 1), y: rotation.y * 180 / Math.PI, z: -rotation.z * 180 / Math.PI };
       }
     }
-    return result;
-  } finally { rig.dispose(); }
+  }
+  return result;
 }
 
-export function editHeldWeightPose(scene: WorkshopScene, selectedFrame: number, scope: "selected" | "all", changes: RigPose): WorkshopScene {
+export function editHeldWeightPose(scene: WorkshopScene, selectedFrame: number, scope: "selected" | "all", changes: RigPose, anchorSide?: "left" | "right", editedAxis?: "x" | "y" | "z"): WorkshopScene {
   const shared = scene.studio?.objects.some(item => canCarryWithArm(item) && item.attachment === "both");
   const controlledSides = sides.filter(side => changes.torso || ["shoulder", "elbow", "wrist"].some(part => changes[`${side}-${part}` as keyof RigPose]));
   // A wrist-only edit must start from the visible weight-driven arm, including
@@ -68,23 +90,53 @@ export function editHeldWeightPose(scene: WorkshopScene, selectedFrame: number, 
   if (times.length > 24) throw new Error("Keeping this weight path needs more than 24 poses. Remove unused moments in Timeline first.");
   const frames = times.map(timeMs => scene.keyframes.find(frame => frame.timeMs === timeMs)
     ?? { timeMs, poses: sampleWorkshopPose(scene.keyframes, timeMs) });
-  const driver = controlledSides.length === 1 && controlledSides[0] === "right" ? "right-arm" : "left-arm";
+  const primarySide = anchorSide ?? (controlledSides.length === 1 ? controlledSides[0] : undefined);
+  const balanced = !primarySide && controlledSides.length === 2 && scene.studio?.objects.some(isSharedDumbbell);
+  const driver = balanced ? "arm" : primarySide === "right" ? "right-arm" : "left-arm";
+  const alreadyDriving = scene.studio?.objects.some(item => canCarryWithArm(item) && item.attachment === "both" && item.poseDriver === driver);
   // Preserve displayed poses at other moments when switching the driving arm.
   // At the edited moment, only the first weight-to-arm change samples solved
   // joints. Reusing follower compensations on later edits makes the pose drift.
   const takingControl = controlledSides.length > 0 && scene.studio?.objects.some(item => canCarryWithArm(item) && item.attachment === "both" && item.poseDriver !== driver);
   const takingWeightControl = controlledSides.length > 0 && scene.studio?.objects.some(item => canCarryWithArm(item) && item.attachment === "both" && (item.poseDriver === undefined || item.poseDriver === "weight"));
+  const takingSharedControl = scene.studio?.objects.some(isSharedDumbbell) && takingControl;
   const next = { ...scene, keyframes: frames.map(frame => {
     const edited = frame.timeMs === selectedTime || scope === "all";
     if (!edited && !wristControlSides.length) return frame;
-    const poses = { ...(edited && takingWeightControl ? sampleHeldWeightPose(scene, frame.timeMs) : frame.poses) };
+    const poses = { ...(edited && (takingWeightControl || takingSharedControl) ? sampleHeldWeightPose(scene, frame.timeMs) : frame.poses) };
     if (wristControlSides.length) {
       const displayed = sampleHeldWeightPose(scene, frame.timeMs);
       for (const side of wristControlSides) for (const part of ["shoulder", "elbow"] as const) poses[`${side}-${part}`] = displayed[`${side}-${part}`];
     }
-    return { ...frame, poses: constrainFrontalPose({ ...poses, ...(edited ? changes : {}) }, scene.studio?.frontalPlane) };
+    const authoredChanges = { ...changes };
+    if (editedAxis && alreadyDriving) for (const side of sides) for (const part of ["shoulder", "elbow", "wrist"] as const) {
+      const joint = `${side}-${part}` as const, angles = changes[joint];
+      if (!angles) continue;
+      // Do not feed untouched contact compensation back into the authored pose.
+      authoredChanges[joint] = { ...(poses[joint] ?? angles), [editedAxis]: angles[editedAxis] };
+    }
+    const changed = constrainFrontalPose({ ...poses, ...(edited ? authoredChanges : {}) }, scene.studio?.frontalPlane);
+    const weight = scene.studio?.objects.find(isSharedDumbbell);
+    const supportingSides = controlledSides.filter(side => !changes[`${side}-wrist`]
+      && (changes[`${side}-shoulder`] || changes[`${side}-elbow`]));
+    if (edited && weight && supportingSides.length) {
+      const rig = createAnatomyRig(new Group()), parent = new Group(), body = scene.studio!.body;
+      parent.position.set(body.x, body.y, body.z);
+      parent.rotation.set(body.rotationX * Math.PI / 180, body.rotationY * Math.PI / 180, body.rotationZ * Math.PI / 180);
+      parent.scale.setScalar(body.scale); parent.add(rig.root);
+      try {
+        poseAnatomyRig(rig, changed, true, forearmRotationForScene(scene));
+        plantAnatomyFeet(rig, scene.motionStyle, changed); correctAuthoredArmPath(rig, scene.motionStyle, changed);
+        applyStudioSeating(rig, scene.studio, frame.timeMs, changed);
+        for (const side of supportingSides) {
+          supportDumbbellPalm(rig, sampleStudioObject(weight, frame.timeMs), changed, side);
+          changed[`${side}-wrist`] = barbellWristPose(rig, side);
+        }
+      } finally { rig.dispose(); }
+    }
+    return { ...frame, poses: changed };
   }) };
-  let carried = carryHeldWeights(scene, next, controlledSides.length === 1 ? controlledSides[0] : undefined);
+  let carried = carryHeldWeights(scene, next, primarySide);
   if (!carried.studio) return carried;
   if (shared && takingControl) carried = { ...carried, keyframes: carried.keyframes.map(frame =>
     frame.timeMs === selectedTime || scope === "all" ? frame : { ...frame, poses: sampleHeldWeightPose(scene, frame.timeMs) }) };
@@ -115,7 +167,8 @@ export function carryHeldWeights(previous: WorkshopScene, next: WorkshopScene, a
     if (!canCarryWithArm(item)) return item;
     const moments = edits.filter(edit => edit.sides.some(side => item.attachment === side || item.attachment === "both"));
     if (!moments.length) return item;
-    let placed: StudioObject = { ...item, poseDriver: item.attachment === "both" ? (anchorSide === "right" ? "right-arm" : "left-arm") : "arm" };
+    const balanced = isSharedDumbbell(item) && !anchorSide && moments.every(moment => moment.sides.length === 2);
+    let placed: StudioObject = { ...item, poseDriver: item.attachment === "both" && !balanced ? (anchorSide === "right" ? "right-arm" : "left-arm") : "arm" };
     // Materialize unchanged keyframes before changing a static weight's first position.
     for (const frame of previous.keyframes) if (!placed.frames?.some(saved => saved.timeMs === frame.timeMs)) placed = updateStudioObjectTransform(placed, sampleStudioObject(item, frame.timeMs), frame.timeMs, true);
     for (const moment of moments) {

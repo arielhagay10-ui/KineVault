@@ -3,7 +3,7 @@
 import { useMotionFrame } from "./motion-frame";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Group, Object3D, Quaternion, Vector3 } from "three";
+import { Group, Mesh, Object3D, Quaternion, Vector3 } from "three";
 import { createCableGeometry, updateCableGeometry } from "@/lib/motion/cable-geometry";
 import type { AnatomyRig } from "@/lib/motion/anatomy";
 import { cableLocalGrip, studioCableFrame } from "@/lib/motion/studio-cable";
@@ -14,6 +14,8 @@ import { alignedCableTransform } from "@/lib/motion/studio-constraints";
 import type { RigPose, StudioObject } from "@/lib/motion/workshop";
 import type { StudioEditor } from "./studio-controls";
 import { StudioCableGrab, useCableDrag } from "./studio-cable-drag";
+import { CableAttachmentAsset, EquipmentAsset } from "./equipment-asset";
+import { updateCableAttachmentScale } from "@/lib/motion/equipment-assets";
 
 function Shaft({ from, to, radius = 0.022, color = "#627479" }: { from: [number, number, number]; to: [number, number, number]; radius?: number; color?: string }) {
   const a = new Vector3(...from), b = new Vector3(...to), direction = b.clone().sub(a);
@@ -29,6 +31,7 @@ export function StudioCable({ object, currentObject, rig, group, pose, editor, s
   const scratch = useMemo(() => ({ inverse: new Quaternion(), rotation: new Quaternion(), point: new Vector3(), tip: new Vector3(), points: Array.from({ length: 6 }, () => new Vector3()) }), []);
   const end = useRef<Group>(null), left = useRef<Group>(null), right = useRef<Group>(null);
   const knot = useRef<Group>(null);
+  const pulley = useRef<Mesh>(null);
   const cuff = useRef<Group>(null);
   const wire = useMemo(() => createCableGeometry(), []);
   const lastReach = useRef<boolean | null>(null);
@@ -44,6 +47,7 @@ export function StudioCable({ object, currentObject, rig, group, pose, editor, s
   useFrame(() => {
     if (!group.current || !end.current) return;
     const tower = group.current;
+    if (pulley.current) pulley.current.position.y = (currentObject?.current ?? object).pulleyHeight;
     if (object.shoulderAlignment && !editor?.dragging) {
       const transform = alignedCableTransform(rig, object);
       tower.position.set(transform.x, transform.y, transform.z);
@@ -55,7 +59,7 @@ export function StudioCable({ object, currentObject, rig, group, pose, editor, s
     end.current.position.copy(tower.worldToLocal(scratch.point.copy(frame.center)));
     end.current.quaternion.copy(scratch.rotation.copy(inverse).multiply(frame.rotation));
     knot.current?.position.copy(tower.worldToLocal(scratch.point.copy(frame.connection)));
-    cuff.current?.scale.set(frame.cuffRadius, 0.22, frame.cuffRadius);
+    if (cuff.current) updateCableAttachmentScale(cuff.current, kind, frame.cuffRadius);
     const points = scratch.points;
     tower.worldToLocal(points[0].copy(frame.pulley)); tower.worldToLocal(points[1].copy(frame.connection));
     let pointCount = 2;
@@ -75,19 +79,20 @@ export function StudioCable({ object, currentObject, rig, group, pose, editor, s
     if (lastReach.current !== frame.reachable) { lastReach.current = frame.reachable; editor?.onGripReach(object.id, frame.reachable); }
   });
   return <>
-    {showTower && <>
+    {showTower && <EquipmentAsset object={object} currentObject={currentObject} fallback={<>
     <mesh position={[0, (maxPulleyHeight + 0.15) / 2, 0]}><boxGeometry args={[0.14, maxPulleyHeight + 0.15, 0.18]} /><meshStandardMaterial color="#627479" metalness={0.55} /></mesh>
     <mesh position={[0, 0.08, 0]}><boxGeometry args={[0.8, 0.16, 0.8]} /><meshStandardMaterial color="#263b3b" /></mesh>
     {Array.from({ length: 9 }, (_, i) => <mesh key={i} position={[0, 0.22 + i * 0.065, -0.17]}><boxGeometry args={[0.4, 0.05, 0.3]} /><meshStandardMaterial color="#263b3b" /></mesh>)}
-    <mesh position={[0, object.pulleyHeight, 0.2]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.09, 0.09, 0.06, 24]} /><meshStandardMaterial color="#263b3b" /></mesh>
-    </>}
+    <mesh ref={pulley} position={[0, object.pulleyHeight, 0.2]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.09, 0.09, 0.06, 24]} /><meshStandardMaterial color="#263b3b" /></mesh>
+    </>} />}
     <lineSegments geometry={wire}><lineBasicMaterial color="#34484b" /></lineSegments>
     {(kind === "rope" || kind === "cuff") && <group ref={knot}>{kind === "rope" && <StudioCableGrab drag={drag} />}<mesh>{kind === "cuff" ? <torusGeometry args={[0.018, 0.005, 8, 20]} /> : <sphereGeometry args={[0.025, 12, 12]} />}<meshStandardMaterial color="#627479" metalness={0.6} /></mesh></group>}
     <group ref={end} {...drag.meshEvents} onClick={event => pick(event, event.eventObject)}>
       {kind !== "rope" && <StudioCableGrab drag={drag} />}
-      {kind === "cuff" ? <group ref={cuff}>
+      <group ref={cuff}>{kind !== "rope" && <CableAttachmentAsset kind={kind} objectId={object.id} fallback={<>
+      {kind === "cuff" ? <>
         <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1, 0.16, 10, 32]} /><meshStandardMaterial color="#263b3b" roughness={0.85} /></mesh>
-      </group> : kind === "d-handle" ? <>
+      </> : kind === "d-handle" ? <>
         <Shaft from={[-0.1, 0, 0]} to={[0.1, 0, 0]} color="#263b3b" />
         <Shaft from={[-0.1, 0, 0]} to={[-0.1, 0.1, 0]} radius={0.01} /><Shaft from={[0.1, 0, 0]} to={[0.1, 0.1, 0]} radius={0.01} />
         <mesh position={[0, 0.1, 0]}><torusGeometry args={[0.1, 0.01, 8, 24, Math.PI]} /><meshStandardMaterial color="#627479" metalness={0.55} /></mesh>
@@ -100,13 +105,16 @@ export function StudioCable({ object, currentObject, rig, group, pose, editor, s
           <Shaft from={[-.62, -.16, 0]} to={[-.38, 0, 0]} color="#202628" />
           <Shaft from={[.38, 0, 0]} to={[.62, -.16, 0]} color="#202628" />
         </> : kind === "v-bar" ? <><Shaft from={[-0.2, -0.2, 0]} to={[0, 0, 0]} /><Shaft from={[0, 0, 0]} to={[0.2, -0.2, 0]} /></> : null}
-      {kind !== "rope" && kind !== "cuff" && <Shaft from={[0, kind === "d-handle" ? 0.2 : 0, 0]} to={[0, kind === "d-handle" ? 0.21 : 0.08, 0]} radius={0.01} />}
+      {kind !== "cuff" && <Shaft from={[0, kind === "d-handle" ? 0.2 : 0, 0]} to={[0, kind === "d-handle" ? 0.21 : 0.08, 0]} radius={0.01} />}
       {(kind === "angled-bar" || kind === "lat-bar") && <mesh position={[0, .065, 0]}><torusGeometry args={[.022, .007, 8, 20]} /><meshStandardMaterial color="#627479" metalness={.6} /></mesh>}
+      </>} />}</group>
       {editing && kind !== "rope" && <StudioGripMarker side={editing.side} getPoint={() => kind === "cuff" ? gripOffset(object, editing.side) : cableLocalGrip(kind, editing.side, object).point} />}
     </group>
     {kind === "rope" && (["left", "right"] as const).map(side => <group key={side} ref={side === "left" ? left : right} {...drag.meshEvents} onClick={event => pick(event, event.eventObject, side)}>
-      <Shaft from={[-0.09, 0, 0]} to={[0.09, 0, 0]} radius={0.018} color="#343d3b" />
-      <mesh position={[side === "left" ? 0.11 : -0.11, 0, 0]}><sphereGeometry args={[0.04, 16, 12]} /><meshStandardMaterial color="#263b3b" /></mesh>
+      <CableAttachmentAsset kind="rope" objectId={object.id} side={side} fallback={<>
+        <Shaft from={[-0.09, 0, 0]} to={[0.09, 0, 0]} radius={0.018} color="#343d3b" />
+        <mesh position={[0.11, 0, 0]}><sphereGeometry args={[0.04, 16, 12]} /><meshStandardMaterial color="#263b3b" /></mesh>
+      </>} />
       {editing?.side === side && <StudioGripMarker side={side} getPoint={() => gripOffset(object, side)} />}
     </group>)}
   </>;

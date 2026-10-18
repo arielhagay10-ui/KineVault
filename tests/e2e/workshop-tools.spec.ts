@@ -1,5 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { setWorkshopLanguage, selectWorkshopJoint, selectWorkshopObject, expandWorkshopControls, openWorkshopRecovery } from "./workshop-menu.helpers";
+import { setWorkshopLanguage, selectWorkshopJoint, selectWorkshopObject, expandWorkshopControls, openWorkshopRecovery, openWorkshopMenu } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -38,15 +38,19 @@ test("workshop tools are directly accessible without scrolling through unrelated
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.setViewportSize({ width: 1024, height: 900 });
     await expect.poll(async () => {
-      const sidebar = (await page.getByRole("region", { name: "Quick create", exact: true }).boundingBox())!;
+      const sidebar = (await page.getByRole("tabpanel").boundingBox())!;
       const canvas = (await page.locator("canvas").boundingBox())!;
       return sidebar.x > canvas.x + canvas.width;
     }).toBe(true);
-    const quickBounds = (await page.getByRole("region", { name: "Quick create", exact: true }).boundingBox())!;
+    const panelBounds = (await page.getByRole("tabpanel").boundingBox())!;
     const canvasBounds = (await page.locator("canvas").boundingBox())!;
     expect(canvasBounds.height).toBeGreaterThan(450);
     expect((await page.locator('[data-workshop="studio"]').boundingBox())!.y).toBe(0);
-    await page.getByRole("button", { name: "Full screen", exact: true }).click();
+    const fullscreenAction = async (name: string) => {
+      await openWorkshopMenu(page);
+      await page.getByRole("button", { name, exact: true }).click();
+    };
+    await fullscreenAction("Full screen");
     await expect.poll(() => page.locator('[data-workshop="studio"]').evaluate(element => document.fullscreenElement === element)).toBe(true);
     // Chromium on Linux rejects native window resizing while in fullscreen.
     await page.evaluate(() => window.dispatchEvent(new Event("resize")));
@@ -55,7 +59,7 @@ test("workshop tools are directly accessible without scrolling through unrelated
     expect(await page.locator('[data-workshop="studio"]').evaluate(element => document.fullscreenElement === element)).toBe(true);
     mkdirSync(".local-artifacts/workshop/tools", { recursive: true });
     await page.screenshot({ path: ".local-artifacts/workshop/tools/fullscreen.png" });
-    await page.getByRole("button", { name: "Exit full screen", exact: true }).click();
+    await fullscreenAction("Exit full screen");
     await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
     await page.setViewportSize({ width: 1024, height: 900 });
     // Embedded browsers can leave the Fullscreen API promise pending indefinitely.
@@ -63,30 +67,35 @@ test("workshop tools are directly accessible without scrolling through unrelated
     await page.evaluate(() => {
       Element.prototype.requestFullscreen = () => new Promise<void>(() => {});
     });
-    await page.getByRole("button", { name: "Full screen", exact: true }).click();
+    await fullscreenAction("Full screen");
     await expect(page.getByRole("alert").filter({ hasText: "Use F11" })).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole("button", { name: "Full screen", exact: true })).toBeEnabled();
     await page.evaluate(() => { Element.prototype.requestFullscreen = () => Promise.reject(new TypeError("Blocked")); });
-    await page.getByRole("button", { name: "Full screen", exact: true }).click();
+    await fullscreenAction("Full screen");
     await expect(page.getByRole("alert").filter({ hasText: "Use F11" })).toBeVisible();
     await page.evaluate(method => { Element.prototype.requestFullscreen = method; }, fullscreenMethod);
     await fullscreenMethod.dispose();
-    await page.getByRole("button", { name: "Full screen", exact: true }).click();
+    await fullscreenAction("Full screen");
     await expect(page.getByRole("button", { name: "Exit full screen", exact: true })).toBeVisible();
     await expect(page.getByRole("alert").filter({ hasText: "Use F11" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Exit full screen", exact: true }).click();
-    expect(quickBounds.x).toBeGreaterThan(canvasBounds.x + canvasBounds.width);
+    await fullscreenAction("Exit full screen");
+    expect(panelBounds.x).toBeGreaterThan(canvasBounds.x + canvasBounds.width);
     await openWorkshopRecovery(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByText("Recovery and shortcuts", { exact: true }).click();
     await page.locator("[data-workshop-menu] > summary").click();
     await page.setViewportSize({ width: 1440, height: 1000 });
-    const tools = page.getByRole("tablist", { name: "Workshop tools", exact: true });
+    const tools = page.getByRole("group", { name: "Workshop tools", exact: true });
     const open = async (name: string) => {
-      const tab = tools.getByRole("tab", { name, exact: true }); await expect(tab).toBeInViewport();
+      const edit = page.getByRole("button", { name: "Edit controls", exact: true });
+      if (await edit.isVisible()) await edit.click();
+      if (["View", "Setups", "Settings"].includes(name)) {
+        const more = tools.locator("details");
+        if (!await more.evaluate(element => (element as HTMLDetailsElement).open)) await more.locator(":scope > summary").click();
+      }
+      const tab = tools.getByRole("tab", { name, exact: true, includeHidden: true }); await expect(tab).toBeInViewport();
       await tab.click(); await expect(tab).toHaveAttribute("aria-selected", "true");
     };
-    await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
     await expect(tools).toBeVisible({ timeout: 5000 });
     await open("Equipment");
     await tools.getByRole("tab", { name: "Equipment", exact: true }).press("ArrowRight");
@@ -114,16 +123,16 @@ test("workshop tools are directly accessible without scrolling through unrelated
     await page.getByLabel("Editing pose", { exact: true }).selectOption("0");
     await expect(page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true })).toHaveValue("70");
     await open("Timeline");
-    await expect(page.getByRole("button", { name: "Add keyframe", exact: true })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Add pose", exact: true })).toBeInViewport();
     await open("View"); await expect(page.getByLabel("Highlight", { exact: true })).toBeVisible();
     await page.getByLabel("Highlight", { exact: true }).selectOption("group:biceps");
     await open("Setups"); await expect(page.getByLabel("Setup name", { exact: true })).toBeInViewport();
     await page.getByLabel("Setup name", { exact: true }).fill("My bench and cable");
     await page.getByRole("button", { name: "Save equipment setup", exact: true }).click();
     await open("Contacts");
-    await page.getByLabel("Selected equipment", { exact: true }).selectOption(bench.id);
+    await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(bench.id);
     await expect(page.getByRole("button", { name: "Lie face up", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     const saved = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
     const stored = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", saved.data!.content_id).single();
@@ -134,6 +143,7 @@ test("workshop tools are directly accessible without scrolling through unrelated
     expect(preview.height).toBeGreaterThan(550);
     expect(preview.y + preview.height).toBeLessThan(1000);
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("button", { name: "Edit controls", exact: true }).click();
     await tools.scrollIntoViewIfNeeded();
     await page.screenshot({ path: ".local-artifacts/workshop/tools/mobile-before-contacts.png" });
     expect(await page.locator('[data-workshop="studio"]').evaluate(element => element.clientHeight)).toBe(844);

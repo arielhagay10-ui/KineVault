@@ -4,6 +4,9 @@ import type { JointAngles, StudioObject } from "./workshop";
 import { gripOffset } from "./grip-edit";
 
 export function weightGripPoint(object: StudioObject, side: "left" | "right") {
+  if (object.slug === "dumbbell" && object.attachment === "both") {
+    return new Vector3(.098, .2, side === "left" ? .055 : -.055).add(gripOffset(object, side));
+  }
   const half = object.attachment !== "both" ? 0 : object.slug === "barbell" ? 0.4 : object.slug === "kettlebell" ? 0.12 : 0;
   const base = object.slug === "bench" ? new Vector3(side === "left" ? .24 : -.24, .68, .25)
     : object.slug === "squat-rack" ? new Vector3(side === "left" ? .65 : -.65, 1.4, .3)

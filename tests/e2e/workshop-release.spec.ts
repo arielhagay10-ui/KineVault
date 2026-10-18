@@ -1,5 +1,6 @@
+import { openWorkshopTool } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { setWorkshopMode, selectWorkshopObject, expandWorkshopControls } from "./workshop-menu.helpers";
+import { selectWorkshopObject, expandWorkshopControls } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
@@ -11,7 +12,7 @@ test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] 
 
 test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
-test("leave equipment from the toolbar, move independently, undo and save", async ({ page }) => {
+test("leave equipment from the mobile header, move independently, undo and save", async ({ page }) => {
   test.setTimeout(180_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
@@ -25,6 +26,7 @@ test("leave equipment from the toolbar, move independently, undo and save", asyn
     await owner.auth.signInWithPassword({ email, password });
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/sign-in");
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Password", { exact: true }).fill(password);
@@ -40,15 +42,14 @@ test("leave equipment from the toolbar, move independently, undo and save", asyn
       if (created.error) throw created.error;
       await page.goto(`/my-exercises/${created.data}/workshop`);
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-      await setWorkshopMode(page, "advanced");
-      const toolbar = page.getByRole("toolbar", { name: "Workshop tools" });
+      const toolbar = page.getByRole("region", { name: "Workshop actions", exact: true });
       const release = toolbar.getByRole("button", { name: slug === "bench" ? "Stand up" : "Leave machine", exact: true });
       await expect(release).toBeVisible();
       // The exit stays available when equipment, rather than the body, is selected.
       await selectWorkshopObject(page, equipment.name);
       await release.click();
       await expect(release).toHaveCount(0);
-      await page.getByRole("tab", { name: "Position", exact: true }).click();
+      await openWorkshopTool(page, "Position");
       await expandWorkshopControls(page, "Precise placement");
       await expect(page.getByLabel("Position X meters", { exact: true })).toBeEnabled();
       await page.getByRole("button", { name: "Undo", exact: true }).click();
@@ -57,19 +58,20 @@ test("leave equipment from the toolbar, move independently, undo and save", asyn
       await expect(release).toHaveCount(0);
       await expandWorkshopControls(page, "Precise placement");
       await page.getByLabel("Position X meters", { exact: true }).fill("2");
-      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.getByRole("button", { name: "Save exercise", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
       await page.reload();
-      await setWorkshopMode(page, "advanced");
-      await page.getByLabel("Selected equipment", { exact: true }).selectOption("body");
-      await page.getByRole("tab", { name: "Position", exact: true }).click();
+      await openWorkshopTool(page, "Equipment");
+      await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
+      await openWorkshopTool(page, "Position");
       await expandWorkshopControls(page, "Precise placement");
       await expect(page.getByLabel("Position X meters", { exact: true })).toHaveValue("2");
       await expect(release).toHaveCount(0);
-      await page.getByLabel("Selected equipment", { exact: true }).selectOption(equipment.id);
+      await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(equipment.id);
+      await openWorkshopTool(page, "Position");
       await expandWorkshopControls(page, "Precise placement");
       await expect(page.getByLabel("Position X meters", { exact: true })).toHaveValue(String(equipment.x));
-      await page.getByRole("tab", { name: "Contacts", exact: true }).click();
+      await openWorkshopTool(page, "Contacts");
       if (slug === "bench") await page.getByRole("button", { name: "Sit", exact: true }).click();
       else await page.getByRole("button", { name: "Use this machine", exact: true }).click();
       await expect(release).toBeVisible();

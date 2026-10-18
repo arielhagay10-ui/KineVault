@@ -45,6 +45,7 @@ export async function captureMotion({ scene, pageUrl, token, directory, signal: 
       if (response?.status() !== 200) throw new Error(`Render page returned ${response?.status() ?? "no response"}`);
       await page.waitForFunction(() => typeof window.kinevaultRenderFrame === "function");
       await page.locator('#render-frame [data-anatomy-state="ready"]').waitFor({ timeout: 60000 });
+      await page.locator('#render-frame [data-equipment-state="ready"]').waitFor({ timeout: 60000 });
     });
     const frameCount = Math.ceil(scene.durationMs * 24 / 1000) + 1;
     metrics.frameCount = frameCount;
@@ -55,7 +56,10 @@ export async function captureMotion({ scene, pageUrl, token, directory, signal: 
           window.kinevaultRenderFrame(time);
           await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame);
         }, Math.round(index * scene.durationMs / (frameCount - 1)));
-        await page.locator("#render-frame").screenshot({ path: join(directory, `frame-${String(index).padStart(4, "0")}.png`) });
+        await page.locator("#render-frame").screenshot({
+          path: join(directory, `frame-${String(index).padStart(4, "0")}.png`),
+          style: "[data-site-menu] { visibility: hidden !important; }",
+        });
       }
     });
     const frames = join(directory, "frame-%04d.png");

@@ -10,6 +10,25 @@ import { applyStudioSeating } from "./studio-seat";
 
 const id = "00000000-0000-4000-8000-000000000001";
 describe("seated cable workshop", () => {
+  it("keeps supported world geometry on the bench despite stored free-body coordinates", () => {
+    const rig = createAnatomyRig(new Group()), body = new Group(); body.add(rig.root);
+    const bench = { ...createStudioObject("bench", id, 0), benchAngle: 0, x: .4, z: -.3 };
+    try {
+      for (const facing of ["front", "supine"] as const) {
+        let supported: Vector3[] | undefined;
+        for (let step = 0; step <= 16; step++) {
+          const transform = { ...identityTransform, x: step / 8, y: step / 16, z: -step / 8, rotationY: step * 5 };
+          body.position.set(transform.x, transform.y, transform.z); body.rotation.y = transform.rotationY * Math.PI / 180;
+          poseAnatomyRig(rig, {});
+          applyStudioSeating(rig, { body: transform, objects: [bench], seating: { benchId: id, facing } }, step * 200, {});
+          body.updateMatrixWorld(true);
+          const points = [rig.bones.pelvis, rig.bones.torso, rig.handBones.left, rig.footBones.right].map(bone => bone.getWorldPosition(new Vector3()));
+          if (!supported) supported = points;
+          for (const [index, point] of points.entries()) expect(point.distanceTo(supported[index])).toBeLessThan(.00001);
+        }
+      }
+    } finally { rig.dispose(); }
+  });
   it("keeps seated ankles inside their joint range even after solving the legs and adding a foot pose", () => {
     const rig = createAnatomyRig(new Group());
     try {

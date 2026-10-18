@@ -1,0 +1,63 @@
+import { mkdirSync } from "node:fs";
+import { expect } from "@playwright/test";
+import { test } from "../readiness/workshop.fixture";
+import { dismissWorkshopTutorial, openWorkshopMenu, openWorkshopTool } from "./workshop-menu.helpers";
+
+test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+
+test("recovery actions, equipment entry and capture state stay visible without extra chrome", async ({ page, workshop }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1651, height: 871 });
+  await openWorkshopTool(page, "Equipment");
+  const equipment = page.locator('[data-workshop-panel="equipment"]');
+  await expect(equipment.getByRole("button", { name: /Add equipment/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Add equipment", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Choose equipment", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("Dismiss steps", { exact: true })).toHaveCount(0);
+  const poses = page.getByRole("combobox", { name: "Editing pose", exact: true });
+  await expect(poses.locator("option:checked")).toContainText("Pose captured");
+  await expect(page.getByRole("button", { name: "Capture start", exact: true })).toBeVisible();
+  await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
+  await page.getByRole("toolbar", { name: "Movement tools", exact: true }).getByRole("button", { name: "Move", exact: true }).click();
+  await expect(page.getByText("Fine adjustment", { exact: true })).not.toBeVisible();
+  await openWorkshopTool(page, "Position");
+  await expect(page.getByText("Fine adjustment", { exact: true })).toBeVisible();
+  for (const tab of ["Equipment", "Contacts", "Pose", "Timeline"]) {
+    await openWorkshopTool(page, tab);
+    await expect(page.getByText("Fine adjustment", { exact: true })).not.toBeVisible();
+  }
+  const key = `kinevault.workshop.draft.${workshop.userId}.${workshop.draftId}`;
+  await page.evaluate(({ key, scene, id }) => localStorage.setItem(key, JSON.stringify({ scene, name: "Recovered exercise", privateId: id, confirmed: true, sessionId: "cleanup-fixture", updatedAt: Date.now() })), { key, scene: workshop.scene, id: workshop.draftId });
+  await page.reload();
+  const recovery = page.getByRole("region", { name: "Recover draft", exact: true });
+  await expect(recovery.getByRole("button", { name: "Restore device draft", exact: true })).toBeVisible();
+  await expect(recovery.getByRole("button", { name: "Continue with saved exercise", exact: true })).toBeVisible();
+  await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+  await page.evaluate(() => document.documentElement.classList.add("dark"));
+  const folder = ".local-artifacts/workshop-interface-cleanup";
+  mkdirSync(folder, { recursive: true });
+  await page.screenshot({ path: `${folder}/desktop-recovery.png` });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(recovery.getByRole("button", { name: "Restore device draft", exact: true })).toBeInViewport();
+  await page.screenshot({ path: `${folder}/mobile-recovery.png` });
+  await recovery.getByRole("button", { name: "Continue with saved exercise", exact: true }).click();
+  await expect(recovery).toHaveCount(0);
+  await openWorkshopTool(page, "Equipment");
+  await expect(page.getByRole("button", { name: "Add equipment", exact: true })).toBeVisible();
+  await page.screenshot({ path: `${folder}/mobile-equipment.png` });
+  await page.setViewportSize({ width: 1651, height: 871 });
+  await page.goto("/my-exercises/new");
+  await dismissWorkshopTutorial(page);
+  await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+  await page.evaluate(() => document.documentElement.classList.add("dark"));
+  await expect(page.getByRole("combobox", { name: "Editing pose", exact: true }).locator("option:checked")).toContainText("Pose not captured");
+  await expect(page.getByRole("button", { name: "Capture start", exact: true })).toBeEnabled();
+  await page.screenshot({ path: `${folder}/desktop-new.png` });
+  await openWorkshopMenu(page);
+  await expect(page.getByRole("combobox", { name: "Workshop language", exact: true })).toBeVisible();
+  await page.screenshot({ path: `${folder}/desktop-menu.png` });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: "Full screen", exact: true })).toBeInViewport();
+  await page.screenshot({ path: `${folder}/mobile-menu.png` });
+});

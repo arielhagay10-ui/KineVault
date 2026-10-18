@@ -1,3 +1,4 @@
+import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -5,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { addWorkshopEquipment } from "../../src/lib/motion/workshop-freedom";
 import { blankWorkshopScene } from "../../src/lib/motion/workshop";
-import { cableAttachmentButton, expandWorkshopControls, openWorkshopMenu, openWorkshopRecovery, openWorkshopTool, selectWorkshopJoint, selectWorkshopObject } from "./workshop-menu.helpers";
+import { enableWorkshopFreeDrag, cableAttachmentButton, expandWorkshopControls, openWorkshopMenu, openWorkshopRecovery, openWorkshopTool, selectWorkshopJoint, selectWorkshopObject } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
@@ -42,21 +43,22 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
     await page.goto(`/my-exercises/${created.data}/workshop?metrics=1`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
 
-    const history = page.locator('details[name="workshop-dropdown"]').filter({ has: page.getByText("Edit history", { exact: true }).first() });
-    await page.getByText("Edit history", { exact: true }).first().click();
-    await expect(history).toHaveAttribute("open", "");
     await openWorkshopMenu(page);
-    await expect(history).not.toHaveAttribute("open", "");
+    await page.getByText("Recent edits", { exact: true }).click();
+    await expect(page.getByRole("region", { name: "Edit history", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expandWorkshopControls(page, "Drag options");
+    await expect(page.locator("[data-workshop-menu]")).not.toHaveAttribute("open", "");
     await openWorkshopRecovery(page);
     await page.getByRole("button", { name: "Add equipment", exact: true }).click();
     await expect(page.locator('[data-workshop-menu]')).not.toHaveAttribute("open", "");
     await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
     await selectWorkshopObject(page, "Cable machine");
     await openWorkshopTool(page, "Position");
-    await page.getByRole("button", { name: "Drag options", exact: true }).click();
+    await expandWorkshopControls(page, "Drag options");
     await expect(page.getByRole("button", { name: "Precise placement", exact: true })).toHaveAttribute("aria-expanded", "false");
     await expandWorkshopControls(page, "Precise placement");
-    await expect(page.getByRole("button", { name: "Drag options", exact: true })).toHaveAttribute("aria-expanded", "false");
+    expect(await page.locator("summary").filter({ hasText: /^Drag options$/ }).evaluate(element => element.closest("details")!.open)).toBe(false);
 
     await page.getByRole("button", { name: "Behind figure", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "Position Z meters", exact: true })).toHaveValue("-1.2");
@@ -70,9 +72,9 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
     await cableAttachmentButton(page, "angled-bar").click();
     await page.locator("canvas").screenshot({ path: `${folder}/angled-bar.png` });
     await cableAttachmentButton(page, "lat-bar").click();
-    await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
+    await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
 
-    await page.getByRole("button", { name: "Move with mouse", exact: true }).click();
+    await enableWorkshopFreeDrag(page);
     const metrics = page.locator('[data-camera-position]');
     await expect(metrics).toHaveAttribute("data-camera-position", /\[/);
     const beforeCamera = await metrics.getAttribute("data-camera-position");
@@ -85,7 +87,7 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
     await page.mouse.move(orbitStart.x + 160, orbitStart.y + 30, { steps: 12 });
     await page.mouse.up({ button: "right" });
     await expect.poll(() => metrics.getAttribute("data-camera-position")).not.toBe(beforeCamera);
-    await expect(page.getByRole("button", { name: "Move with mouse", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Move with mouse", exact: true, includeHidden: true })).toHaveAttribute("aria-pressed", "true");
 
     await selectWorkshopJoint(page, "Left elbow");
     const elbow = page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true });
@@ -102,7 +104,7 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
       await page.getByLabel("Editing pose", { exact: true }).selectOption(index);
       await expect(elbow).toHaveValue("0");
     }
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     const saved = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
     const stored = await owner.from("exercise_scenes").select("id, studio_layout").eq("content_id", saved.data!.content_id).single();
@@ -115,16 +117,16 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopObject(page, "Cable machine");
     await expect(cableAttachmentButton(page, "lat-bar")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
+    await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
     for (let sample = 0; sample <= 16; sample++) {
       await page.getByLabel("Preview time").evaluate((element, value) => {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(element, String(value));
         element.dispatchEvent(new Event("input", { bubbles: true }));
       }, sample * 200);
-      await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
+      await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
       await page.locator("canvas").screenshot({ path: `${folder}/wide-sample-${sample}.png` });
     }
-    await page.getByRole("button", { name: "View start", exact: true }).click();
+    await selectWorkshopMoment(page, "Start");
     await page.getByRole("button", { name: "Play", exact: true }).click();
     await expect.poll(() => page.getByLabel("Preview time").inputValue()).not.toBe("0");
     await page.getByRole("button", { name: "Pause", exact: true }).click();

@@ -1,4 +1,4 @@
-import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
+import { addWorkshopEquipment, dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { expect, test, type BrowserContext } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { execFileSync } from "node:child_process";
@@ -18,10 +18,13 @@ test("an owner can publish a snapshot, keep private edits independent, share and
   let userId: string | undefined;
   let anonymous: BrowserContext | undefined;
   try {
-  await page.goto("/sign-up");
+  const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (created.error) throw created.error;
+  userId = created.data.user.id;
+  await page.goto("/sign-in");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Create account" }).click();
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   const account = await owner.auth.signInWithPassword({ email, password });
   if (account.error) throw account.error;
@@ -29,10 +32,9 @@ test("an owner can publish a snapshot, keep private edits independent, share and
 
   await page.goto("/my-exercises/new");
   await dismissWorkshopTutorial(page);
-  await page.getByRole("button", { name: "Save first pose", exact: true }).click();
+  await page.getByRole("button", { name: "Capture start", exact: true }).click();
   await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
-  await page.getByRole("button", { name: "Save pose", exact: true }).click();
-  await page.getByRole("button", { name: "Name and save", exact: true }).click();
+  await page.getByRole("button", { name: "Capture pose", exact: true }).click();
   await page.getByLabel("Exercise name", { exact: true }).fill("Private Cable Raise");
   await openWorkshopMenu(page);
   await page.getByRole("button", { name: "Save & add details", exact: false }).click();
@@ -60,14 +62,16 @@ test("an owner can publish a snapshot, keep private edits independent, share and
   await page.getByRole("link", { name: "Open motion workshop" }).click();
   await expect(page.getByRole("heading", { name: "Private Cable Raise" })).toBeVisible();
   await openWorkshopTool(page, "Settings");
-  await page.getByLabel("Legacy demo equipment").selectOption("single-cable");
+  await expect(page.getByLabel("Legacy demo equipment")).toHaveCount(0);
+  await addWorkshopEquipment(page, "Cable machine");
+  await page.getByRole("button", { name: "Hold with left hand", exact: true }).click();
   await openWorkshopTool(page, "Timeline");
   await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
   await openWorkshopTool(page, "Pose");
   await selectWorkshopJoint(page, "Left shoulder");
   await jointField(page, "z").fill("-80");
   await jointField(page, "z").blur();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("button", { name: "Save exercise", exact: true }).click();
   await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
   await page.reload();
   await openWorkshopTool(page, "Timeline");

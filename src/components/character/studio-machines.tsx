@@ -9,6 +9,8 @@ import type { AnatomyRig } from "@/lib/motion/anatomy";
 import type { StudioEditor } from "./studio-controls";
 import { StudioMachineDrag } from "./studio-machine-drag";
 import { StudioCable } from "./studio-cable";
+import { canUseStudioMachineHandle } from "@/lib/motion/workshop-interaction";
+import { EquipmentAsset } from "./equipment-asset";
 
 const steel = "#697d83", dark = "#243439", chrome = "#bdc9cc", pad = "#18282b";
 type Point = { x: number; y: number; z: number };
@@ -59,12 +61,31 @@ function Feet({ width, front, back }: { width: number; front: number; back: numb
 }
 
 export function StudioMachine({ object, currentObject, editor, rig, group, pose }: { object: StudioObject; currentObject?: React.RefObject<StudioObject>; editor?: StudioEditor; rig: AnatomyRig; group: React.RefObject<Group>; pose: RigPose }) {
-  return <><MachineGeometry object={object} currentObject={currentObject} />
+  return <><EquipmentAsset object={object} currentObject={currentObject} fallback={<MachineGeometry object={object} currentObject={currentObject} />} />
+    <MachineCables object={object} currentObject={currentObject} />
     {object.slug === "cable-row-machine" && object.cableAttachment && <StudioCable object={object} currentObject={currentObject} rig={rig} group={group} pose={pose} editor={editor} showTower={false} />}
-    {editor?.interactionEnabled !== false && editor && !editor.gripEdit?.picking && !editor.playing && editor.tool === "select" && editor.onMachineHandleChange && (object.slug !== "cable-row-machine" || object.machineUse) && <>
+    {canUseStudioMachineHandle(editor) && editor && editor.onMachineHandleChange && (object.slug !== "cable-row-machine" || object.machineUse) && <>
     <StudioMachineDrag object={object} currentObject={currentObject} editor={editor} />
     {object.slug === "pec-deck" && <StudioMachineDrag object={object} currentObject={currentObject} editor={editor} side="right" />}
   </>}</>;
+}
+
+function MachineCables({ object, currentObject }: { object: StudioObject; currentObject?: React.RefObject<StudioObject> }) {
+  const getObject = () => currentObject?.current ?? object;
+  const getPoint = () => machineCarriagePoint(getObject());
+  const getTravel = () => getObject().machinePosition ?? .5;
+  if (object.slug === "lat-pulldown-machine") return <>
+    <Beam from={[0, 2.75, -.55]} to={[0, 2.75, .22]} radius={.008} color={dark} />
+    <MovingBeam radius={.008} color={dark} getEndpoints={() => ({ from: [0, 2.75, -.55], to: [0, .86 + getTravel() * .98, -.55] })} />
+    <MovingBeam radius={.008} color={dark} getEndpoints={() => ({ from: [0, 2.75, .22], to: [getPoint().x, getPoint().y + .07, getPoint().z] })} />
+  </>;
+  if (object.slug === "cable-row-machine") return <>
+    <MovingBeam radius={.008} color={dark} getEndpoints={() => ({ from: [0, .82 + getTravel() * .66, 1.6], to: [0, 2.4, 1.6] })} />
+    <Beam from={[0, 2.4, 1.6]} to={[0, rowPulleyPoint.y, rowPulleyPoint.z]} radius={.008} color={dark} />
+    {!object.cableAttachment && <MovingBeam radius={.008} color={dark} getEndpoints={() => ({ from: [0, rowPulleyPoint.y, rowPulleyPoint.z], to: [0, getPoint().y, getPoint().z + .08] })} />}
+  </>;
+  if (object.slug === "pec-deck") return <MovingBeam radius={.008} color={dark} getEndpoints={() => ({ from: [0, .83 + getTravel() * .4, -1.32], to: [0, 2.62, -1.32] })} />;
+  return null;
 }
 
 function MachineGeometry({ object, currentObject }: { object: StudioObject; currentObject?: React.RefObject<StudioObject> }) {
@@ -130,9 +151,6 @@ function MachineGeometry({ object, currentObject }: { object: StudioObject; curr
     <Block at={[0, 0.74, 0]} size={[0.52, 0.13, 0.44]} color={pad} />
     <Beam from={[0, 0.2, 0.5]} to={[0, 0.84, 0.5]} />
     <Beam from={[-0.36, 0.88, 0.49]} to={[0.36, 0.88, 0.49]} radius={0.085} color={pad} />
-    <Beam from={[0, 2.75, -0.55]} to={[0, 2.75, 0.22]} radius={0.008} color={dark} />
-    <MovingBeam radius={0.008} color={dark}  getEndpoints={() => ({ from: [0, 2.75, -0.55], to: [0, 0.86 + getTravel() * 0.98, -0.55] })} />
-    <MovingBeam radius={0.008} color={dark}  getEndpoints={() => ({ from: [0, 2.75, 0.22], to: [getPoint().x, getPoint().y + 0.07, getPoint().z] })} />
     <MovingGroup getPosition={getPoint}>
       <Beam from={[-0.48, 0, 0]} to={[0.48, 0, 0]} radius={0.023} color={chrome} />
       <Beam from={[-0.72, -0.1, 0]} to={[-0.48, 0, 0]} radius={0.025} color={dark} /><Beam from={[0.48, 0, 0]} to={[0.72, -0.1, 0]} radius={0.025} color={dark} />

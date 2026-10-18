@@ -14,9 +14,9 @@ const shortcuts = [
   ["Previous / next focused pose", "← / → / ↑ / ↓"],
   ["Play / pause", "Space"],
   ["Previous / next pose", "[ / ]"],
-  ["Move with mouse / Camera", "E / C"],
+  ["Select / Camera", "E / C"],
   ["Show shortcuts", "?"],
-  ["Return to camera / Close shortcuts", "Escape"],
+  ["Clear selection / Close menus", "Escape"],
 ];
 
 export function WorkshopShortcutGuide() {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Vector3 } from "three";
+import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "three";
 import { readFile } from "node:fs/promises";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createAnatomyRig, poseAnatomyRig } from "./anatomy";
@@ -7,9 +7,57 @@ import { createQuickScene } from "./quick-create";
 import { applyStudioMachine, machineCarriagePoint, machineHandlePoint } from "./studio-machines";
 import { sampleStudioObject } from "./studio";
 import { identityTransform } from "./workshop";
-import { machineDragValues, moveMachineWithMouse, studioDragDelta } from "./workshop-mouse";
+import { machineDragValues, moveMachineWithMouse, studioDragDelta, studioTranslationAxes, studioSnapTarget, studioRotationAxes } from "./workshop-mouse";
 
 describe("direct mouse movement", () => {
+  it("keeps ray-based screen movement bounded through 17 near-edge-on camera angles", () => {
+    const origin = new Vector3(.2, .7, -.1), ray = new Raycaster();
+    for (let index = 0; index <= 16; index++) {
+      const angle = Math.PI / 2 + (index - 8) * .0001;
+      const camera = new PerspectiveCamera(45, 1.5, .1, 100);
+      camera.position.copy(origin).add(new Vector3(Math.sin(angle) * 4, 1, Math.cos(angle) * 4));
+      camera.lookAt(origin); camera.updateMatrixWorld(true);
+      const forward = camera.getWorldDirection(new Vector3()), plane = new Plane().setFromNormalAndCoplanarPoint(forward, origin);
+      ray.setFromCamera(new Vector2(0, 0), camera);
+      const start = ray.ray.intersectPlane(plane, new Vector3())!;
+      ray.setFromCamera(new Vector2(.05, .03), camera);
+      const delta = ray.ray.intersectPlane(plane, new Vector3())!.sub(start);
+      const right = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion), up = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+      for (const constraint of ["front", "side", "x", "y", "z"] as const) {
+        const constrained = studioDragDelta(delta, right, up, forward, constraint, 1);
+        expect(constrained.length()).toBeLessThanOrEqual(delta.length() + 1e-12);
+        expect(constrained.toArray().every(Number.isFinite)).toBe(true);
+      }
+    }
+  });
+  it.each([
+    ["front", [.2, .3, 0]], ["side", [0, .3, -.1]],
+    ["x", [.2, 0, 0]], ["y", [0, .3, 0]], ["z", [0, 0, -.1]],
+  ] as const)("constrains %s in world coordinates without amplifying edge-on movement", (plane, expected) => {
+    const delta = new Vector3(.2, .3, -.1);
+    for (const right of [new Vector3(1, 0, 0), new Vector3(0, 0, 1), new Vector3(.000001, 0, 1).normalize()]) {
+      const moved = studioDragDelta(delta, right, new Vector3(0, 1, 0), new Vector3(0, 0, -1), plane, 1);
+      expect(moved.toArray()).toEqual(expected);
+      expect(moved.length()).toBeLessThanOrEqual(delta.length());
+    }
+  });
+
+  it("keeps locked coordinates exact when snapping and exposes only allowed translation axes", () => {
+    const origin = new Vector3(.123, .456, .789);
+    const snapped = studioSnapTarget(new Vector3(.251, 8, 9), origin, "x");
+    expect(snapped.x).toBeCloseTo(.3);
+    expect([snapped.y, snapped.z]).toEqual([.456, .789]);
+    expect(studioTranslationAxes("front")).toEqual({ x: true, y: true, z: false });
+    expect(studioTranslationAxes("side")).toEqual({ x: false, y: true, z: true });
+    expect(studioTranslationAxes("floor")).toEqual({ x: true, y: false, z: true });
+  });
+
+  it("shows hinge rings only on x, frontal shoulders only on z, and leaves wrist controls to the grip editor", () => {
+    expect(studioRotationAxes("left-elbow")).toEqual({ x: true, y: false, z: false });
+    expect(studioRotationAxes("right-knee")).toEqual({ x: true, y: false, z: false });
+    expect(studioRotationAxes("right-shoulder", true)).toEqual({ x: false, y: false, z: true });
+    expect(studioRotationAxes("left-wrist")).toEqual({ x: false, y: false, z: false });
+  });
   it("moves vertically across the view, while floor mode preserves height", () => {
     const delta = new Vector3(.2, .3, -.1), right = new Vector3(1, 0, 0), up = new Vector3(0, .95, -.31), forward = new Vector3(0, 0, -1);
     expect(studioDragDelta(delta, right, up, forward, "view", .5)).toEqual(delta.clone().multiplyScalar(.5));

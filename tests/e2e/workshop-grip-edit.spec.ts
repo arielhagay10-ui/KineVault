@@ -30,7 +30,7 @@ test("advanced grip editing picks, adjusts, resets, undoes, and persists indepen
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
     await expect(page.getByText("Grip edit", { exact: true })).toHaveCount(0);
-    await openWorkshopTool(page, "Contacts"); await page.getByLabel("Selected equipment", { exact: true }).selectOption(bar.id);
+    await openWorkshopTool(page, "Contacts"); await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(bar.id);
     await page.getByRole("button", { name: /^Edit left grip/ }).click();
     const x = page.getByLabel("Grip X centimeters", { exact: true });
     await x.fill("-8"); await x.press("Enter"); await expect(x).toHaveValue("-8");
@@ -58,9 +58,9 @@ test("advanced grip editing picks, adjusts, resets, undoes, and persists indepen
     for (const [axis, value] of [["X", "-8"], ["Y", "0"], ["Z", "0"]]) {
       const field = page.getByLabel(`Grip ${axis} centimeters`, { exact: true }); await field.fill(value); await field.press("Enter");
     }
-    await page.getByRole("button", { name: "Save", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
     await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
-    await openWorkshopTool(page, "Contacts"); await page.getByLabel("Selected equipment", { exact: true }).selectOption(bar.id);
+    await openWorkshopTool(page, "Contacts"); await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(bar.id);
     await page.getByRole("button", { name: /^Edit left grip/ }).click(); await expect(x).toHaveValue("-8");
     await page.getByRole("button", { name: /^Edit right grip/ }).click(); await expect(x).toHaveValue("8");
     await page.getByRole("button", { name: /^Edit left grip/ }).click();
@@ -104,7 +104,7 @@ test("grip edit excludes fixed supports and covers weights, machines and cable a
     await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
     await openWorkshopTool(page, "Contacts");
     for (const object of scene.studio!.objects) {
-      await page.getByLabel("Selected equipment", { exact: true }).selectOption(object.id);
+      await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(object.id);
       if (object.slug === "bench" || object.slug === "squat-rack") {
         await expect(page.getByRole("button", { name: /^Edit (left|right) grip/ })).toHaveCount(0);
         continue;
@@ -112,7 +112,7 @@ test("grip edit excludes fixed supports and covers weights, machines and cable a
       await page.getByRole("button", { name: /^Edit right grip/ }).click();
       const x = page.getByLabel("Grip X centimeters", { exact: true }); await x.fill("2"); await x.press("Enter"); await expect(x).toHaveValue("2");
     }
-    const cable = scene.studio!.objects[0]; await page.getByLabel("Selected equipment", { exact: true }).selectOption(cable.id);
+    const cable = scene.studio!.objects[0]; await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(cable.id);
     for (const kind of cableAttachmentSlugs) {
       await cableAttachmentButton(page, kind).click();
       await page.getByRole("button", { name: /^Edit left grip/ }).click();
@@ -122,7 +122,7 @@ test("grip edit excludes fixed supports and covers weights, machines and cable a
       await page.getByRole("button", { name: "Camera", exact: true }).click();
       await expect(page.getByRole("button", { name: "Choose point on equipment", exact: true })).toHaveAttribute("aria-pressed", "false");
     }
-    await page.getByRole("button", { name: "Save", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
     const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single(); if (record.error) throw record.error;
     const saved = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
     const layout = saved.data.studio_layout as StudioLayout;

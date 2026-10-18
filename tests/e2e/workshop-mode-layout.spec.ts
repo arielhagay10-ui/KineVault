@@ -1,64 +1,56 @@
-import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { createClient } from "@supabase/supabase-js";
-import { expect, test } from "@playwright/test";
-import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { expect } from "@playwright/test";
+import { test } from "../readiness/workshop.fixture";
+import { enableWorkshopFreeDrag, openWorkshopMenu, openWorkshopTool } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
-test("workshop keeps posing instructions below controls and hides redundant mode hints", async ({ page }) => {
+test("workspace protects the canvas and completes desktop, mobile and fullscreen editing", async ({ page, workshop }) => {
   test.setTimeout(180_000);
-  page.setDefaultTimeout(15_000);
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
-  const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
-  const email = `mode-layout-${randomUUID()}@example.test`, password = "WorkshopLayout2026!";
-  const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-  if (account.error) throw account.error;
-  try {
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto("/sign-in");
-    await page.getByLabel("Email", { exact: true }).fill(email);
-    await page.getByLabel("Password", { exact: true }).fill(password);
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(page).toHaveURL(/\/dashboard$/);
-    await page.goto("/my-exercises/new");
-    const closeTutorial = page.getByRole("button", { name: "Close tutorial", exact: true });
-    await expect(closeTutorial).toBeVisible();
-    await closeTutorial.click();
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-    const modes = page.getByRole("group", { name: "Mouse movement", exact: true });
-    const preview = page.locator("[data-workshop-figure-preview]");
-    const folder = ".local-artifacts/workshop/mode-layout";
-    mkdirSync(folder, { recursive: true });
-    for (const fullscreen of [false, true]) {
-      for (const width of [1440, 800, 390]) {
-        await page.setViewportSize({ width, height: 1000 });
-        if (fullscreen) {
-          await page.getByRole("button", { name: "Full screen", exact: true }).click();
-          await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
-        }
-        for (const mode of ["Move with mouse", "Pose hands and feet", "Camera"]) {
-          await modes.getByRole("button", { name: mode, exact: true }).click();
-          if (mode === "Pose hands and feet") {
-            const copy = preview.getByText(/^Drag a hand or foot using its round button\. Elbows/);
-            await expect(copy).toBeVisible();
-            const controlsBox = (await modes.boundingBox())!, textBox = (await copy.boundingBox())!;
-            expect(textBox.y).toBeGreaterThanOrEqual(controlsBox.y + controlsBox.height);
-          } else {
-            await expect(modes.getByRole("button", { name: mode, exact: true })).toHaveAttribute("title", /Drag/);
-            await expect(preview.locator("[data-workshop-current-hint]")).toHaveCount(0);
-          }
-          if (mode === "Camera") await expect(modes.getByRole("button", { name: "Reset all joints", exact: true })).toBeHidden();
-        }
-        await page.screenshot({ path: `${folder}/${fullscreen ? "fullscreen" : "window"}-${width}.png` });
-        if (fullscreen) {
-          await page.evaluate(() => document.exitFullscreen());
-          await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(false);
-        }
+  expect(workshop.draftId).toBeTruthy();
+  const folder = ".local-artifacts/workshop-implementation/layout";
+  mkdirSync(folder, { recursive: true });
+  const toolbar = page.getByRole("toolbar", { name: "Movement tools", exact: true });
+  const preview = page.locator("[data-workshop-figure-preview]");
+  for (const fullscreen of [false, true]) {
+    for (const [width, height] of [[1280, 720], [800, 900], [390, 844]] as const) {
+      await page.setViewportSize({ width, height });
+      if (width < 768) await page.getByRole("button", { name: "Preview", exact: true }).click();
+      if (fullscreen) {
+        await openWorkshopMenu(page);
+        await page.getByRole("button", { name: "Full screen", exact: true }).click();
+        await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+        await page.locator("[data-workshop-menu] > summary").click();
       }
+      for (const mode of ["Select", "Move", "Rotate", "Move with mouse", "Pose hands and feet", "Camera"]) {
+        if (mode === "Move with mouse") await enableWorkshopFreeDrag(page);
+        else await toolbar.getByRole("button", { name: mode, exact: true }).click();
+        await expect(toolbar.getByRole("button", { name: mode, exact: true, includeHidden: true })).toHaveAttribute("aria-pressed", "true");
+        if (mode === "Pose hands and feet") {
+          const guidance = preview.getByText(/^Select a hand or foot, then use arrows/);
+          await expect(guidance).toBeVisible();
+          await expect(guidance).toContainText("Direction locks movement");
+          await expect(page.getByRole("button", { name: /^Select (Left|Right) (hand|foot)$/ })).toHaveCount(4);
+          await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(0);
+          // Let the canvas resize observer settle before measuring the final layout.
+          await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+          await expect.poll(async () => (await page.locator("canvas").boundingBox())!.height,
+            { message: `${width}×${height} useful canvas height` }).toBeGreaterThanOrEqual(width < 768 ? 280 : 300);
+          await page.screenshot({ path: `${folder}/${fullscreen ? "fullscreen" : "window"}-${width}.png` });
+        }
+        if (mode === "Camera") await expect(preview.getByText("Drag to look around. Choose Select to edit the scene.", { exact: true })).toBeVisible();
+      }
+      if (width < 768) {
+        await page.getByRole("button", { name: "Edit controls", exact: true }).click();
+        await openWorkshopTool(page, "Pose");
+        await expect(page.getByLabel("Body joint", { exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Save exercise", exact: true })).toBeInViewport();
+        await expect(page.getByRole("button", { name: "Play", exact: true })).toBeInViewport();
+        await page.getByRole("button", { name: "Preview", exact: true }).click();
+        await expect(page.locator("canvas")).toBeVisible();
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      if (fullscreen) await page.evaluate(() => document.exitFullscreen());
     }
-  } finally {
-    await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password });
   }
 });

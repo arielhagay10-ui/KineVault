@@ -15,7 +15,7 @@ vi.mock("react", async importOriginal => ({
 vi.mock("@react-three/fiber", () => ({
   useFrame: (frame: () => void) => { canvas.frame = frame; },
   useThree: (select: (state: unknown) => unknown) => select({
-    gl: { info: { render: { calls: 1 }, memory: { geometries: 1, textures: 1 } } },
+    gl: { getPixelRatio: () => 1, info: { render: { calls: 1 }, memory: { geometries: 1, textures: 1 } } },
     camera: { position: { toArray: () => [0, 0, 5] } },
   }),
 }));
@@ -33,17 +33,17 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-function mount(onMetrics?: () => void) {
+function mount(onMetrics?: () => void, solveStartedRef?: { current: number | null }) {
   const dataset: Record<string, string> = {};
   const target = {
     dataset,
     setAttribute(name: string, value: string) {
-      if (name !== "data-pose-solves") throw new Error(`Unexpected attribute: ${name}`);
-      dataset.poseSolves = value;
+      const key = name.replace(/^data-/, "").replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+      dataset[key] = value;
     },
   } as unknown as HTMLDivElement;
   const solves = { current: 0 };
-  renderToStaticMarkup(createElement(MotionMetrics, { wrapper: { current: target }, solvesRef: solves, onMetrics }));
+  renderToStaticMarkup(createElement(MotionMetrics, { wrapper: { current: target }, solvesRef: solves, solveStartedRef, onMetrics }));
   canvas.effects.forEach(effect => effect());
   return { target, solves };
 }
@@ -84,4 +84,19 @@ it("keeps per-frame counters disabled outside opt-in profiling", () => {
   renderFrame(); finishFrame();
   expect(target.dataset.poseSolves).toBeUndefined();
   expect(pending).toHaveLength(0);
+});
+
+it("counts completed solve time once and counts camera frames separately", () => {
+  const started = { current: 994 as number | null };
+  const { target } = mount(vi.fn(), started);
+  renderFrame(); finishFrame();
+  expect(Number(target.dataset.poseSolveMs)).toBe(6);
+  expect(started.current).toBeNull();
+  now += 16;
+  renderFrame(); finishFrame();
+  expect(Number(target.dataset.poseSolveMs)).toBe(6);
+  expect(Number(target.dataset.renderFrames)).toBe(2);
+  started.current = now - 4;
+  renderFrame(); finishFrame();
+  expect(Number(target.dataset.poseSolveMs)).toBe(10);
 });

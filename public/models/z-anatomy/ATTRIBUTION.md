@@ -14,6 +14,17 @@ The script decodes and compares all 2,352 buffer views before writing the previe
 Source SHA-256: `ee6e35fb694d29af4f790eb97e141999c2c29c02ada33de0d1a3dc90fb9a61ed`.
 Preview SHA-256: `32c5dfc35e3c0baef93c88b350b5ea8228bbf4d38f903f54230f6d0fa420f8b1`.
 
+Economy preview: `model.economy.meshopt.e140790f.glb`, prepared October 15, 2026.
+This CC BY-SA 4.0 derivative preserves all 784 named parts, transforms, muscle
+identifiers, copyright metadata and source bounds. Torso and limb geometry is
+simplified with meshoptimizer, retaining original vertex attributes. Hand, finger,
+foot and toe geometry remains unchanged for contact inspection. It contains
+141,187 vertices and 278,641 triangles, compared with 325,619 vertices and 648,467
+triangles in the full preview. The full preview remains available for detailed inspection.
+Reproduce with `node scripts/prepare-anatomy.mjs --economy`; verify with
+`--economy --check`. Economy SHA-256:
+`e140790fcbda7fd1af8d8a1ee90f98268109e033776728873a00cb1c8f374a1b`.
+
 Z-Anatomy — The open source atlas of anatomy, by Gauthier Kervyn and contributors, licensed under Creative Commons Attribution-ShareAlike 4.0 International.
 
 BodyParts3D © The Database Center for Life Science, licensed under Creative Commons Attribution-ShareAlike 2.1 Japan.

@@ -1,11 +1,13 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { openWorkshopTool, selectWorkshopObject, selectWorkshopJoint, jointField } from "./workshop-menu.helpers";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { machineDemoScene, machineSlugs, machineTravelLabels } from "../../src/lib/motion/studio-machines";
 import { studioAssetNames } from "../../src/lib/motion/studio";
+import { anatomyEconomyModelUrl, anatomyModelUrl } from "../../src/lib/motion/anatomy";
+import { equipmentAssets } from "../../src/lib/motion/equipment-assets";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
@@ -22,6 +24,8 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
     const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
     await owner.auth.signInWithPassword({ email, password });
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+    const requestedModels: string[] = [];
+    page.on("request", request => { const path = new URL(request.url()).pathname; if (path.endsWith(".glb")) requestedModels.push(path); });
     try {
       await page.setViewportSize({ width: 1600, height: 1100 });
       await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
@@ -31,6 +35,11 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       if (created.error) throw created.error;
       await page.goto(`/my-exercises/${created.data}/workshop`);
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60000 });
+      const anatomyPath = await page.locator('[data-anatomy-state="ready"]').getAttribute("data-anatomy-model");
+      expect([anatomyModelUrl, anatomyEconomyModelUrl]).toContain(anatomyPath);
+      expect(requestedModels).toContain(anatomyPath);
+      await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible({ timeout: 60000 });
+      expect(requestedModels).toContain(equipmentAssets[slug].url);
       await expect(page.locator("[data-highlight-count]")).not.toHaveAttribute("data-highlight-count", "0");
       await selectWorkshopObject(page, studioAssetNames[slug]);
       await openWorkshopTool(page, "Contacts");
@@ -53,10 +62,11 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
         await openWorkshopTool(page, "Timeline");
       }
       const artifacts = `.local-artifacts/machines/review/${slug}${slug === "lat-pulldown-machine" ? `-${grip}` : ""}`; mkdirSync(artifacts, { recursive: true });
+      writeFileSync(`${artifacts}/model-provenance.json`, JSON.stringify({ anatomyPath, requestedModels }, null, 2));
       for (const view of grip === "pronated" ? ["Front", "Three-quarter", "Side"] : ["Three-quarter", "Side"]) {
         await page.getByRole("button", { name: view, exact: true }).click();
-        for (let step = 0; step <= 8; step++) {
-          await page.getByLabel("Preview time", { exact: true }).fill(String(step * 600));
+        for (let step = 0; step <= 16; step++) {
+          await page.getByLabel("Preview time", { exact: true }).fill(String(step * 300));
           await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
           await page.locator("canvas").screenshot({ path: `${artifacts}/${view.toLowerCase()}-${step}.png` });
         }
@@ -70,7 +80,7 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       await page.getByLabel(`${machineTravelLabels[slug]} percent`, { exact: true }).fill("42");
       const savedEdit = page.waitForResponse(response => response.request().method() === "POST"
         && (response.request().postData() ?? "").includes('"machinePosition":0.42') && response.ok());
-      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.getByRole("button", { name: "Save exercise", exact: true }).click();
       await savedEdit;
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -82,7 +92,7 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
         await expect(page.getByLabel("Pulldown grip", { exact: true })).toHaveValue(grip);
         await openWorkshopTool(page, "Contacts");
         await page.getByLabel("Pulldown grip", { exact: true }).selectOption(grip === "supinated" ? "pronated" : "supinated");
-        await page.getByRole("button", { name: "Save", exact: true }).click();
+        await page.getByRole("button", { name: "Save exercise", exact: true }).click();
         await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
         await page.reload();
         await selectWorkshopObject(page, studioAssetNames[slug]);
@@ -100,7 +110,7 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       await page.setViewportSize({ width: 390, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.setViewportSize({ width: 1600, height: 1100 });
-      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.getByRole("button", { name: "Save exercise", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       const metadata = await owner.rpc("save_private_metadata", { p_private_id: created.data, p_patch: {
         name: `Machine fixture ${slug} ${grip}`, family: slug === "lat-pulldown-machine" ? "lat-pulldown" : "squat",

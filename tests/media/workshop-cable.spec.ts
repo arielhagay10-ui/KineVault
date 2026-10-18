@@ -12,10 +12,11 @@ import { createStudioObject } from "../../src/lib/motion/studio";
 import { automaticWeightTransform } from "../../src/lib/motion/automatic-weight-grip";
 import { editHeldWeightPose } from "../../src/lib/motion/held-weight-pose";
 import { carryHeldWeightsWithBody } from "../../src/lib/motion/held-weight-body";
+import { changingElbowPulloverScene, nearLimitPulloverScene, sharedDumbbellScene } from "../helpers/shared-dumbbell";
 
 const run = promisify(execFile);
 
-for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-hand-barbell", "custom-barbell", "custom-rope", "custom-machine", "automatic-dumbbells", "resting-dumbbells", "joint-driven-dumbbells", "carried-dumbbells", "lying-front-raise-dumbbells", "joint-driven-barbell"] as const) test(`a saved ${variant} produces playable private media`, async ({ page }) => {
+for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-hand-barbell", "custom-barbell", "custom-rope", "custom-machine", "lat-pulldown", "leg-press", "pec-deck", "automatic-dumbbells", "resting-dumbbells", "joint-driven-dumbbells", "carried-dumbbells", "lying-front-raise-dumbbells", "joint-driven-barbell", "shared-goblet-dumbbells", "shared-pullover-dumbbells", "shared-near-limit-dumbbells", "shared-varying-dumbbells", "shared-left-arm-dumbbells"] as const) test(`a saved ${variant} produces playable private media`, async ({ page }) => {
   test.setTimeout(150_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
@@ -34,7 +35,23 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
       "left-elbow": { x: timeMs === 250 ? 90 : 30, y: 0, z: 0 }, "right-elbow": { x: timeMs === 250 ? 90 : 30, y: 0, z: 0 },
     } }));
     Object.assign(scene.studio!.objects[0], { attachment: "both", cableAttachment: "lat-bar", pulleyHeight: 2.8 });
-    if (variant === "joint-driven-barbell") {
+    const machineVariant = variant === "lat-pulldown" || variant === "leg-press" || variant === "pec-deck";
+    if (variant.startsWith("shared-")) {
+      Object.assign(scene, variant === "shared-near-limit-dumbbells" ? nearLimitPulloverScene().scene
+        : variant === "shared-varying-dumbbells" || variant === "shared-left-arm-dumbbells" ? changingElbowPulloverScene(variant === "shared-left-arm-dumbbells" ? "left" : undefined).scene
+        : sharedDumbbellScene(variant === "shared-goblet-dumbbells" ? "goblet" : "pullover", true).scene);
+      if (variant === "shared-pullover-dumbbells") {
+        Object.assign(scene, editHeldWeightPose(scene, 1, "all", {
+          "left-shoulder": { x: -110, y: 0, z: 0 }, "right-shoulder": { x: -110, y: 0, z: 0 },
+        }));
+        Object.assign(scene, editHeldWeightPose(scene, 1, "selected", {
+          "left-elbow": { x: 75, y: 0, z: 0 }, "right-elbow": { x: 75, y: 0, z: 0 },
+        }));
+        expect(scene.studio!.objects.find(item => item.slug === "dumbbell")!.poseDriver).toBe("arm");
+      }
+    } else if (machineVariant) {
+      Object.assign(scene, createQuickScene(variant === "lat-pulldown" ? "lat-pulldown-machine" : variant));
+    } else if (variant === "joint-driven-barbell") {
       scene.durationMs = 3200;
       scene.keyframes = structuredClone(blankWorkshopScene.keyframes);
       const bar = { ...createStudioObject("barbell", randomUUID(), 0), attachment: "both" as const };
@@ -92,8 +109,8 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
     }
     const created = await owner.rpc("save_workshop_draft", { p_scene: scene, p_name: "Wide cable render fixture" });
     if (created.error) throw created.error;
-    const metadata = await owner.rpc("save_private_exercise", { p_private_id: created.data, p_name: "Wide cable render fixture", p_family_slug: "curl",
-      p_primary_muscle_slugs: ["biceps-brachii"], p_joint_action_slugs: ["elbow-flexion"], p_equipment_slugs: [variant.endsWith("dumbbells") ? "dumbbell" : variant.endsWith("barbell") ? "barbell" : "cable"] });
+    const metadata = await owner.rpc("save_private_exercise", { p_private_id: created.data, p_name: "Workshop render fixture", p_family_slug: variant === "lat-pulldown" ? "lat-pulldown" : variant === "leg-press" ? "squat" : variant === "pec-deck" ? "chest-fly" : "curl",
+      p_primary_muscle_slugs: [variant === "lat-pulldown" ? "latissimus-dorsi" : variant === "leg-press" ? "quadriceps" : variant === "pec-deck" ? "pectoralis-major" : "biceps-brachii"], p_joint_action_slugs: [variant === "lat-pulldown" ? "shoulder-adduction" : variant === "leg-press" ? "knee-extension" : variant === "pec-deck" ? "shoulder-horizontal-adduction" : "elbow-flexion"], p_equipment_slugs: [variant === "leg-press" || variant === "pec-deck" ? variant : variant.endsWith("dumbbells") ? "dumbbell" : variant.endsWith("barbell") ? "barbell" : "cable"] });
     if (metadata.error) throw metadata.error;
     const submission = await owner.rpc("submit_private_exercise", { p_private_id: created.data, p_duplicate_disposition: "new" });
     if (submission.error) throw submission.error;
@@ -123,12 +140,21 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
     expect(response.ok()).toBe(true);
     const folder = ".local-artifacts/workshop/cable-freedom"; mkdirSync(folder, { recursive: true });
     writeFileSync(`${folder}/${variant}.mp4`, await response.body());
+    if (machineVariant || variant === "custom-machine" || variant === "seated-row-rope" || variant.startsWith("shared-")) {
+      const posterPath = media.data.find(item => item.kind === "poster")!.storage_path;
+      const posterUrl = await owner.storage.from("exercise-private").createSignedUrl(posterPath, 120);
+      if (posterUrl.error) throw posterUrl.error;
+      const poster = await page.request.get(posterUrl.data.signedUrl);
+      expect(poster.ok()).toBe(true);
+      writeFileSync(`${folder}/${variant}-poster.webp`, await poster.body());
+      writeFileSync(`${folder}/${variant}-media.json`, JSON.stringify({ sceneId: renderSceneId, jobId: queued.id, paths }, null, 2));
+    }
     await page.setContent('<video controls muted aria-label="Rendered cable movement"></video>');
     await page.locator("video").evaluate((video: HTMLVideoElement, source) => { video.src = source; }, signed.data.signedUrl);
     await expect.poll(() => page.locator("video").evaluate((video: HTMLVideoElement) => video.readyState)).toBeGreaterThanOrEqual(2);
     await expect.poll(() => page.locator("video").evaluate((video: HTMLVideoElement) => video.videoWidth)).toBeGreaterThan(0);
     await page.locator("video").screenshot({ path: `${folder}/rendered-${variant}.png` });
-    if (variant.startsWith("custom-") || variant.endsWith("dumbbells") || variant === "joint-driven-barbell") {
+    if (variant.startsWith("custom-") || variant.endsWith("dumbbells") || variant === "joint-driven-barbell" || variant === "seated-row-rope" || machineVariant) {
       await page.locator("video").evaluate((video: HTMLVideoElement) => video.play());
       await expect.poll(() => page.locator("video").evaluate((video: HTMLVideoElement) => video.ended), { timeout: 15_000 }).toBe(true);
       for (let sample = 0; sample <= 16; sample++) {

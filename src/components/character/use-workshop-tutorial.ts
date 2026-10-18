@@ -5,9 +5,9 @@ import { readWorkshopTutorial, tutorialStorageKey, type WorkshopTutorialState } 
 
 const sessionProgress = new Map<string, string>();
 export function useWorkshopTutorial(ownerId: string, eligible: boolean) {
-  const [state, setState] = useState<WorkshopTutorialState>(() => readWorkshopTutorial(null, eligible));
-  const revision = useRef(0);
   const key = tutorialStorageKey(ownerId);
+  const [state, setState] = useState<WorkshopTutorialState>(() => readWorkshopTutorial(sessionProgress.get(key) ?? null, eligible || sessionProgress.has(key)));
+  const revision = useRef(0);
   useEffect(() => {
     const initialRevision = revision.current;
     const frame = requestAnimationFrame(() => {
@@ -15,7 +15,10 @@ export function useWorkshopTutorial(ownerId: string, eligible: boolean) {
       if (revision.current !== initialRevision) return;
       let raw = sessionProgress.get(key) ?? null;
       try { raw = localStorage.getItem(key) ?? raw; } catch { /* Session progress still works. */ }
-      setState(readWorkshopTutorial(raw, eligible));
+      // A first-save route update must preserve this browser's active tour.
+      const next = readWorkshopTutorial(raw, eligible || sessionProgress.has(key));
+      sessionProgress.set(key, JSON.stringify(next));
+      setState(next);
     });
     return () => cancelAnimationFrame(frame);
   }, [key, eligible]);

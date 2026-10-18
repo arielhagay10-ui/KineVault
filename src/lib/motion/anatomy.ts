@@ -3,6 +3,7 @@ import type { JointSlug, RigPose } from "./workshop";
 import { createAnatomyBatches, prepareAnatomyBatch } from "./anatomy-batches";
 
 export const anatomyModelUrl = "/models/z-anatomy/model.meshopt.32c5dfc3.glb";
+export const anatomyEconomyModelUrl = "/models/z-anatomy/model.economy.meshopt.e140790f.glb";
 export const muscleGroups = [
   { id: "deltoid", label: "Shoulders (deltoids)", pattern: /deltoid/ },
   { id: "reardelts", label: "Rear shoulders (posterior deltoids)", pattern: /scapular_spinal_part_of_deltoid/ },

@@ -3,9 +3,10 @@ import { cpSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
-const root = resolve(".next/standalone");
+const distDir = process.env.KINEVAULT_DIST_DIR || ".next";
+const root = resolve(distDir, "standalone");
 if (!existsSync(resolve(root, "server.js"))) throw new Error("Run npm run build before starting the optimized app.");
-cpSync(".next/static", resolve(root, ".next/static"), { recursive: true });
+cpSync(resolve(distDir, "static"), resolve(root, distDir, "static"), { recursive: true });
 if (existsSync("public")) cpSync("public", resolve(root, "public"), { recursive: true });
 const child = spawn(process.execPath, [resolve(root, "server.js")], {
   stdio: "inherit", windowsHide: true,

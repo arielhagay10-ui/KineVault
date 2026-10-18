@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { saveWorkshopScene } from "@/app/my-exercises/[id]/workshop/actions";
 import { DraftSaveQueue, clearDraftRecoveryCopies, confirmDraftRecovery, draftRecoveryKey, draftSnapshot, migrateDraftRecovery, persistDraftRecovery, readDraftRecovery, removeOwnedDraftRecovery, type DraftRecovery } from "@/lib/motion/workshop-draft";
 import type { WorkshopScene } from "@/lib/motion/workshop";
+import { RecoveryCheckpoint, type WorkshopGestureScene } from "@/lib/motion/workshop-gesture";
 
-export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName, scene, name, paused }: {
+export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName, scene, name, paused, gesture }: {
   ownerId: string; privateId: string | null; initialScene: WorkshopScene; initialName: string;
-  scene: WorkshopScene; name: string; paused: boolean;
+  scene: WorkshopScene; name: string; paused: boolean; gesture?: WorkshopGestureScene;
 }) {
   const [queue] = useState(() => new DraftSaveQueue(privateId, saveWorkshopScene));
   const [sessionId] = useState(() => crypto.randomUUID());
@@ -27,6 +28,11 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
   const mounted = useRef(false);
   const inFlight = useRef(0);
   const dirty = snapshot !== baseline;
+  const captureLatest = useCallback(() => {
+    const live = latest.current;
+    const preview = gesture?.getScene();
+    return preview && preview !== live.scene ? { scene: preview, name: live.name, snapshot: draftSnapshot({ scene: preview, name: live.name }) } : live;
+  }, [gesture]);
   useEffect(() => { latest.current = { scene, name, snapshot }; }, [scene, name, snapshot]);
   useEffect(() => {
     mounted.current = true;
@@ -54,9 +60,43 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
     return () => cancelAnimationFrame(frame);
   }, [dirty, recovery, recoveryReady, key, scene, name, queue, saving, ownerId, sessionId]);
 
+  useEffect(() => {
+    if (!recoveryReady || recovery) return;
+    const checkpoint = new RecoveryCheckpoint<WorkshopScene>(preview => {
+      const value = { scene: preview, name: latest.current.name };
+      try {
+        if (draftSnapshot(value) !== baseline) persistDraftRecovery(localStorage, ownerId, storageKey.current, { ...value, privateId: queue.privateId, confirmed: queue.confirmed, sessionId, updatedAt: Date.now() });
+        else if (inFlight.current === 0) removeOwnedDraftRecovery(localStorage, storageKey.current, sessionId, ownerId);
+      } catch { if (mounted.current) setRecoverable(false); }
+    });
+    const unsubscribe = gesture?.subscribe(event => {
+      if (event.kind === "preview") checkpoint.schedule(event.scene);
+      else {
+        // Completion precedes the owner's React commit; lifecycle/save callbacks
+        // in this event must already see the completed or cancelled scene.
+        latest.current = { scene: event.scene, name: latest.current.name, snapshot: draftSnapshot({ scene: event.scene, name: latest.current.name }) };
+        checkpoint.flush(event.scene);
+      }
+    });
+    const flush = () => checkpoint.flush(gesture?.getScene() ?? latest.current.scene);
+    const hidden = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    window.addEventListener("beforeunload", flush);
+    window.addEventListener("blur", flush);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      // Flush before dropping the owner/session closure, including route unmounts.
+      flush(); unsubscribe?.(); checkpoint.cancel();
+      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("beforeunload", flush);
+      window.removeEventListener("blur", flush);
+      document.removeEventListener("visibilitychange", hidden);
+    };
+  }, [gesture, recoveryReady, recovery, baseline, ownerId, queue, sessionId]);
+
   const saveNow = useCallback(async (requestedName?: string) => {
     if (!mounted.current) return null;
-    const live = latest.current;
+    const live = captureLatest();
     const value = requestedName === undefined ? live : {
       scene: live.scene, name: requestedName, snapshot: draftSnapshot({ scene: live.scene, name: requestedName }),
     };
@@ -75,9 +115,11 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
     if (result.error) { setError(result.error); setMessage("Could not save · draft retained"); return result; }
     const confirmedId = result.privateId ?? queue.privateId;
     if (confirmedId) {
+      // Keep in-flight edits mounted while making refresh load the saved draft.
+      if (!privateId && window.location.pathname === "/my-exercises/new") window.history.replaceState(null, "", `/my-exercises/${confirmedId}/workshop`);
       const nextKey = draftRecoveryKey(ownerId, confirmedId);
       try {
-        const live = latest.current;
+        const live = captureLatest();
         const maintained = confirmDraftRecovery(localStorage, storageKey.current, nextKey, { scene: live.scene, name: live.name, privateId: confirmedId, confirmed: true, sessionId, updatedAt: Date.now() }, mounted.current, live.snapshot === value.snapshot && inFlight.current === 0, ownerId);
         if (maintained) storageKey.current = nextKey;
       } catch { storageKey.current = nextKey; if (mounted.current) setRecoverable(false); }
@@ -86,8 +128,8 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
     setLastSaved({ scene: value.scene, name: value.name }); setSavedId(result.privateId ?? queue.privateId);
     setMessage(inFlight.current > 0 ? "Saving…"
       : `Saved at ${new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date())} · Private`);
-    return { ...result, current: latest.current.snapshot === value.snapshot };
-  }, [ownerId, queue, sessionId]);
+    return { ...result, current: captureLatest().snapshot === value.snapshot };
+  }, [captureLatest, ownerId, privateId, queue, sessionId]);
 
   useEffect(() => {
     if (!recoveryReady || !dirty || paused || recovery || !name.trim() || error || saving) return;
@@ -101,16 +143,17 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
     return () => { window.removeEventListener("offline", offline); window.removeEventListener("online", online); };
   }, []);
   useEffect(() => {
-    if (!dirty || recoverable) return;
-    const guard = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    if (recoverable) return;
+    const unsaved = () => dirty || !!gesture?.getScene();
+    const guard = (event: BeforeUnloadEvent) => { if (unsaved()) event.preventDefault(); };
     const navigate = (event: MouseEvent) => {
       const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
-      if (anchor && !window.confirm("This draft has not saved and local recovery is unavailable. Leave and lose these edits?")) { event.preventDefault(); event.stopPropagation(); }
+      if (anchor && unsaved() && !window.confirm("This draft has not saved and local recovery is unavailable. Leave and lose these edits?")) { event.preventDefault(); event.stopPropagation(); }
     };
     window.addEventListener("beforeunload", guard);
     document.addEventListener("click", navigate, true);
     return () => { window.removeEventListener("beforeunload", guard); document.removeEventListener("click", navigate, true); };
-  }, [dirty, recoverable]);
+  }, [dirty, recoverable, gesture]);
   const dismissRecovery = () => { if (recovery) { try { clearDraftRecoveryCopies(localStorage, ownerId, recovery.privateId, draftSnapshot(recovery)); } catch { /* UI remains usable. */ } } setRecovery(null); };
   const acceptRecovery = () => {
     if (recovery?.privateId) {

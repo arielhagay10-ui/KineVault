@@ -43,8 +43,8 @@ test("single joint edits follow the scrubbed time and preserve other poses after
     await scrubber.fill("2400"); await selectWorkshopJoint(page, "Right elbow");
     await expect(scrubber).toHaveValue("2400");
     await jointField(page, "x").fill("55"); await jointField(page, "x").press("Enter");
-    await page.getByRole("button", { name: "Save pose", exact: true }).click();
-    await page.getByRole("button", { name: "Save", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+    await page.getByRole("button", { name: "Capture pose", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
     await page.reload(); await selectWorkshopJoint(page, "Left elbow");
     for (const [time, value] of [[0, 10], [1070, 65], [1600, 80], [3200, 10]]) {
       await scrubber.fill(String(time)); await expect(jointField(page, "x")).toHaveValue(String(value));

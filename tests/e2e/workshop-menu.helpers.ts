@@ -21,6 +21,11 @@ export async function openWorkshopRecovery(page: Page) {
   if (!await recovery.evaluate(element => (element as HTMLDetailsElement).open)) await recovery.locator("summary").click();
 }
 
+export async function openWorkshopDeviceRecovery(page: Page) {
+  const recovery = page.getByRole("region", { name: "Recover draft", exact: true });
+  await expect(recovery).toBeVisible();
+}
+
 export async function addWorkshopEquipment(page: Page, name: string) {
   await page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
   const dialog = page.getByRole("dialog");
@@ -28,17 +33,18 @@ export async function addWorkshopEquipment(page: Page, name: string) {
   await dialog.getByRole("button", { name, exact: true }).click();
 }
 
-export async function setWorkshopMode(page: Page, mode: "quick" | "advanced") {
-  const button = page.getByRole("button", { name: mode === "quick" ? "Quick create" : "Advanced editing", exact: true });
-  if (await button.getAttribute("aria-pressed") !== "true") await button.click();
-  const menu = page.locator("[data-workshop-menu]");
-  if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator(":scope > summary").click();
+export async function enableWorkshopFreeDrag(page: Page, method: "click" | "tap" = "click") {
+  const free = page.getByRole("button", { name: "Move with mouse", exact: true, includeHidden: true });
+  const details = page.locator("details").filter({ has: free });
+  if (!await details.evaluate(element => (element as HTMLDetailsElement).open)) await details.locator(":scope > summary")[method]();
+  await free[method]();
+  await details.locator(":scope > summary")[method]();
 }
 
 export async function inspectMachineMoment(page: Page, name: string, moment: "Start" | "Finish") {
-  await setWorkshopMode(page, "advanced");
-  await page.getByLabel("Selected equipment", { exact: true }).selectOption({ label: name });
-  await page.getByRole("region", { name: "Playback controls" }).getByRole("button", { name: `View ${moment.toLowerCase()}`, exact: true }).click();
+  await openWorkshopTool(page, "Contacts");
+  await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption({ label: name });
+  await selectWorkshopMoment(page, moment);
   await openWorkshopTool(page, "Timeline");
 }
 
@@ -49,21 +55,28 @@ export async function editRowTravel(page: Page, value: string) {
   const field = page.getByLabel("Row pull percent", { exact: true });
   await field.fill(value);
   await field.press("Enter");
-  await setWorkshopMode(page, "quick");
 }
 
 export async function expectRowTravel(page: Page, value: string) {
   await inspectMachineMoment(page, "Cable row", "Finish");
   await expect(page.getByLabel("Row pull percent", { exact: true })).toHaveValue(value);
-  await setWorkshopMode(page, "quick");
 }
 
 export async function openWorkshopTool(page: Page, name: string) {
-  await setWorkshopMode(page, "advanced");
-  const tab = page.getByRole("tab", { name, exact: true });
+  await page.getByRole("region", { name: "Workshop editor", exact: true }).waitFor({ state: "visible" });
+  const edit = page.getByRole("button", { name: "Edit controls", exact: true });
+  if (await edit.isVisible()) await edit.click();
+  const menu = page.locator("[data-workshop-menu]");
+  if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator(":scope > summary").click();
+  if (["View", "Setups", "Settings"].includes(name)) {
+    const more = page.getByRole("group", { name: "Workshop tools", exact: true }).locator("details");
+    if (!await more.evaluate(element => (element as HTMLDetailsElement).open)) await more.locator(":scope > summary").click();
+  }
+  const tab = page.getByRole("tab", { name, exact: true, includeHidden: true });
   await tab.click();
   await expect(tab).toHaveAttribute("aria-selected", "true");
   if (name === "Position") await expandWorkshopControls(page, "Precise placement");
+  if (name === "Timeline") await expandWorkshopControls(page, "Advanced pose actions");
   if (name === "Settings") {
     const details = page.locator('[data-workshop-panel="settings"] details');
     if (!await details.evaluate(element => (element as HTMLDetailsElement).open)) await details.locator("summary").click();
@@ -72,11 +85,13 @@ export async function openWorkshopTool(page: Page, name: string) {
 
 export async function expandWorkshopControls(page: Page, name: string) {
   const button = page.getByRole("button", { name, exact: true, includeHidden: true });
-  if (await button.count() === 0) return;
-  await expect(button).toBeVisible();
+  const summary = page.locator("summary").filter({ hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) });
+  const control = await button.count() ? button : summary;
+  if (await control.count() === 0) return;
+  await expect(control).toBeVisible();
   // Native exclusive disclosures can close before React receives onToggle.
-  const isOpen = () => button.evaluate(element => element.closest("details")!.open);
-  if (!await isOpen()) await button.click();
+  const isOpen = () => control.evaluate(element => element.closest("details")!.open);
+  if (!await isOpen()) await control.click();
   await expect.poll(isOpen).toBe(true);
 }
 
@@ -86,7 +101,18 @@ export function cableAttachmentButton(page: Page, attachment: CableAttachment) {
 
 export async function selectWorkshopObject(page: Page, name: string) {
   await openWorkshopTool(page, "Equipment");
-  await page.getByLabel("Scene objects").getByRole("button", { name, exact: true }).click();
+  const select = page.getByRole("combobox", { name: "Selected item", exact: true });
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const option = select.locator("option").filter({ hasText: new RegExp(`^${escaped}(?: · |$)`) });
+  await expect(option).toHaveCount(1);
+  await select.selectOption((await option.getAttribute("value"))!);
+}
+
+export async function selectWorkshopMoment(page: Page, moment: "Start" | "Finish" | "Return") {
+  const poses = page.getByRole("combobox", { name: "Editing pose", exact: true });
+  const value = await poses.locator("option").filter({ hasText: new RegExp(`^${moment}(?: ·|$)`) }).getAttribute("value");
+  if (value === null) throw new Error(`Missing ${moment} pose`);
+  await poses.selectOption(value);
 }
 
 export async function selectWorkshopJoint(page: Page, name: string) {

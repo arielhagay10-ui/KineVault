@@ -27,17 +27,12 @@ test("workshop controls remain named and operable in narrow reflow", async ({ pa
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto(`/my-exercises/${workshop.draftId}/workshop`);
   await expect(page.getByRole("region", { name: "Workshop editor", exact: true })).toBeVisible();
-  await expect(page.getByRole("group", { name: "Editor mode", exact: true })).toBeVisible();
-  const advanced = page.getByRole("button", { name: "Advanced editing", exact: true });
-  await advanced.focus();
-  await advanced.press("Enter");
-  await expect(advanced).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("group", { name: "Editor mode", exact: true })).toHaveCount(0);
   await openWorkshopTool(page, "Equipment");
-  await expect(page.getByRole("group", { name: "Scene objects", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Selected item", exact: true })).toBeVisible();
   const controls = [page.getByRole("button", { name: "Play", exact: true }),
     page.getByRole("combobox", { name: "Preview speed", exact: true }),
-    page.getByRole("button", { name: "View start", exact: true }),
-    page.getByRole("button", { name: "View finish", exact: true }),
+    page.getByRole("button", { name: "Save exercise", exact: true }),
     page.getByRole("combobox", { name: "Editing pose", exact: true })];
   for (const control of controls) {
     await control.focus();

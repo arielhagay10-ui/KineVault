@@ -1,8 +1,7 @@
 import type { StudioObject, WorkshopScene } from "./workshop";
 
 export function equipmentGripHands(object: StudioObject): ("left" | "right" | "both")[] {
-  if (object.slug === "dumbbell") return ["left", "right"];
-  if (object.slug === "barbell" || object.slug === "kettlebell") return ["left", "right", "both"];
+  if (["dumbbell", "barbell", "kettlebell"].includes(object.slug)) return ["left", "right", "both"];
   if (object.slug !== "cable-machine" && object.slug !== "cable-row-machine") return [];
   if (object.slug === "cable-row-machine" && !object.cableAttachment) return [];
   return ["d-handle", "cuff"].includes(object.cableAttachment ?? "d-handle") ? ["left", "right"] : ["left", "right", "both"];
