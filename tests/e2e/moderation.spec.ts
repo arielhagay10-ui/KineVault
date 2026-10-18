@@ -41,7 +41,7 @@ test("reviewer corrections and change requests reach the contributor", async ({ 
   if (submissionError) throw new Error("Review fixture could not be submitted");
   await page.goto("/sign-in");
   await page.getByLabel("Email").fill(reviewerEmail);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto(`/admin/submissions/${submissionId}`);
@@ -63,7 +63,7 @@ test("reviewer corrections and change requests reach the contributor", async ({ 
   const ownerPage = await ownerContext.newPage();
   await ownerPage.goto("/sign-in");
   await ownerPage.getByLabel("Email").fill(ownerEmail);
-  await ownerPage.getByLabel("Password").fill(password);
+  await ownerPage.getByLabel("Password", { exact: true }).fill(password);
   await ownerPage.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(ownerPage).toHaveURL(/\/dashboard$/);
   await ownerPage.getByRole("link", { name: "Review updates (1 unread)" }).click();

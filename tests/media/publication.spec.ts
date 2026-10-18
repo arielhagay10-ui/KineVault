@@ -58,7 +58,7 @@ test("real motion renders stay private until approval and play publicly afterwar
 
   await page.goto("/sign-in");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto(`/admin/submissions/${submissionId}`);

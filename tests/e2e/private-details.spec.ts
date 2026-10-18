@@ -12,10 +12,11 @@ test("optional details keep selected metadata through search and collapse", asyn
   const client = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const signup = await client.auth.signUp({ email, password });
+  const signup = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   expect(signup.error).toBeNull();
   if (!signup.data.user) throw new Error("Fixture account was not created");
   try {
+  expect((await client.auth.signInWithPassword({ email, password })).error).toBeNull();
   const draft = await client.rpc("save_private_metadata", { p_patch: {
     name: "Optional detail preservation", aliases: ["My original name"],
     muscles: [{ slug: "lateral-deltoid", role: "primary" }],
@@ -28,7 +29,7 @@ test("optional details keep selected metadata through search and collapse", asyn
   expect(savedScene.error).toBeNull();
   await page.goto("/sign-in");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto(`/my-exercises/${draft.data}/edit`);
@@ -69,16 +70,17 @@ test("library templates create an independent resumable private draft", async ({
   const client = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const signup = await client.auth.signUp({ email, password });
+  const signup = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   expect(signup.error).toBeNull();
   if (!signup.data.user) throw new Error("Fixture account was not created");
   try {
+  expect((await client.auth.signInWithPassword({ email, password })).error).toBeNull();
   const source = await client.rpc("save_private_metadata", { p_patch: { name: "Reusable motion" } });
   expect(source.error).toBeNull();
   expect((await client.rpc("save_private_scene", { p_private_id: source.data!, p_scene: blankWorkshopScene })).error).toBeNull();
   await page.goto("/sign-in");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto("/my-exercises");

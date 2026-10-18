@@ -34,7 +34,7 @@ for (const appearance of ["light", "dark"] as const) {
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     const authenticationError = page.getByRole("main").getByRole("alert");
     await expect(authenticationError).toBeVisible();
-    await expect(authenticationError).toHaveText("Those sign-in details did not work.");
+    await expect(authenticationError).toHaveText("The email or password is incorrect. Check your details and try again.");
     await auditAccessibility(page, testInfo, `${appearance}-authentication-error`);
   });
 }
