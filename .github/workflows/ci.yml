@@ -76,7 +76,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium firefox webkit
-      - run: npx supabase start --exclude realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - run: npx supabase start --exclude realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       - name: Configure local browser test environment
         run: |
           echo "NEXT_PUBLIC_SUPABASE_URL=$(npx supabase status -o env | sed -n 's/^API_URL=//p' | tr -d '"')" >> "$GITHUB_ENV"
