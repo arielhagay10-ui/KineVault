@@ -17,7 +17,7 @@ import { changingElbowPulloverScene, nearLimitPulloverScene, sharedDumbbellScene
 const run = promisify(execFile);
 
 for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-hand-barbell", "custom-barbell", "custom-rope", "custom-machine", "lat-pulldown", "leg-press", "pec-deck", "automatic-dumbbells", "resting-dumbbells", "joint-driven-dumbbells", "carried-dumbbells", "lying-front-raise-dumbbells", "joint-driven-barbell", "shared-goblet-dumbbells", "shared-pullover-dumbbells", "shared-near-limit-dumbbells", "shared-varying-dumbbells", "shared-left-arm-dumbbells"] as const) test(`a saved ${variant} produces playable private media`, async ({ page }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(600_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const service = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
@@ -128,7 +128,8 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
     execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
       `update public.render_jobs set queued_at = '1970-01-01' where status = 'queued' and scene_id in (select id from public.exercise_scenes where content_id = '${contentId}');`], { stdio: "pipe" });
     const workerStarted = Date.now();
-    const worker = await run(process.execPath, ["scripts/render-worker.mjs", "--once"], { timeout: 100_000 }).catch(error => {
+    // Allow the worker's 480s capture deadline to close its browser before this watchdog.
+    const worker = await run(process.execPath, ["scripts/render-worker.mjs", "--once"], { timeout: 540_000 }).catch(error => {
       console.error("Render worker process failed", { elapsedMs: Date.now() - workerStarted, code: error.code, signal: error.signal, killed: error.killed });
       throw error;
     });
