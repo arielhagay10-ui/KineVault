@@ -69,12 +69,23 @@ test("equipment edits stay collapsed and preserve roles through save and recover
     await position.selectOption({ label: "Lying face down" });
     await expect(position).toHaveValue("prone");
     await classifications.click();
-    await page.getByRole("button", { name: "Save privately", exact: true }).click();
-    await expect(page.getByText("Saved privately.", { exact: true })).toBeVisible();
-    await classifications.click();
-    await expect(position).toHaveValue("prone");
-    expect(await values()).toMatchObject({ equipment: ["barbell", "dumbbell"], dumbbellRole: "optional", barbellRole: "optional" });
+    await test.step("Save and reload the final equipment details", async () => {
+      const editPath = new URL(page.url()).pathname;
+      const saved = page.waitForResponse(response => response.request().method() === "POST"
+        && new URL(response.url()).pathname === editPath);
+      await page.getByRole("button", { name: "Save privately", exact: true }).click();
+      const response = await saved;
+      expect(response.ok()).toBe(true);
+      await response.finished();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByText("Saved privately.", { exact: true })).toBeVisible();
+      await classifications.click();
+      await expect(position).toHaveValue("prone");
+      expect(await values()).toMatchObject({ equipment: ["barbell", "dumbbell"], dumbbellRole: "optional", barbellRole: "optional" });
+    });
   } finally {
-    await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password, owner });
+    await test.step("Remove the equipment details fixture", async () => {
+      await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password, owner });
+    });
   }
 });
