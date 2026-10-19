@@ -70,7 +70,7 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
     await openWorkshopTool(page, "Contacts");
     await expect(page.getByRole("button", { name: "Hold with both hands", exact: true })).toHaveAttribute("aria-pressed", "true");
     await cableAttachmentButton(page, "angled-bar").click();
-    await page.locator("canvas").screenshot({ path: `${folder}/angled-bar.png` });
+    if (!process.env.CI) await page.locator("canvas").screenshot({ path: `${folder}/angled-bar.png` });
     await cableAttachmentButton(page, "lat-bar").click();
     await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
 
@@ -123,14 +123,15 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(element, String(value));
         element.dispatchEvent(new Event("input", { bubbles: true }));
       }, sample * 200);
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
       await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
-      await page.locator("canvas").screenshot({ path: `${folder}/wide-sample-${sample}.png` });
+      if (!process.env.CI) await page.locator("canvas").screenshot({ path: `${folder}/wide-sample-${sample}.png` });
     }
     await selectWorkshopMoment(page, "Start");
     await page.getByRole("button", { name: "Play", exact: true }).click();
     await expect.poll(() => page.getByLabel("Preview time").inputValue()).not.toBe("0");
     await page.getByRole("button", { name: "Pause", exact: true }).click();
-    await page.screenshot({ path: `${folder}/wide-grip-behind.png` });
+    if (!process.env.CI) await page.screenshot({ path: `${folder}/wide-grip-behind.png` });
     expect(errors).toEqual([]);
   } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

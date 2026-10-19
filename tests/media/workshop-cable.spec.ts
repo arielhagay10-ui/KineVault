@@ -127,7 +127,11 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
     expect(queued.status).toBe("queued");
     execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
       `update public.render_jobs set queued_at = '1970-01-01' where status = 'queued' and scene_id in (select id from public.exercise_scenes where content_id = '${contentId}');`], { stdio: "pipe" });
-    const worker = await run(process.execPath, ["scripts/render-worker.mjs", "--once"], { timeout: 100_000 });
+    const workerStarted = Date.now();
+    const worker = await run(process.execPath, ["scripts/render-worker.mjs", "--once"], { timeout: 100_000 }).catch(error => {
+      console.error("Render worker process failed", { elapsedMs: Date.now() - workerStarted, code: error.code, signal: error.signal, killed: error.killed });
+      throw error;
+    });
     expect(worker.stdout).toContain(queued.id);
     const media = await owner.from("exercise_media").select("kind,storage_path").eq("content_id", contentId);
     if (media.error) throw media.error;

@@ -77,7 +77,7 @@ test("mouse handles edit row endpoints with Undo, cancellation and saved motion"
     await expect(height).toHaveValue(movedHeight);
     await inspectMachineMoment(page, "Cable row", "Finish");
     await enableWorkshopFreeDrag(page);
-    await page.screenshot({ path: `${folder}/mouse-controls.png`, fullPage: true });
+    if (!process.env.CI) await page.screenshot({ path: `${folder}/mouse-controls.png`, fullPage: true });
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
@@ -94,8 +94,8 @@ test("mouse handles edit row endpoints with Undo, cancellation and saved motion"
       for (let i = 0; i <= 16; i++) {
         await page.getByLabel("Preview time", { exact: true }).fill(String(scene.durationMs * i / 16));
         await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
-        // CI retains start, finish and return; local visual reviews keep every sample.
-        if (!process.env.CI || i === 0 || i === 8 || i === 16) await page.locator("canvas").screenshot({ path: `${folder}/${view.toLowerCase()}-${i}.png` });
+        // CI retains failure screenshots; local visual reviews capture every sample.
+        if (!process.env.CI) await page.locator("canvas").screenshot({ path: `${folder}/${view.toLowerCase()}-${i}.png` });
       }
     }
     for (const speed of ["1", "0.25"]) {
