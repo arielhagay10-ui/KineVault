@@ -68,7 +68,8 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
         for (let step = 0; step <= 16; step++) {
           await page.getByLabel("Preview time", { exact: true }).fill(String(step * 300));
           await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
-          await page.locator("canvas").screenshot({ path: `${artifacts}/${view.toLowerCase()}-${step}.png` });
+          // CI retains start, finish and return; local visual reviews keep every sample.
+          if (!process.env.CI || step === 0 || step === 8 || step === 16) await page.locator("canvas").screenshot({ path: `${artifacts}/${view.toLowerCase()}-${step}.png` });
         }
       }
       await page.getByRole("button", { name: "Three-quarter", exact: true }).click();

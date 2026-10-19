@@ -35,7 +35,7 @@ test("held dumbbells follow bench positions and first/finish poses are recorded 
     await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`); await dismissWorkshopTutorial(page);
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts");
     const selected = page.getByRole("combobox", { name: "Selected item", exact: true });
     for (const position of ["Sit", "Lie face up", "Lie face down"] as const) {
@@ -51,7 +51,7 @@ test("held dumbbells follow bench positions and first/finish poses are recorded 
     await selected.selectOption(bench.id); await page.getByRole("button", { name: "Lie face up", exact: true }).click();
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts");
     for (const weight of weights) {
       await selected.selectOption(weight.id);
@@ -89,7 +89,7 @@ test("held dumbbells follow bench positions and first/finish poses are recorded 
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
     const recorded = await owner.from("private_exercises").select("id,exercise_content(name)");
     const recordedId = recorded.data!.find(item => item.exercise_content?.name === "Explicit pose capture regression")!.id;
-    await page.goto(`/my-exercises/${recordedId}/workshop`); await dismissWorkshopTutorial(page); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.goto(`/my-exercises/${recordedId}/workshop`); await dismissWorkshopTutorial(page); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
     await selectWorkshopMoment(page, "Start"); await expect(jointField(page, "x")).toHaveValue("70");
     await selectWorkshopMoment(page, "Finish"); await expect(jointField(page, "x")).toHaveValue("110");

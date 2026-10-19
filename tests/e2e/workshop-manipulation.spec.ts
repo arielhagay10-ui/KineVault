@@ -29,16 +29,21 @@ test("one editor selects safely and constrains nudges with Undo and saved placem
   const coordinates = async () => [await x.inputValue(), await y.inputValue(), await z.inputValue()];
   const initial = await coordinates();
   await page.getByRole("button", { name: "Front", exact: true }).click();
+  await selectWorkshopObject(page, "Anatomical figure");
   await select.click();
   const canvas = page.locator("canvas");
   await canvas.scrollIntoViewIfNeeded();
+  await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => {
+    const bounds = element.getBoundingClientRect();
+    return Math.abs(element.width / element.height - bounds.width / bounds.height);
+  })).toBeLessThan(.005);
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   const bounds = (await canvas.boundingBox())!;
   const fit = fitWorkshopCamera(workshop.scene, "front", bounds.width / bounds.height, 34);
   const camera = new PerspectiveCamera(34, bounds.width / bounds.height, .1, 100);
   camera.position.copy(fit.position); camera.lookAt(fit.target); camera.updateMatrixWorld();
   const point = new Vector3(workshop.weight.x, workshop.weight.y + .2, workshop.weight.z).project(camera);
   const start = { x: bounds.x + (point.x + 1) * bounds.width / 2, y: bounds.y + (1 - point.y) * bounds.height / 2 };
-  await selectWorkshopObject(page, "Anatomical figure"); await select.click();
   await testInfo.attach("selection-target", { body: JSON.stringify({ bounds, start, fit }), contentType: "application/json" });
   await page.mouse.click(start.x, start.y);
   await expect(page.getByRole("combobox", { name: "Selected item", exact: true })).toHaveValue(workshop.weight.id);

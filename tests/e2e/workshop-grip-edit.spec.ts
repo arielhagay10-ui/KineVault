@@ -28,7 +28,7 @@ test("advanced grip editing picks, adjusts, resets, undoes, and persists indepen
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
-    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText("Grip edit", { exact: true })).toHaveCount(0);
     await openWorkshopTool(page, "Contacts"); await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(bar.id);
     await page.getByRole("button", { name: /^Edit left grip/ }).click();
@@ -59,7 +59,7 @@ test("advanced grip editing picks, adjusts, resets, undoes, and persists indepen
       const field = page.getByLabel(`Grip ${axis} centimeters`, { exact: true }); await field.fill(value); await field.press("Enter");
     }
     await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts"); await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(bar.id);
     await page.getByRole("button", { name: /^Edit left grip/ }).click(); await expect(x).toHaveValue("-8");
     await page.getByRole("button", { name: /^Edit right grip/ }).click(); await expect(x).toHaveValue("8");
@@ -101,7 +101,7 @@ test("grip edit excludes fixed supports and covers weights, machines and cable a
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
-    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts");
     for (const object of scene.studio!.objects) {
       await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(object.id);

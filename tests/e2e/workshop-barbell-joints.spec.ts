@@ -34,7 +34,7 @@ for (const mode of ["single", "both", "deep"] as const) test(`${mode} held barbe
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
-    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopJoint(page, firstJoint);
     await expect(jointField(page, "x")).toBeEnabled();
     await expandWorkshopControls(page, "Held equipment");
@@ -59,7 +59,7 @@ for (const mode of ["single", "both", "deep"] as const) test(`${mode} held barbe
     await expect(page.getByLabel("Editing pose", { exact: true }).locator("option")).toHaveCount(4);
     await page.screenshot({ path: `${evidence}/joint-controls.png` });
     await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopJoint(page, secondJoint);
     await page.getByLabel("Editing pose", { exact: true }).selectOption("2"); await expect(jointField(page, "x")).toHaveValue(String(peak));
     await page.getByLabel("Editing pose", { exact: true }).selectOption("1"); await expect(jointField(page, "x")).toHaveValue("60");

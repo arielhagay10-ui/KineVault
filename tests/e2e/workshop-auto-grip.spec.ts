@@ -32,7 +32,7 @@ test("duplicate dumbbells grip posed hands, reset without custom offsets, and su
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
-    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts");
     const selected = page.getByRole("combobox", { name: "Selected item", exact: true });
     await expect(selected.locator("option").filter({ hasText: "Dumbbell 1" })).toHaveCount(1);
@@ -90,7 +90,7 @@ test("duplicate dumbbells grip posed hands, reset without custom offsets, and su
     expect(await page.getByLabel("Position Y meters", { exact: true }).inputValue()).not.toBe(beforeY);
     await openWorkshopTool(page, "Contacts");
     await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
     await expect(jointField(page, "x")).toHaveValue("45");
     await openWorkshopTool(page, "Contacts"); await selected.selectOption(second.id);

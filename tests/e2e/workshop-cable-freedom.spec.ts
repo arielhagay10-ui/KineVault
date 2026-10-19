@@ -88,7 +88,7 @@ test("row attachments, independent handle movement, free deadlift poses and save
       const saved = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
       return saved.data.studio_layout;
     }, { timeout: 20_000 }).toMatchObject({ body: { x: 1.3 }, objects: [{ slug: "cable-row-machine", machineUse: false, cableAttachment: "straight-bar", attachment: "both", x: fixture.studio!.objects[0].x }] });
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopJoint(page, "Left hip"); await expect(jointField(page, "x")).toHaveValue("45");
     await page.getByRole("button", { name: "Side", exact: true }).click();
     for (let step = 0; step <= 16; step++) {

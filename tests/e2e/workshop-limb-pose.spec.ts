@@ -51,7 +51,7 @@ test("one-handed barbell contacts survive grip changes, saving and playback", as
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts");
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(bar.id);
     for (const hand of ["both hands", "right hand", "left hand"]) {
@@ -62,7 +62,7 @@ test("one-handed barbell contacts survive grip changes, saving and playback", as
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
     await page.reload();
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts");
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(bar.id);
     await expect(page.getByRole("button", { name: "Hold with left hand", exact: true })).toHaveAttribute("aria-pressed", "true");

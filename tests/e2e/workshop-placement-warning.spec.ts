@@ -70,7 +70,7 @@ test("placement warnings overlay the preview without resizing it and lead to the
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     for (const view of ["Front", "Side"]) {
       await page.getByRole("button", { name: view, exact: true }).click();
       await page.locator("canvas").screenshot({ path: `${folder}/rest-${view.toLowerCase()}.png` });

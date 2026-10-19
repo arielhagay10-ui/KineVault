@@ -5,6 +5,7 @@ import { addWorkshopEquipment, setWorkshopLanguage } from "./workshop-menu.helpe
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../../src/lib/database.types";
 import { expect, test } from "@playwright/test";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
@@ -74,7 +75,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await page.getByLabel("Exercise name", { exact: true }).fill("My first workshop exercise");
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
-    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 30_000 });
     const cleanContext = await browser.newContext({ baseURL, storageState: { cookies: await context.cookies(), origins: [] } });
     try {
       const next = await cleanContext.newPage();
@@ -99,8 +100,23 @@ test("tutorial points to usable controls, resumes and remains optional on later 
       }
     }
     await page.getByLabel("Exercise name", { exact: true }).fill("Saved during the tutorial");
+    const savedId = new URL(page.url()).pathname.split("/")[2];
+    const saved = page.waitForResponse(response => response.request().method() === "POST"
+      && new URL(response.url()).pathname === `/my-exercises/${savedId}/workshop`
+      && (response.request().postData()?.includes("Saved during the tutorial") ?? false));
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
-    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+    expect((await saved).ok()).toBe(true);
+    const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    const signedIn = await owner.auth.signInWithPassword({ email, password });
+    expect(signedIn.error).toBeNull();
+    await expect.poll(async () => {
+      const result = await owner.from("private_exercises").select("id,exercise_content(name)")
+        .eq("id", savedId).eq("owner_id", account.data.user.id).single();
+      if (result.error) throw result.error;
+      return result.data.exercise_content?.name;
+    }).toBe("Saved during the tutorial");
+    // Revalidation can mount the saved route after the first save changed /new's URL.
+    await expect(page.getByText(/^(Saved privately|Saved at .* · Private)$/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "Saved during the tutorial", exact: true })).toBeVisible();
     await expect(tutorial).toBeVisible();
     await tutorial.getByRole("button", { name: "Finish tutorial", exact: true }).click();

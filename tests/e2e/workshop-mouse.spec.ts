@@ -94,7 +94,8 @@ test("mouse handles edit row endpoints with Undo, cancellation and saved motion"
       for (let i = 0; i <= 16; i++) {
         await page.getByLabel("Preview time", { exact: true }).fill(String(scene.durationMs * i / 16));
         await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
-        await page.locator("canvas").screenshot({ path: `${folder}/${view.toLowerCase()}-${i}.png` });
+        // CI retains start, finish and return; local visual reviews keep every sample.
+        if (!process.env.CI || i === 0 || i === 8 || i === 16) await page.locator("canvas").screenshot({ path: `${folder}/${view.toLowerCase()}-${i}.png` });
       }
     }
     for (const speed of ["1", "0.25"]) {

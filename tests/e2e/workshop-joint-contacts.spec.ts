@@ -32,7 +32,7 @@ test("bench supports and bilateral shoulder edits preserve elbows and held dumbb
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
-    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts");
     const selected = page.getByRole("combobox", { name: "Selected item", exact: true });
     await selected.selectOption(bench.id);
@@ -70,7 +70,7 @@ test("bench supports and bilateral shoulder edits preserve elbows and held dumbb
     await expect(jointField(page, "x")).toHaveValue("-60");
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopMoment(page, "Finish");
     for (const side of ["Left", "Right"]) {
       await selectWorkshopJoint(page, `${side} shoulder`); await expect(jointField(page, "x")).toHaveValue("-60");

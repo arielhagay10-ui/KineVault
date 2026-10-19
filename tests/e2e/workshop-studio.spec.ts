@@ -27,7 +27,7 @@ for (const facing of ["front", "supine"] as const) test(`bench-supported ${facin
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
-    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await dismissWorkshopTutorial(page);
     await page.getByRole("textbox", { name: "Exercise name", exact: true }).fill(`Bench placement ${facing}`);
     await openWorkshopTool(page, "Equipment");

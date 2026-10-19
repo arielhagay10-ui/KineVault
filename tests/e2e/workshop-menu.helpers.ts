@@ -135,4 +135,6 @@ export async function setWorkshopLanguage(page: Page, language: "en" | "he") {
   await page.getByRole("combobox", { name: /Workshop language|שפת הסדנה/ }).selectOption(language);
   await expect(page.locator('[data-workshop="studio"]')).toHaveAttribute("lang", language);
   if (await page.locator("[data-workshop-menu]").evaluate(element => (element as HTMLDetailsElement).open)) await page.locator("[data-workshop-menu] > summary").click();
+  await expect(page.locator("[data-workshop-menu]")).toHaveJSProperty("open", false);
+  await expect.poll(() => page.locator("[data-workshop-controls-scroll]").evaluate(element => element.closest("[inert]") === null)).toBe(true);
 }
