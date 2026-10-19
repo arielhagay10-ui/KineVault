@@ -5,6 +5,7 @@ import { blankWorkshopScene } from "../../src/lib/motion/workshop";
 
 test("equipment edits stay collapsed and preserve roles through save and recovery", async ({ page }) => {
   test.setTimeout(90_000);
+  const started = Date.now();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw new Error("Local fixtures required");
   const email = `equipment-details-${Date.now()}@example.test`, password = "EquipmentDetailsFixture2026!";
@@ -70,18 +71,24 @@ test("equipment edits stay collapsed and preserve roles through save and recover
     await expect(position).toHaveValue("prone");
     await classifications.click();
     await test.step("Save and reload the final equipment details", async () => {
+      const checkpoint = (stage: string) => console.info("Equipment details save", { stage, elapsedMs: Date.now() - started });
+      checkpoint("start");
       const editPath = new URL(page.url()).pathname;
       const saved = page.waitForResponse(response => response.request().method() === "POST"
-        && new URL(response.url()).pathname === editPath);
+        && new URL(response.url()).pathname === editPath, { timeout: 30_000 });
       await page.getByRole("button", { name: "Save privately", exact: true }).click();
+      checkpoint("submitted");
       const response = await saved;
       expect(response.ok()).toBe(true);
-      await response.finished();
+      checkpoint("response headers");
       await page.reload({ waitUntil: "domcontentloaded" });
+      checkpoint("reloaded");
       await expect(page.getByText("Saved privately.", { exact: true })).toBeVisible();
       await classifications.click();
+      checkpoint("classifications open");
       await expect(position).toHaveValue("prone");
       expect(await values()).toMatchObject({ equipment: ["barbell", "dumbbell"], dumbbellRole: "optional", barbellRole: "optional" });
+      checkpoint("verified");
     });
   } finally {
     await test.step("Remove the equipment details fixture", async () => {
