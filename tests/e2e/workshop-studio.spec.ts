@@ -232,7 +232,9 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
           element.dispatchEvent(new Event("input", { bubbles: true }));
         }, step * 600);
         await expect(page.getByLabel("Preview time")).toHaveValue(String(step * 600));
-        await page.locator("canvas").screenshot({ path: `${artifacts}/flaps-${view}-${step}.png` });
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        // CI retains start, finish and return; local visual reviews keep every sample.
+        if (!process.env.CI || step === 0 || step === 4 || step === 8) await page.locator("canvas").screenshot({ path: `${artifacts}/flaps-${view}-${step}.png` });
       }
     }
     if (process.env.CAPTURE_KEENAN === "1") {

@@ -411,8 +411,12 @@ test("opposite-side and zoom inspection survive playback rerenders", async ({ pa
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop?metrics=1`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60000 });
+    await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "View");
+    // Hold resolution constant while comparing camera persistence.
+    await page.getByRole("combobox", { name: "Preview detail", exact: true }).selectOption("economy");
     await page.getByRole("button", { name: "Fit scene", exact: true }).click();
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     const original = await page.locator("canvas").screenshot();
     await page.getByRole("button", { name: "Opposite side", exact: true }).click();
     const opposite = await page.locator("canvas").screenshot();
@@ -421,6 +425,7 @@ test("opposite-side and zoom inspection survive playback rerenders", async ({ pa
       if (action) await page.getByRole("button", { name: action, exact: true }).click();
       const state = async () => ({ canvas: await page.locator("canvas").boundingBox(),
         camera: await page.locator("[data-anatomy-state]").getAttribute("data-camera-position"),
+        pixelRatio: await page.locator("[data-anatomy-state]").getAttribute("data-pixel-ratio"),
         timeMs: await page.getByLabel("Preview time", { exact: true }).inputValue() });
       const beforeState = await state();
       const before = await page.locator("canvas").screenshot();
@@ -429,6 +434,8 @@ test("opposite-side and zoom inspection survive playback rerenders", async ({ pa
       const playingState = await state();
       await page.getByRole("button", { name: "Pause", exact: true }).click();
       await selectWorkshopMoment(page, "Start");
+      await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("0");
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
       const after = await page.locator("canvas").screenshot();
       await testInfo.attach(`camera-${action ?? "opposite"}`, { body: JSON.stringify({ before: beforeState, after: await state() }), contentType: "application/json" });
       expect(playingState.canvas).toEqual(beforeState.canvas);
