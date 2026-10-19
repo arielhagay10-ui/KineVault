@@ -1,5 +1,7 @@
+import { openWorkshopTool } from "./workshop-menu.helpers";
+import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { inspectMachineMoment, setWorkshopMode, setWorkshopLanguage, selectWorkshopObject, openWorkshopRecovery } from "./workshop-menu.helpers";
+import { inspectMachineMoment, setWorkshopLanguage, selectWorkshopObject, openWorkshopRecovery } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -48,7 +50,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(page.getByRole("button", { name: "Redo", exact: true }).filter({ visible: true }).first()).toBeDisabled();
     await page.keyboard.press("Control+y"); await expect(finish).toHaveValue("72");
     // Space activates a focused button once, and toggles playback from the viewport.
-    await page.getByRole("region", { name: "Playback controls" }).getByRole("button", { name: "View start", exact: true }).click();
+    await selectWorkshopMoment(page, "Start");
     await page.getByRole("button", { name: "Play", exact: true }).focus();
     await page.keyboard.press("Space"); await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
     await workshop.focus(); await page.keyboard.press("Space");
@@ -56,25 +58,23 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await page.keyboard.press("]"); await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("1600");
     await page.keyboard.press("["); await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("0");
     await page.keyboard.press("e");
-    await expect(page.getByRole("button", { name: "Move with mouse", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("c");
-    await expect(page.getByRole("button", { name: "Move with mouse", exact: true })).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "false");
     await page.keyboard.press("Shift+?");
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).not.toBeVisible();
-    await setWorkshopMode(page, "advanced");
     const name = page.getByLabel("Exercise name", { exact: true });
     await name.focus(); await page.keyboard.press("End"); await page.keyboard.insertText(" revised");
     await page.keyboard.press("Control+z");
     await expect(name).toHaveValue("Keyboard fixture");
     await inspectMachineMoment(page, "Cable row", "Finish");
     await expect(finish).toHaveValue("72");
-    await setWorkshopMode(page, "advanced");
     await name.fill("Keyboard fixture saved");
     // Save commits a numeric field's blur first and persists that committed scene.
     await selectWorkshopObject(page, "Cable row");
-    await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+    await openWorkshopTool(page, "Timeline");
     const travel = page.getByLabel("Row pull percent", { exact: true });
     const committed = page.waitForResponse(response => {
       const request = response.request();
@@ -85,28 +85,28 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await travel.fill("31"); await travel.press("Control+s");
     await committed;
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
-    await page.reload(); await setWorkshopMode(page, "advanced");
-    await expect(name).toHaveValue("Keyboard fixture saved");
+    await page.reload(); await expect(name).toHaveValue("Keyboard fixture saved");
     await inspectMachineMoment(page, "Cable row", "Finish");
     await expect(travel).toHaveValue("31");
-    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
+    await openWorkshopTool(page, "Equipment");
     await workshop.focus(); await page.keyboard.press("Control+d");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(1);
     await page.keyboard.press("Control+z");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(0);
     await page.keyboard.press("Control+Shift+z");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toBeVisible();
-  await page.getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true }).click();
-    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
+    await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(1);
+    const copiedRow = page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true });
+    await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption((await copiedRow.getAttribute("value"))!);
+    await openWorkshopTool(page, "Equipment");
     await workshop.focus(); await page.keyboard.press("Delete");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(0);
     await page.keyboard.press("Control+z");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(1);
     // Modal search keeps its keys; no scene commands leak through the picker.
     await page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
     await page.getByRole("dialog").getByRole("searchbox").press("Control+z");
     await page.getByRole("dialog").getByRole("searchbox").press("Escape");
-    await expect(page.getByLabel("Scene objects").getByRole("button", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(1);
     await openWorkshopRecovery(page);
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
     mkdirSync(".local-artifacts/workshop/shortcuts", { recursive: true });

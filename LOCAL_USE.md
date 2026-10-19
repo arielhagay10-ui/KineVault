@@ -4,6 +4,10 @@ Open **http://127.0.0.1:3000**. No hosted application or database is required.
 
 ## Start
 
+To run the app, render worker and local Supabase containers together, start Docker Desktop and run `npm ci`, then `npm run docker:up`. Open **http://127.0.0.1:3000** after the command reports that the app is ready. Use `npm run docker:down` to stop them and preserve local data. Docker Desktop's Linux engine must be running; Windows may require WSL installation and a restart first.
+
+For a Node development server with automatic reloads:
+
 Keep Docker Desktop running. From the project folder:
 
 ```sh
@@ -23,7 +27,7 @@ For the optimized app, use `npm run build` then `npm start`. App commands bind t
 
 ## Account and review access
 
-1. Open `/sign-up` and create your account. Local development does not require confirmation email.
+1. Open `/sign-up` and create your account. Open its confirmation email in the local inbox at **http://127.0.0.1:15424**, follow the link, then select **Confirm email**. Existing confirmed accounts can sign in normally. Google sign-in and delivery to a real Gmail inbox need the setup in [Authentication](docs/authentication.md).
 2. Run `npm run setup:admin` and enter that email in the terminal. This local-only command grants the first admin role and records an audit event. It refuses to run once an admin exists.
 3. Open `/admin`. Later role assignments use the Roles page with a reason.
 

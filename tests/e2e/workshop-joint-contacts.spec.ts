@@ -1,3 +1,4 @@
+import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -31,9 +32,9 @@ test("bench supports and bilateral shoulder edits preserve elbows and held dumbb
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
-    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts");
-    const selected = page.getByLabel("Selected equipment", { exact: true });
+    const selected = page.getByRole("combobox", { name: "Selected item", exact: true });
     await selected.selectOption(bench.id);
     await expect(page.getByRole("button", { name: /^Hold with / })).toHaveCount(0);
     await expect(selected.locator("option:checked")).not.toContainText("Held");
@@ -51,7 +52,7 @@ test("bench supports and bilateral shoulder edits preserve elbows and held dumbb
     const sides = page.getByRole("group", { name: "Body side", exact: true });
     await sides.getByRole("button", { name: "Both", exact: true }).click();
     await expect(sides.getByRole("button", { name: "Both", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await selectWorkshopMoment(page, "Finish");
     await jointField(page, "x").fill("60"); await jointField(page, "x").press("Enter");
     await expect(jointField(page, "x")).toHaveAttribute("aria-invalid", "true");
     await selectWorkshopJoint(page, "Left elbow");
@@ -67,10 +68,10 @@ test("bench supports and bilateral shoulder edits preserve elbows and held dumbb
     await selectWorkshopJoint(page, "Right shoulder"); await expect(jointField(page, "x")).toHaveValue("0");
     await page.getByRole("button", { name: "Redo", exact: true }).click();
     await expect(jointField(page, "x")).toHaveValue("-60");
-    await page.getByRole("button", { name: "Save pose", exact: true }).click();
-    await page.getByRole("button", { name: "Save", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
-    await page.getByRole("button", { name: "View finish", exact: true }).click();
+    await page.getByRole("button", { name: "Capture pose", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+    await selectWorkshopMoment(page, "Finish");
     for (const side of ["Left", "Right"]) {
       await selectWorkshopJoint(page, `${side} shoulder`); await expect(jointField(page, "x")).toHaveValue("-60");
       await selectWorkshopJoint(page, `${side} elbow`); await expect(jointField(page, "x")).toHaveValue("15");

@@ -1,20 +1,20 @@
 export const tutorialStorageKey = (ownerId: string) => `kinevault.workshop.tutorial.v2.${ownerId}`;
 export const workshopTutorialSteps = [
-  { id: "equipment", title: "Choose your equipment", mode: "quick", quickStep: 0, target: "equipment", tips: [
-    "Choose equipment, or continue without it for a bodyweight exercise.",
-    "You can add more items later.",
+  { id: "equipment", title: "Set up your scene", panel: "equipment", target: "equipment", tips: [
+    "Add equipment, or select the figure for a bodyweight movement.",
+    "Select any item to show its movement controls. Right-drag to look around without moving it.",
   ] },
-  { id: "pose", title: "Build the movement", mode: "quick", quickStep: 1, target: "pose", tips: [
-    "Arrange the first position, then choose Save first pose below the preview. Edit finish and choose Save pose. You can return to either pose anytime.",
-    "Moving the figure edits a draft pose. The pose is recorded when you press Save pose.",
-    "Use Advanced editing for joint angles, grips and equipment placement.",
+  { id: "pose", title: "Build the movement", panel: "pose", target: "pose", tips: [
+    "Arrange the first position, then choose Capture start below the preview. Edit finish and choose Capture pose. You can return to either pose anytime.",
+    "Moving the figure edits a draft pose. Capture pose records it; Save exercise stores the exercise in your account.",
+    "Use rotation rings for joints, or Hands & feet for movement arrows. Choose a direction to constrain dragging; Fine adjustment makes small steps.",
   ] },
-  { id: "preview", title: "Check your full repetition", mode: "quick", quickStep: 2, target: "playback", tips: [
+  { id: "preview", title: "Check your full repetition", panel: "timeline", target: "playback", tips: [
     "Play the movement and check the start, finish and return.",
     "Watch the hands and feet. Do they stay in contact with their supports?",
   ] },
-  { id: "save", title: "Name and save your exercise", mode: "quick", quickStep: 3, target: "save", tips: [
-    "Name your exercise and choose Save privately.",
+  { id: "save", title: "Name and save your exercise", panel: "timeline", target: "save", tips: [
+    "Name your exercise at the top and choose Save exercise. It stays private.",
     "Add details, share a view link, or publish from My exercises.",
   ] },
 ] as const;

@@ -1,0 +1,202 @@
+import { selectWorkshopMoment } from "./workshop-menu.helpers";
+import { expect } from "@playwright/test";
+import { PerspectiveCamera, Vector3 } from "three";
+import { test } from "../readiness/workshop.fixture";
+import { fitWorkshopCamera } from "../../src/lib/motion/workshop-camera";
+import { addWorkshopEquipment, enableWorkshopFreeDrag, expandWorkshopControls, jointField, openWorkshopMenu, openWorkshopTool, selectWorkshopJoint, selectWorkshopObject } from "./workshop-menu.helpers";
+
+test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+
+test("one editor selects safely and constrains nudges with Undo and saved placement", async ({ page, workshop }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.getByRole("button", { name: /^(Quick create|Advanced editing)$/, includeHidden: true })).toHaveCount(0);
+  for (const name of ["Equipment", "Position", "Contacts", "Pose", "Timeline", "View", "Setups", "Settings"]) {
+    await openWorkshopTool(page, name);
+    await expect(page.getByRole("tab", { name, exact: true, includeHidden: true })).toHaveAttribute("aria-selected", "true");
+  }
+  await openWorkshopTool(page, "Equipment");
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await expect(page.getByLabel("Exercise name", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save exercise", exact: true })).toBeVisible();
+  const select = page.getByRole("button", { name: "Select", exact: true });
+  await expect(select).toHaveAttribute("aria-pressed", "true");
+  await selectWorkshopObject(page, "Dumbbell");
+  await openWorkshopTool(page, "Position");
+  const x = page.getByRole("textbox", { name: "Position X meters", exact: true });
+  const y = page.getByRole("textbox", { name: "Position Y meters", exact: true });
+  const z = page.getByRole("textbox", { name: "Position Z meters", exact: true });
+  const coordinates = async () => [await x.inputValue(), await y.inputValue(), await z.inputValue()];
+  const initial = await coordinates();
+  await page.getByRole("button", { name: "Front", exact: true }).click();
+  await selectWorkshopObject(page, "Anatomical figure");
+  await select.click();
+  const canvas = page.locator("canvas");
+  await canvas.scrollIntoViewIfNeeded();
+  await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => {
+    const bounds = element.getBoundingClientRect();
+    return Math.abs(element.width / element.height - bounds.width / bounds.height);
+  })).toBeLessThan(.005);
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const bounds = (await canvas.boundingBox())!;
+  const fit = fitWorkshopCamera(workshop.scene, "front", bounds.width / bounds.height, 34);
+  const camera = new PerspectiveCamera(34, bounds.width / bounds.height, .1, 100);
+  camera.position.copy(fit.position); camera.lookAt(fit.target); camera.updateMatrixWorld();
+  const point = new Vector3(workshop.weight.x, workshop.weight.y + .2, workshop.weight.z).project(camera);
+  const start = { x: bounds.x + (point.x + 1) * bounds.width / 2, y: bounds.y + (1 - point.y) * bounds.height / 2 };
+  await testInfo.attach("selection-target", { body: JSON.stringify({ bounds, start, fit }), contentType: "application/json" });
+  await page.mouse.click(start.x, start.y);
+  await expect(page.getByRole("combobox", { name: "Selected item", exact: true })).toHaveValue(workshop.weight.id);
+  await openWorkshopTool(page, "Position"); await select.click();
+  await page.mouse.move(start.x, start.y); await page.mouse.down();
+  await page.mouse.move(start.x + 70, start.y - 40, { steps: 10 }); await page.mouse.up();
+  await expect.poll(coordinates).toEqual(initial);
+
+  await page.getByRole("toolbar", { name: "Movement tools", exact: true }).getByRole("button", { name: "Move", exact: true }).click();
+  await page.getByText("Fine adjustment", { exact: true }).filter({ visible: true }).click();
+  const plane = page.getByRole("combobox", { name: "Movement plane", exact: true });
+  expect(await plane.locator("option").evaluateAll(options => options.map(option => (option as HTMLOptionElement).value))).toEqual(["view", "front", "side", "floor", "x", "y", "z"]);
+  const step = page.getByRole("combobox", { name: "Nudge distance", exact: true });
+  await step.selectOption("0.01");
+  const right = page.getByRole("button", { name: "Move right", exact: true });
+  const up = page.getByRole("button", { name: "Move up", exact: true });
+  const forward = page.getByRole("button", { name: "Move forward", exact: true });
+  for (const [value, enabled] of [["view", [true, true, true]], ["front", [true, true, false]], ["side", [false, true, true]], ["floor", [true, false, true]], ["x", [true, false, false]], ["y", [false, true, false]], ["z", [false, false, true]]] as const) {
+    await plane.selectOption(value);
+    for (const [control, allowed] of [[right, enabled[0]], [up, enabled[1]], [forward, enabled[2]]] as const) {
+      if (allowed) await expect(control).toBeEnabled(); else await expect(control).toBeDisabled();
+    }
+  }
+  await plane.selectOption("x"); await right.click();
+  await expect.poll(async () => Number(await x.inputValue())).toBeCloseTo(Number(initial[0]) + .01, 5);
+  await expect(y).toHaveValue(initial[1]); await expect(z).toHaveValue(initial[2]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect.poll(coordinates).toEqual(initial);
+  await plane.selectOption("side"); await step.selectOption("0.05"); await up.click();
+  await expect.poll(async () => Number(await y.inputValue())).toBeCloseTo(Number(initial[1]) + .05, 5);
+  await expect(x).toHaveValue(initial[0]); await expect(z).toHaveValue(initial[2]);
+  await plane.selectOption("floor"); await step.selectOption("0.1"); await forward.click();
+  await expect.poll(async () => Math.abs(Number(await z.inputValue()) - Number(initial[2]))).toBeCloseTo(.1, 5);
+  const moved = await coordinates();
+  await page.getByRole("button", { name: "Capture start", exact: true }).click();
+  await page.getByRole("button", { name: "Save exercise", exact: true }).click();
+  await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+  await page.reload();
+  await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+  await selectWorkshopObject(page, "Dumbbell"); await openWorkshopTool(page, "Position");
+  await expect.poll(coordinates).toEqual(moved);
+});
+
+test("knee bend nudges increase the displayed bend angle", async ({ page, workshop }) => {
+  expect(workshop.draftId).toBeTruthy();
+  await selectWorkshopJoint(page, "Left knee");
+  const bend = jointField(page, "x");
+  await bend.fill("30"); await bend.press("Enter");
+  await openWorkshopTool(page, "Position");
+  await page.getByText("Fine adjustment", { exact: true }).filter({ visible: true }).click();
+  await page.getByRole("combobox", { name: "Nudge angle", exact: true }).selectOption("1");
+  await page.getByRole("button", { name: "Bend more", exact: true }).click();
+  await openWorkshopTool(page, "Pose");
+  await expect(bend).toHaveValue("31");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(bend).toHaveValue("30");
+});
+
+test("limb nudges run once through playback and tool changes, and Free drag keeps limb controls", async ({ page, workshop }) => {
+  test.setTimeout(120_000);
+  await page.route(`**/my-exercises/${workshop.draftId}/workshop`, route => route.request().method() === "POST" ? route.abort("failed") : route.continue());
+  const toolbar = page.getByRole("toolbar", { name: "Movement tools", exact: true });
+  await toolbar.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
+  const hand = page.getByRole("button", { name: /^(Select|Drag) Left hand$/ });
+  await hand.click();
+  await openWorkshopTool(page, "Position");
+  await page.getByText("Fine adjustment", { exact: true }).filter({ visible: true }).click();
+  await page.getByRole("combobox", { name: "Movement plane", exact: true }).selectOption("front");
+  await page.getByRole("combobox", { name: "Nudge distance", exact: true }).selectOption("0.01");
+  await page.getByRole("button", { name: "Move up", exact: true }).click();
+  const key = `kinevault.workshop.draft.${workshop.userId}.${workshop.draftId}`;
+  const poses = () => page.evaluate(key => {
+    const snapshot = localStorage.getItem(key);
+    return snapshot ? JSON.parse(snapshot).scene : null;
+  }, key);
+  await expect.poll(poses).not.toBeNull();
+  const nudged = await poses();
+  expect(nudged.keyframes).not.toEqual(workshop.scene.keyframes);
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect.poll(async () => Number(await page.getByLabel("Preview time", { exact: true }).inputValue())).toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await selectWorkshopMoment(page, "Start");
+  await toolbar.getByRole("button", { name: "Camera", exact: true }).click();
+  await toolbar.getByRole("button", { name: "Move", exact: true }).click();
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))));
+  await expect.poll(poses).toEqual(nudged);
+  await enableWorkshopFreeDrag(page);
+  await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(4);
+  await expect(toolbar.getByRole("button", { name: "Move with mouse", exact: true, includeHidden: true })).toHaveAttribute("aria-pressed", "true");
+  await expandWorkshopControls(page, "Fine adjustment");
+  await page.getByRole("button", { name: "Move left", exact: true }).click();
+  await expect.poll(poses).not.toEqual(nudged);
+  const beforeDrag = await poses();
+  const bounds = (await hand.boundingBox())!;
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2); await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2 + 20, bounds.y + bounds.height / 2 - 35, { steps: 8 }); await page.mouse.up();
+  await expect.poll(poses).not.toEqual(beforeDrag);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect.poll(poses).toEqual(beforeDrag);
+  await toolbar.getByRole("button", { name: "Move", exact: true }).click();
+  await page.getByRole("button", { name: "Fit scene", exact: true }).click();
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const arrowAnchor = (await hand.boundingBox())!;
+  const handleOffset = await hand.evaluate(element => new DOMMatrixReadOnly(getComputedStyle(element).transform).m41);
+  const arrowX = arrowAnchor.x + arrowAnchor.width / 2 - handleOffset;
+  const arrowY = arrowAnchor.y + arrowAnchor.height / 2 - 20;
+  const beforeArrow = await poses();
+  await page.mouse.move(arrowX, arrowY); await page.mouse.down();
+  await page.mouse.move(arrowX, arrowY - 25, { steps: 8 }); await page.mouse.up();
+  await expect.poll(poses).not.toEqual(beforeArrow);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect.poll(poses).toEqual(beforeArrow);
+  await page.screenshot({ path: ".local-artifacts/manipulation-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: ".local-artifacts/manipulation-mobile.png", fullPage: true });
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+});
+
+test("machine handles require explicit Free drag and support cancellation and Undo", async ({ page, workshop }) => {
+  test.setTimeout(120_000);
+  expect(workshop.draftId).toBeTruthy();
+  await addWorkshopEquipment(page, "Cable row");
+  await openWorkshopTool(page, "Contacts");
+  await page.getByRole("button", { name: "Use this machine", exact: true }).click();
+  await page.getByRole("button", { name: "Capture start", exact: true }).click();
+  await selectWorkshopMoment(page, "Finish");
+  await page.getByRole("button", { name: "Side", exact: true }).click();
+  await openWorkshopTool(page, "Timeline");
+  const animate = page.getByRole("button", { name: "Animate selected item", exact: true });
+  if (await animate.isVisible()) await animate.click();
+  const height = page.getByRole("textbox", { name: "Handle height meters", exact: true });
+  const travel = page.getByRole("textbox", { name: "Row pull percent", exact: true });
+  const values = async () => [await height.inputValue(), await travel.inputValue()];
+  const before = await values();
+  const select = page.getByRole("toolbar", { name: "Movement tools", exact: true }).getByRole("button", { name: "Select", exact: true });
+  await select.click();
+  await expect(page.getByRole("button", { name: "Drag Cable row handle", exact: true })).toHaveCount(0);
+  await expect.poll(values).toEqual(before);
+  await enableWorkshopFreeDrag(page);
+  const handle = page.getByRole("button", { name: "Drag Cable row handle", exact: true });
+  await expect(handle).toBeVisible();
+  const drag = async (cancel: boolean) => {
+    await handle.scrollIntoViewIfNeeded(); const bounds = (await handle.boundingBox())!;
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2); await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width / 2 - 40, bounds.y + bounds.height / 2 - 30, { steps: 10 });
+    if (cancel) await page.keyboard.press("Escape");
+    await page.mouse.up();
+  };
+  await drag(true); await expect.poll(values).toEqual(before);
+  await drag(false); await expect.poll(values).not.toEqual(before);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect.poll(values).toEqual(before);
+  await openWorkshopMenu(page);
+  await page.getByText("Recent edits", { exact: true }).click();
+  await expect(page.getByRole("region", { name: "Edit history", exact: true })).toBeVisible();
+});

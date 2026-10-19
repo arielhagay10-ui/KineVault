@@ -1,8 +1,11 @@
+import { openWorkshopDeviceRecovery } from "./workshop-menu.helpers";
+import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { setWorkshopLanguage } from "./workshop-menu.helpers";
+import { addWorkshopEquipment, setWorkshopLanguage } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../../src/lib/database.types";
 import { expect, test } from "@playwright/test";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
@@ -27,7 +30,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
     const tutorial = page.getByRole("dialog", { name: "Workshop tutorial", exact: true });
-    await expect(tutorial.getByRole("heading", { name: "Choose your equipment", exact: true })).toBeVisible();
+    await expect(tutorial.getByRole("heading", { name: "Set up your scene", exact: true })).toBeVisible();
     await expect(page.locator('[data-tutorial-target="equipment"]')).toHaveAttribute("data-tutorial-active", "true");
     await expect(page.locator("[data-tutorial-spotlight]")).toBeVisible();
     await expect(page.locator("[data-tutorial-dimmer]")).toBeVisible();
@@ -35,7 +38,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     const figurePreview = await page.locator("[data-workshop-preview]").boundingBox();
     expect(desktopPanel!.x).toBeGreaterThan(figurePreview!.x + figurePreview!.width / 2);
     expect(desktopPanel!.y).toBeGreaterThan(figurePreview!.y);
-    await page.getByRole("button", { name: "Dumbbell", exact: true }).click();
+    await addWorkshopEquipment(page, "Dumbbell");
     await expect(tutorial).toBeVisible();
     mkdirSync(".local-artifacts/workshop/tutorial", { recursive: true });
     await page.screenshot({ path: ".local-artifacts/workshop/tutorial/desktop.png" });
@@ -46,7 +49,8 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     }).toBe(true);
     await page.reload();
     await expect(tutorial.getByRole("heading", { name: "Build the movement", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Restore recovered draft", exact: true }).click();
+    await openWorkshopDeviceRecovery(page);
+    await page.getByRole("button", { name: "Restore device draft", exact: true }).click();
     await expect(page.locator('[data-tutorial-target="pose"]')).toHaveAttribute("data-tutorial-active", "true");
     await expect.poll(async () => {
       const spotlight = await page.locator("[data-tutorial-spotlight]").boundingBox();
@@ -57,23 +61,21 @@ test("tutorial points to usable controls, resumes and remains optional on later 
         && Math.abs(spotlight.height - controls.height - 10) < 1;
     }).toBe(true);
     await page.screenshot({ path: ".local-artifacts/workshop/tutorial/desktop-pose.png" });
-    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
-    await page.getByRole("button", { name: "Edit finish", exact: true }).click();
-    await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
-    await tutorial.getByRole("button", { name: "Return to this tip", exact: true }).click();
+    await page.getByRole("button", { name: "Capture start", exact: true }).click();
+    await selectWorkshopMoment(page, "Finish");
     await expect(page.locator('[data-tutorial-target="pose"]')).toHaveAttribute("data-tutorial-active", "true");
     await tutorial.getByRole("button", { name: "Close tutorial", exact: true }).click();
     await expect(page.getByRole("button", { name: "Tutorial", exact: true })).toBeFocused();
     await page.reload();
     await expect(page.getByRole("button", { name: "Tutorial", exact: true })).toHaveAttribute("aria-expanded", "false");
-    await page.getByRole("button", { name: "Restore recovered draft", exact: true }).click();
-    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
-    await page.getByRole("button", { name: "View finish", exact: true }).click();
-    await page.getByRole("button", { name: "Save pose", exact: true }).click();
-    await page.getByRole("button", { name: "Name and save", exact: true }).click();
+    await openWorkshopDeviceRecovery(page);
+    await page.getByRole("button", { name: "Restore device draft", exact: true }).click();
+    await page.getByRole("button", { name: "Capture start", exact: true }).click();
+    await selectWorkshopMoment(page, "Finish");
+    await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await page.getByLabel("Exercise name", { exact: true }).fill("My first workshop exercise");
-    await page.getByRole("button", { name: "Save privately", exact: true }).click();
-    await expect(page.getByRole("article", { name: "Saved private exercise", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 30_000 });
     const cleanContext = await browser.newContext({ baseURL, storageState: { cookies: await context.cookies(), origins: [] } });
     try {
       const next = await cleanContext.newPage();
@@ -98,17 +100,32 @@ test("tutorial points to usable controls, resumes and remains optional on later 
       }
     }
     await page.getByLabel("Exercise name", { exact: true }).fill("Saved during the tutorial");
-    await page.getByRole("button", { name: "Save privately", exact: true }).click();
-    await expect(page.getByRole("article", { name: "Saved private exercise", exact: true })).toContainText("Saved during the tutorial");
+    const savedId = new URL(page.url()).pathname.split("/")[2];
+    const saved = page.waitForResponse(response => response.request().method() === "POST"
+      && new URL(response.url()).pathname === `/my-exercises/${savedId}/workshop`
+      && (response.request().postData()?.includes("Saved during the tutorial") ?? false));
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
+    expect((await saved).ok()).toBe(true);
+    const owner = createClient<Database>(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    const signedIn = await owner.auth.signInWithPassword({ email, password });
+    expect(signedIn.error).toBeNull();
+    await expect.poll(async () => {
+      const result = await owner.from("private_exercises").select("id,exercise_content(name)")
+        .eq("id", savedId).eq("owner_id", account.data.user.id).single();
+      if (result.error) throw result.error;
+      return result.data.exercise_content?.name;
+    }).toBe("Saved during the tutorial");
+    // Revalidation can mount the saved route after the first save changed /new's URL.
+    await expect(page.getByText(/^(Saved privately|Saved at .* · Private)$/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Saved during the tutorial", exact: true })).toBeVisible();
     await expect(tutorial).toBeVisible();
     await tutorial.getByRole("button", { name: "Finish tutorial", exact: true }).click();
     await expect(tutorial).toHaveCount(0);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("button", { name: "Tutorial", exact: true }).click();
-    await expect(tutorial.getByRole("heading", { name: "Choose your equipment", exact: true })).toBeInViewport();
+    await expect(tutorial.getByRole("heading", { name: "Set up your scene", exact: true })).toBeInViewport();
     const mobilePanel = await tutorial.boundingBox();
-    await page.locator('[data-workshop="studio"]').evaluate(element => element.scrollTo({ top: 0 }));
-    await tutorial.getByRole("button", { name: "Return to this tip", exact: true }).click();
+    // The fixed workspace keeps the active controls in view without page scrolling.
     await expect(page.locator("[data-tutorial-spotlight]")).toBeVisible();
     await expect.poll(() => tutorial.locator('[id$="-tips"]').evaluate(element => element.scrollTop)).toBe(0);
     for (let index = 0; index < 4; index++) {

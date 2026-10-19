@@ -36,7 +36,6 @@ test("recipe preview reaches ready and survives Strict Mode initialization", asy
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 30000 });
     await expect(page.getByRole("button", { name: "Use 2D preview", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Fit scene", exact: true })).toBeEnabled();
-    await page.getByRole("button", { name: "Choose equipment", exact: true }).click();
     await addWorkshopEquipment(page, "Pec deck");
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 30000 });
     // Exercise the real graphics guard rather than the canvas's hidden HTML fallback.
@@ -51,7 +50,7 @@ test("recipe preview reaches ready and survives Strict Mode initialization", asy
     await expect(page.locator('[data-anatomy-state="unsupported"]')).toBeVisible();
     await expect(page.getByText("3D preview needs WebGL.", { exact: true })).toBeVisible();
     await expect(page.getByText("Text scene summary", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Quick create", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Save exercise", exact: true })).toBeEnabled();
     await page.evaluate(() => window.dispatchEvent(new Event("restore-preview-graphics")));
     await page.getByRole("button", { name: "Retry preview", exact: true }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 30000 });

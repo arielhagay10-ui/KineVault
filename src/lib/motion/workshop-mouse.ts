@@ -1,12 +1,32 @@
 import { Vector3 } from "three";
-import type { StudioObject, WorkshopScene } from "./workshop";
+import { jointControlRange, type JointSlug, type StudioObject, type WorkshopScene } from "./workshop";
 import { generateMachineRepetition } from "./quick-create";
 import { isStudioMachine, machineCarriagePoint, reversePecDeckSeatZ, rowHandleHeight, setMachineHandleHeight, setMachinePosition } from "./studio-machines";
 import { clamp, sampleStudioObject } from "./studio";
-export type StudioDragPlane = "view" | "floor";
+export type StudioDragPlane = "view" | "floor" | "front" | "side" | "x" | "y" | "z";
+export function studioTranslationAxes(plane: StudioDragPlane = "view") {
+  return { x: !["side", "y", "z"].includes(plane), y: !["floor", "x", "z"].includes(plane), z: !["front", "x", "y"].includes(plane) };
+}
+export function studioRotationAxes(slug: JointSlug, frontalPlane = false) {
+  if (slug.endsWith("wrist")) return { x: false, y: false, z: false };
+  if (frontalPlane && slug.endsWith("shoulder")) return { x: false, y: false, z: true };
+  const allowed = (axis: "x" | "y" | "z") => { const [min, max] = jointControlRange(slug, axis); return min !== max; };
+  return { x: allowed("x"), y: allowed("y"), z: allowed("z") };
+}
+export function studioConstrainDelta(delta: Vector3, plane: StudioDragPlane) {
+  const axes = studioTranslationAxes(plane);
+  return new Vector3(axes.x ? delta.x : 0, axes.y ? delta.y : 0, axes.z ? delta.z : 0);
+}
+export function studioSnapTarget(target: Vector3, origin: Vector3, plane: StudioDragPlane, step = .1) {
+  const axes = studioTranslationAxes(plane);
+  return new Vector3(...(["x", "y", "z"] as const).map(axis => axes[axis] ? Math.round(target[axis] / step) * step : origin[axis]) as [number, number, number]);
+}
 export type MachineDragValues = { machinePosition: number; machineHandleHeight?: number };
 export function studioDragDelta(delta: Vector3, right: Vector3, up: Vector3, forward: Vector3, plane: StudioDragPlane, sensitivity: number) {
   if (plane === "view") return delta.clone().multiplyScalar(sensitivity);
+  // Project camera-plane movement instead of intersecting a fixed plane. A
+  // nearly edge-on view must lose invisible motion, never amplify it.
+  if (plane !== "floor") return studioConstrainDelta(delta, plane).multiplyScalar(sensitivity);
   const floorForward = forward.clone().setY(0);
   if (floorForward.lengthSq() < 1e-6) floorForward.copy(up).setY(0);
   return right.clone().setY(0).normalize().multiplyScalar(delta.dot(right)).addScaledVector(floorForward.normalize(), delta.dot(up)).multiplyScalar(sensitivity);

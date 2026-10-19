@@ -3,11 +3,14 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { MeshoptEncoder, MeshoptDecoder } from "meshoptimizer";
+import { simplifyAnatomyGlb } from "./lib/anatomy-preview.mjs";
 
 // The locked Drei installation includes meshoptimizer. No network or new install
 // is needed. Preserve the original export and its existing licensing files.
 const directory = "public/models/z-anatomy";
-const source = await readFile(join(directory, "model.glb"));
+const originalSource = await readFile(join(directory, "model.glb"));
+const economy = process.argv.includes("--economy");
+const source = economy ? await simplifyAnatomyGlb(originalSource) : originalSource;
 assert.equal(source.readUInt32LE(0), 0x46546c67, "Expected a GLB source");
 assert.equal(source.readUInt32LE(4), 2, "Expected GLB version 2");
 const jsonLength = source.readUInt32LE(12);
@@ -71,13 +74,15 @@ binaryHeader.writeUInt32LE(0x004e4942, 4);
 const output = Buffer.concat([header, jsonHeader, metadata, binaryHeader, binary]);
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const fingerprint = digest(output);
-const filename = `model.meshopt.${fingerprint.slice(0, 8)}.glb`;
+const filename = `model.${economy ? "economy." : ""}meshopt.${fingerprint.slice(0, 8)}.glb`;
 const destination = join(directory, filename);
 if (process.argv.includes("--check")) {
   assert.ok((await readFile(destination)).equals(output), "Prepared preview differs from its reproducible source");
 } else {
   await writeFile(destination, output);
 }
-process.stdout.write(`${JSON.stringify({ filename, sourceSha256: digest(source), outputSha256: fingerprint,
-  sourceBytes: source.length, outputBytes: output.length, meshCount: document.meshes.length,
-  bufferViewsVerified: document.bufferViews.length, lossless: true })}\n`);
+process.stdout.write(`${JSON.stringify({ filename, sourceSha256: digest(originalSource), outputSha256: fingerprint,
+  sourceBytes: originalSource.length, outputBytes: output.length, meshCount: document.meshes.length,
+  vertices: document.meshes.reduce((count, mesh) => count + document.accessors[mesh.primitives[0].attributes.POSITION].count, 0),
+  triangles: document.meshes.reduce((count, mesh) => count + document.accessors[mesh.primitives[0].indices].count / 3, 0),
+  bufferViewsVerified: document.bufferViews.length, lossless: !economy, contactGeometryPreserved: true })}\n`);

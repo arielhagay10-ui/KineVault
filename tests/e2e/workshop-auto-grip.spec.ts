@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { blankWorkshopScene, identityTransform, type StudioLayout } from "../../src/lib/motion/workshop";
 import { createStudioObject } from "../../src/lib/motion/studio";
-import { jointField, openWorkshopTool, selectWorkshopJoint, setWorkshopMode } from "./workshop-menu.helpers";
+import { enableWorkshopFreeDrag, jointField, openWorkshopTool, selectWorkshopJoint } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 test("duplicate dumbbells grip posed hands, reset without custom offsets, and survive saving", async ({ page }) => {
@@ -32,9 +32,9 @@ test("duplicate dumbbells grip posed hands, reset without custom offsets, and su
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
-    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Contacts");
-    const selected = page.getByLabel("Selected equipment", { exact: true });
+    const selected = page.getByRole("combobox", { name: "Selected item", exact: true });
     await expect(selected.locator("option").filter({ hasText: "Dumbbell 1" })).toHaveCount(1);
     await expect(selected.locator("option").filter({ hasText: "Dumbbell 2" })).toHaveCount(1);
     await selected.selectOption(first.id);
@@ -50,12 +50,12 @@ test("duplicate dumbbells grip posed hands, reset without custom offsets, and su
     await expect(selected.locator("option").filter({ hasText: "Dumbbell 2 · Held with left hand" })).toHaveCount(1);
     await openWorkshopTool(page, "Position");
     await expect(page.getByLabel("Rotation X degrees", { exact: true })).toBeDisabled();
-    await page.getByRole("button", { name: "Rotate wrist", exact: true }).click();
+    await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left wrist");
     await expect(page.getByRole("button", { name: "Palm down", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "Palm down", exact: true }).click();
     await page.getByRole("button", { name: "Neutral", exact: true }).click();
     await openWorkshopTool(page, "Contacts"); await selected.selectOption(second.id);
-    await setWorkshopMode(page, "quick"); await expect(reset).toBeVisible(); await reset.click();
+    await expect(reset).toBeVisible(); await reset.click();
     const preview = page.getByRole("region", { name: "3D exercise preview", exact: true });
     await expect(preview.locator('[aria-label="Dumbbell 1"], [aria-label="Dumbbell 2"]')).toHaveCount(0);
     await openWorkshopTool(page, "Position");
@@ -70,8 +70,9 @@ test("duplicate dumbbells grip posed hands, reset without custom offsets, and su
     await expect(jointField(page, "x")).toHaveValue("45");
     await page.screenshot({ path: `${evidence}/held-arm-controls.png` });
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
-    const hand = page.getByRole("button", { name: "Drag Left hand", exact: true });
+    const hand = page.getByRole("button", { name: /^(Select|Drag) Left hand$/ });
     await expect(hand).toBeVisible();
+    await hand.click(); await enableWorkshopFreeDrag(page);
     await hand.hover();
     await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
     const handBounds = (await hand.boundingBox())!, handX = handBounds.x + handBounds.width / 2, handY = handBounds.y + handBounds.height / 2;
@@ -88,8 +89,8 @@ test("duplicate dumbbells grip posed hands, reset without custom offsets, and su
     await openWorkshopTool(page, "Position");
     expect(await page.getByLabel("Position Y meters", { exact: true }).inputValue()).not.toBe(beforeY);
     await openWorkshopTool(page, "Contacts");
-    await page.getByRole("button", { name: "Save", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
     await expect(jointField(page, "x")).toHaveValue("45");
     await openWorkshopTool(page, "Contacts"); await selected.selectOption(second.id);

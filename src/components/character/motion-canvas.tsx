@@ -2,6 +2,9 @@
 
 import { MotionMetrics, type MotionRenderMetrics } from "./motion-metrics";
 import { MotionFrameContext } from "./motion-frame";
+import { EquipmentAssetReadyContext, EquipmentReadinessContext } from "./equipment-asset";
+import { EquipmentStudioLighting } from "./equipment-studio-lighting";
+import { equipmentAssets, equipmentAssetsSettled } from "@/lib/motion/equipment-assets";
 import type { MotionPlaybackClock } from "@/lib/motion/playback";
 import { WorkshopGuidance } from "./workshop-guidance";
 
@@ -13,7 +16,9 @@ import { Group, MOUSE, TOUCH, PerspectiveCamera, Vector3 } from "three";
 import { createCableGeometry, updateCableGeometry } from "@/lib/motion/cable-geometry";
 import type { OrbitControls as OrbitControlsInstance } from "three-stdlib";
 import type { AnatomyRig } from "@/lib/motion/anatomy";
-import { anatomyModelUrl, correctAuthoredArmPath, createAnatomyRig, highlightAnatomyRig, plantAnatomyFeet, poseAnatomyRig, type MuscleOption } from "@/lib/motion/anatomy";
+import { anatomyEconomyModelUrl, anatomyModelUrl, correctAuthoredArmPath, createAnatomyRig, highlightAnatomyRig, plantAnatomyFeet, poseAnatomyRig, type MuscleOption } from "@/lib/motion/anatomy";
+import { PreviewResolution, type PreviewQuality } from "@/lib/motion/preview-quality";
+import type { WorkshopGestureScene } from "@/lib/motion/workshop-gesture";
 import { AnatomyControls } from "./anatomy-controls";
 import { AdjustableBench } from "./adjustable-bench";
 import type { RigPose, WorkshopScene } from "@/lib/motion/workshop";
@@ -106,19 +111,40 @@ function CableEquipment({ rig, scene }: { rig: AnatomyRig; scene: WorkshopScene 
   </>;
 }
 
-function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, timeMs, playback, solvesRef, interactive = true, faded = false, onRigReady, onMachineReachChange }: {
+function PreviewPixelRatio({ quality, playback, dragging }: { quality: PreviewQuality; playback?: MotionPlaybackClock; dragging: boolean }) {
+  const gl = useThree(state => state.gl), setDpr = useThree(state => state.setDpr);
+  const previouslyActive = useRef(false);
+  const resolution = useMemo(() => new PreviewResolution(Math.max(1, Math.min(window.devicePixelRatio || 1, quality === "auto" ? 1.75 : 1))), [quality]);
+  useLayoutEffect(() => {
+    setDpr(quality === "contact" ? Math.max(1, Math.min(window.devicePixelRatio || 1, 1.75)) : 1);
+  }, [quality, setDpr]);
+  useFrame((_, delta) => {
+    if (quality !== "auto") return;
+    const active = !!playback?.playing || dragging;
+    // Demand rendering's first frame includes idle time, not animation cost.
+    const next = resolution.observe(delta * 1000, active && previouslyActive.current);
+    previouslyActive.current = active;
+    if (Math.abs(gl.getPixelRatio() - next) > .001) setDpr(next);
+  });
+  return null;
+}
+
+function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, timeMs, playback, solvesRef, solveStartedRef, modelUrl, gesture, interactive = true, faded = false, onRigReady, onMachineReachChange }: {
   pose: RigPose; scene: WorkshopScene; target: string; isolate: boolean;
   onLoaded: (muscles: MuscleOption[]) => void; onHighlight: (count: number) => void;
   editor?: StudioEditor;
   timeMs: number; playback?: MotionPlaybackClock; solvesRef: React.RefObject<number>;
+  solveStartedRef: React.RefObject<number | null>; modelUrl: string; gesture?: WorkshopGestureScene;
   interactive?: boolean; faded?: boolean; onRigReady?: (rig: AnatomyRig | null) => void;
   onMachineReachChange?: (report: MachineReachReport | undefined) => void;
 }) {
-  const { scene: source } = useGLTF(anatomyModelUrl);
+  const { scene: source } = useGLTF(modelUrl);
   const rig = useMemo(() => createAnatomyRig(source), [source]);
-  const frame = useRef({ timeMs, pose });
+  const frame = useRef({ timeMs, pose, scene });
   const lastSolve = useRef<{ scene: WorkshopScene; timeMs: number; dragging: boolean } | null>(null);
   const equipmentGroup = useRef<Group>(null);
+  const [equipmentRevision, setEquipmentRevision] = useState(0);
+  const onEquipmentReady = useCallback(() => setEquipmentRevision(value => value + 1), []);
   const activeEditor = workshopEditorForInteraction(editor, interactive);
   const selectedEquipmentId = !activeEditor?.playing && activeEditor?.selection?.kind === "object" ? activeEditor.selection.id : null;
   const lastMachineReport = useRef<string | null>(null);
@@ -130,22 +156,32 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
   const leftGrip = attachments.includes("left") || attachments.includes("both"), rightGrip = attachments.includes("right") || attachments.includes("both");
   const gripping = scene.studio?.objects.some(object => object.machineUse) || leftGrip && rightGrip ? true : leftGrip ? "left" : rightGrip ? "right" : asset?.slug === "single-cable" ? pushdown ? true : "left" : asset?.slug === "dumbbell-pair";
   const forearmRotation = forearmRotationForScene(scene);
+  // Publish pointer previews before body transforms, pose solving and contacts.
+  // This path performs no React updates or persistence work.
   useFrame(() => {
-    const liveTime = playback?.timeMs ?? timeMs;
+    const liveScene = gesture?.getScene() ?? scene;
+    const liveTime = gesture?.getTimeMs() ?? playback?.timeMs ?? timeMs;
+    if (frame.current.scene === liveScene && frame.current.timeMs === liveTime) return;
+    const livePose = liveScene !== scene || playback ? constrainFrontalPose(sampleWorkshopPose(liveScene.keyframes, liveTime), liveScene.studio?.frontalPlane) : pose;
+    frame.current = { scene: liveScene, timeMs: liveTime, pose: livePose };
+  }, -3);
+  useFrame(() => {
+    const { scene: liveScene, timeMs: liveTime, pose: livePose } = frame.current;
     const draggingJoint = !!(interactive && activeEditor?.dragging && activeEditor.selection?.kind === "joint");
     const previous = lastSolve.current;
-    if (previous?.scene === scene && previous.timeMs === liveTime && previous.dragging === draggingJoint) return;
-    lastSolve.current = { scene, timeMs: liveTime, dragging: draggingJoint };
-    const livePose = playback ? constrainFrontalPose(sampleWorkshopPose(scene.keyframes, liveTime), scene.studio?.frontalPlane) : pose;
-    frame.current = { timeMs: liveTime, pose: livePose };
+    if (previous?.scene === liveScene && previous.timeMs === liveTime && previous.dragging === draggingJoint) return;
+    lastSolve.current = { scene: liveScene, timeMs: liveTime, dragging: draggingJoint };
     // Begin each equipment solve from the authored pose, preventing IK drift.
     if (interactive && activeEditor?.dragging && activeEditor.selection?.kind === "joint") return;
     solvesRef.current++;
+    solveStartedRef.current = performance.now();
     poseAnatomyRig(rig, livePose, gripping, forearmRotation);
-    plantAnatomyFeet(rig, scene.motionStyle, livePose); correctAuthoredArmPath(rig, scene.motionStyle, livePose);
-    applyStudioSeating(rig, scene.studio, liveTime, livePose);
-    const report = applyStudioMachine(rig, scene, liveTime);
-    if (onMachineReachChange) {
+    plantAnatomyFeet(rig, liveScene.motionStyle, livePose); correctAuthoredArmPath(rig, liveScene.motionStyle, livePose);
+    applyStudioSeating(rig, liveScene.studio, liveTime, livePose);
+    const report = applyStudioMachine(rig, liveScene, liveTime);
+    // Contact repair controls describe the editable paused pose. Do not send
+    // time-stamped machine reports through the entire editor during playback.
+    if (onMachineReachChange && !playback?.playing && !activeEditor?.dragging && !activeEditor?.adjusting) {
       const signature = JSON.stringify(report) ?? "none";
       const now = performance.now();
       if (lastMachineReport.current !== signature && (!playback?.playing || now - lastMachineReportAt.current >= 100)) {
@@ -155,13 +191,14 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
   }, -2);
   useLayoutEffect(() => { lastSolve.current = null; invalidate(); }, [rig, pose, gripping, forearmRotation, scene, timeMs, interactive, activeEditor?.dragging, invalidate]);
   useEffect(() => playback?.subscribe(invalidate), [playback, invalidate]);
+  useEffect(() => gesture?.subscribe(() => invalidate()), [gesture, invalidate]);
   useEffect(() => { rig.retain(); onLoaded(rig.muscles); return () => rig.dispose(); }, [rig, onLoaded]);
   useEffect(() => { onRigReady?.(rig); return () => onRigReady?.(null); }, [rig, onRigReady]);
   // Camera mode may have no changed mesh props to schedule a demand frame.
   useLayoutEffect(() => { if (editor?.captureElbow) invalidate(); }, [editor?.captureElbow, invalidate]);
   useLayoutEffect(() => {
     if (equipmentGroup.current) return styleWorkshopEquipment(equipmentGroup.current, { faded, selectedId: selectedEquipmentId });
-  }, [faded, selectedEquipmentId, scene.studio?.objects, scene.equipment, rig]);
+  }, [faded, selectedEquipmentId, scene.studio?.objects, scene.equipment, rig, equipmentRevision]);
   useLayoutEffect(() => {
     onHighlight(highlightAnatomyRig(rig, target, isolate)); invalidate();
   }, [rig, target, isolate, onHighlight, invalidate]);
@@ -169,7 +206,7 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
     <StudioBody transform={scene.studio?.body ?? identityTransform} rig={rig} editor={activeEditor}>
       <primitive object={rig.root} dispose={null} />
     </StudioBody>
-    <group ref={equipmentGroup}>
+    <EquipmentAssetReadyContext.Provider value={onEquipmentReady}><group ref={equipmentGroup}>
     {(!isolate || editor) && scene.studio && <StudioEquipment objects={scene.studio.objects} body={scene.studio.body} rig={rig} pose={pose} timeMs={timeMs} editor={activeEditor} frontalPlane={scene.studio.frontalPlane} />}
     {scene.motionStyle === "incline-curl" && !isolate && <AdjustableBench />}
     {scene.motionStyle === "seated-curl" && !isolate && <group>
@@ -192,7 +229,7 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
     )}</Fragment>)}
     {!isolate && asset?.slug === "single-cable" && <CableEquipment rig={rig} scene={scene} />}
     {!isolate && asset?.slug !== "single-cable" && <Equipment scene={scene} />}
-    </group>
+    </group></EquipmentAssetReadyContext.Provider>
   </MotionFrameContext.Provider>;
 }
 
@@ -301,8 +338,9 @@ function LinkedCamera({ value, onChange }: { value?: WorkshopLinkedCamera | null
   return null;
 }
 
-export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]", showMuscleControls = true, editor, simplifiedControls = false, interactionMode, onInteractionModeChange, onMachineReachChange, compact = false, linkedCamera, onCameraChange, controlsTarget, fillViewport = false, onMetrics, canvasOverlay }: {
+export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-[430px]", showMuscleControls = true, editor, simplifiedControls = false, interactionMode, onInteractionModeChange, onMachineReachChange, compact = false, linkedCamera, onCameraChange, controlsTarget, fillViewport = false, onMetrics, canvasOverlay }: {
   scene: WorkshopScene; timeMs: number; playback?: MotionPlaybackClock; className?: string; showMuscleControls?: boolean;
+  gesture?: WorkshopGestureScene;
   editor?: StudioEditor;
   simplifiedControls?: boolean; interactionMode?: WorkshopInteractionMode;
   onInteractionModeChange?: (mode: WorkshopInteractionMode) => void;
@@ -316,6 +354,13 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
 }) {
   const { t } = useWorkshopLanguage();
   const solvesRef = useRef(0);
+  const solveStartedRef = useRef<number | null>(null);
+  const [quality, setQuality] = useState<PreviewQuality>(editor ? "auto" : "contact");
+  const modelUrl = quality === "contact" ? anatomyModelUrl : anatomyEconomyModelUrl;
+  const [settledEquipment, setSettledEquipment] = useState<Record<string, boolean>>({});
+  const reportEquipmentReadiness = useCallback((key: string, settled: boolean) => {
+    setSettledEquipment(previous => previous[key] === settled ? previous : { ...previous, [key]: settled });
+  }, []);
   const wrapper = useRef<HTMLDivElement>(null), rigRef = useRef<AnatomyRig | null>(null);
   const [localMode, setLocalMode] = useState<WorkshopInteractionMode>("camera");
   const mode = interactionMode ?? (simplifiedControls ? localMode : "edit");
@@ -346,6 +391,8 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
     || (Math.abs(frame.poses["left-shoulder"]?.x ?? 0) >= 60 && Math.abs(frame.poses["left-shoulder"]?.z ?? 0) >= 60));
   const [isolateChoice, setIsolate] = useState<boolean | null>(null);
   const isolate = (editor ? null : isolateChoice) ?? scene.studio?.presentation?.isolate ?? false;
+  const visibleEquipment = isolate && !editor ? [] : scene.studio?.objects ?? [];
+  const equipmentReady = equipmentAssetsSettled(visibleEquipment, settledEquipment);
   const [count, setCount] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [viewChoice, setViewChoice] = useState<{ sceneAngle: WorkshopScene["cameraAngle"]; view: AnatomyView } | null>(null);
@@ -393,24 +440,29 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
   const camera = useMemo(() => ({ position: scene.cameraAngle === "front" ? [0, 1.65, 5.3] as [number, number, number]
     : scene.cameraAngle === "side" ? [5.3, 1.65, 0] as [number, number, number] : [3.2, 1.85, 5.1] as [number, number, number], fov: 34 }), [scene.cameraAngle]);
   const pose = useMemo(() => constrainFrontalPose(sampleWorkshopPose(scene.keyframes, timeMs), scene.studio?.frontalPlane), [scene.keyframes, timeMs, scene.studio?.frontalPlane]);
-  const retryPreview = () => { useGLTF.clear(anatomyModelUrl); setMuscles([]); setFailure(null); setAttempt(value => value + 1); };
+  const retryPreview = () => { useGLTF.clear(modelUrl); setMuscles([]); setSettledEquipment({}); setFailure(null); setAttempt(value => value + 1); };
+  const qualityControl = <label className="flex min-h-11 flex-wrap items-center gap-2 text-sm"><span>{t("Preview detail")}</span><select aria-label={t("Preview detail")} value={quality} onChange={event => { if ((event.target.value === "contact") !== (quality === "contact")) setMuscles([]); setQuality(event.target.value as PreviewQuality); }} className="min-h-11 rounded-lg border bg-card px-3 text-foreground"><option value="auto">{t("Auto")}</option><option value="economy">{t("Economy")}</option><option value="contact">{t("Contact detail")}</option></select></label>;
   const selectedHighlight = muscleGroups.find(item => `group:${item.id}` === target)?.label ?? muscles.find(item => item.id === target)?.label ?? target;
   const equipmentNames = scene.studio?.objects.map(object => object.name).join(", ") || scene.equipment?.slug.replaceAll("-", " ") || "No equipment";
-  return (<div ref={wrapper} className={`min-w-0 ${fullscreen ? "h-full overflow-y-auto bg-background p-4" : fillViewport ? "flex min-h-0 flex-1 flex-col" : ""}`} data-anatomy-state={failure ?? (muscles.length ? "ready" : "loading")} data-highlight-count={count} data-isolated={isolate}>
+  return (<div ref={wrapper} className={`min-w-0 ${fullscreen ? "h-full overflow-y-auto bg-background p-4" : fillViewport ? "flex min-h-0 flex-1 flex-col" : ""}`} data-anatomy-state={failure ?? (muscles.length ? "ready" : "loading")} data-equipment-state={equipmentReady ? "ready" : "loading"} data-highlight-count={count} data-isolated={isolate} data-anatomy-quality={quality} data-anatomy-model={modelUrl}>
     <div role="group" className={`relative overflow-hidden rounded-2xl bg-muted ${fullscreen ? "h-[60vh] min-h-52" : className}`} aria-label={t("3D exercise preview")} aria-busy={!failure && !muscles.length}>
       <AnatomyBoundary key={attempt} onRetry={retryPreview} onError={() => setFailure("error")}>
         <PreviewGraphicsGuard onUnsupported={onUnsupported} fallback={<WorkshopPreviewFallback state="unsupported" onRetry={retryPreview} />}>
-        <Canvas camera={camera} frameloop="demand" dpr={[1, 1.75]} style={{ cursor: editor?.gripEdit?.picking ? "crosshair" : undefined }} fallback={<span aria-hidden="true" />}>
+        <Canvas camera={camera} frameloop="demand" dpr={1} style={{ cursor: editor?.gripEdit?.picking ? "crosshair" : undefined }} fallback={<span aria-hidden="true" />}>
+          <EquipmentReadinessContext.Provider value={reportEquipmentReadiness}>
           <color attach="background" args={["#f7f8f8"]} />
           <hemisphereLight args={["#ffffff", "#85989b", 0.95]} />
           <directionalLight position={[-3, 5, 6]} color="#fff4e7" intensity={2.4} />
           <directionalLight position={[4, 3, -4]} color="#dce9f8" intensity={1.1} />
+          {visibleEquipment.some(object => object.slug in equipmentAssets) && <EquipmentStudioLighting objects={visibleEquipment} />}
           {editor && <gridHelper args={[20, 100, "#adbfc0", "#dce5e5"]} />}
-          <Suspense fallback={null}><Figure pose={pose} scene={scene} target={target} isolate={isolate} onLoaded={setMuscles} onHighlight={setCount} editor={canvasEditor} timeMs={timeMs} playback={playback} solvesRef={solvesRef} interactive={mode === "edit"} faded={faded} onRigReady={onRigReady} onMachineReachChange={onMachineReachChange} /></Suspense>
-          <MotionMetrics wrapper={wrapper} solvesRef={solvesRef} onMetrics={onMetrics} />
+          <Suspense fallback={null}><Figure pose={pose} scene={scene} target={target} isolate={isolate} onLoaded={setMuscles} onHighlight={setCount} editor={canvasEditor} timeMs={timeMs} playback={playback} gesture={gesture} modelUrl={modelUrl} solveStartedRef={solveStartedRef} solvesRef={solvesRef} interactive={mode === "edit"} faded={faded} onRigReady={onRigReady} onMachineReachChange={onMachineReachChange} /></Suspense>
+          <PreviewPixelRatio quality={quality} playback={playback} dragging={!!editor?.dragging} />
+          <MotionMetrics wrapper={wrapper} solvesRef={solvesRef} solveStartedRef={solveStartedRef} onMetrics={onMetrics} />
           <OrbitControls makeDefault enabled={!editor?.dragging && !editor?.gripEdit?.picking} enableDamping={!onCameraChange} rotateSpeed={editor?.sensitivity ?? 1} panSpeed={editor?.sensitivity ?? 1} zoomSpeed={editor?.sensitivity ?? 1} mouseButtons={{ LEFT: simplifiedControls && mode === "edit" ? undefined : MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: simplifiedControls && mode === "edit" ? MOUSE.ROTATE : MOUSE.PAN }} touches={{ ONE: simplifiedControls && mode === "edit" ? undefined : TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }} target={simplifiedControls ? undefined : [0, 1.38, 0]} enablePan={!!editor || !!onCameraChange} minDistance={simplifiedControls ? 1 : 2.5} maxDistance={simplifiedControls ? 100 : editor ? 25 : 12} />
           {simplifiedControls ? <WorkshopCameraDriver scene={scene} view={view} command={command} getFocus={getFocus} /> : <CameraView view={view} overhead={overhead} bench={scene.motionStyle === "bench-press"} scene={scene} contentHeight={Math.max(2.75 * (scene.studio?.body.scale ?? 1) + (scene.studio?.body.y ?? 0), ...(scene.studio?.objects.filter(object => object.slug === "cable-machine").map(object => object.y + (maxPulleyHeight + 0.15) * object.scale) ?? []))} />}
           {onCameraChange && <LinkedCamera value={linkedCamera} onChange={onCameraChange} />}
+          </EquipmentReadinessContext.Provider>
         </Canvas>
         </PreviewGraphicsGuard>
         {(!failure && (editor || simplifiedControls) && !muscles.length) && <div className="absolute inset-0 bg-muted/90"><WorkshopPreviewFallback state="loading" onRetry={retryPreview} /></div>}
@@ -425,6 +477,7 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
           {t("creativecommons.org/licenses/by-sa/4.0/ · creativecommons.org/licenses/by-sa/2.1/jp/")}</div>}
     </div>
     {simplifiedControls && !compact && <>
+      {(!controlsTarget || fullscreen) && qualityControl}
       <WorkshopCameraControls flushTop={fillViewport} viewsOnly={!!controlsTarget && !fullscreen} view={view} mode={mode} editable={!!editor} ready={!!muscles.length && !failure} selectionLabel={selectionLabel} faded={faded} fullscreen={fullscreen} onViewChange={changeView} onModeChange={changeMode} onAction={cameraAction} onFadeChange={setFaded} onFullscreen={toggleFullscreen} />
       <p role="status" className={fillViewport ? "sr-only" : "mt-2 text-sm"}>{previewMessage}</p>
       <details hidden={!!controlsTarget && !failure && !fullscreen} className="mt-3 text-base" open={!!failure}><summary className="min-h-11 cursor-pointer py-2">{t("Text scene summary")}</summary><div className="space-y-2 py-2 text-sm">
@@ -435,6 +488,7 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
       </div></details>
     </>}
     {showMuscleControls && (!controlsTarget || fullscreen) && <>
+      {!simplifiedControls && qualityControl}
       {!simplifiedControls && <div role="group" className="mt-3 flex flex-wrap gap-2" aria-label={t("Model view")}>{([
         ["front", "Front"], ["three_quarter", "Three-quarter"], ["side", "Side"], ["back", "Back"],
       ] as const).map(([angle, label]) => <button key={angle} type="button" aria-pressed={view === angle}
@@ -448,6 +502,7 @@ export function MotionCanvas({ scene, timeMs, playback, className = "h-[430px]",
       </p></>}
     </>}
     {controlsTarget && !fullscreen && createControlsPortal((<div className="space-y-5">
+      {qualityControl}
       <WorkshopCameraControls hideViews hideInteraction hideCommonActions={fillViewport} view={view} mode={mode} editable={!!editor} ready={!!muscles.length && !failure} selectionLabel={selectionLabel} faded={faded} fullscreen={fullscreen} onViewChange={changeView} onModeChange={value => { setLocalMode(value); onInteractionModeChange?.(value); }} onAction={cameraAction} onFadeChange={setFaded} onFullscreen={toggleFullscreen} />
       <section aria-label={t("Muscle highlights and credits")} className="space-y-3 border-t pt-4"><h3 className="font-semibold">{t("Muscle highlights and credits")}</h3><AnatomyControls muscles={muscles} target={target} isolate={isolate} count={count} onTargetChange={changeTarget} onIsolateChange={changeIsolate} unavailable={!!failure} /><p className="text-sm text-muted-foreground">{t("Z-Anatomy · BodyParts3D ·")}<a href="/models/z-anatomy/ATTRIBUTION.md" className="underline">{t("Credits and licenses")}</a></p></section>
       <p className="text-sm text-muted-foreground"><span data-workshop-translate="false">{equipmentNames}</span> · {scene.keyframes.length} {t("poses")}</p>

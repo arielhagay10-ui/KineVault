@@ -16,7 +16,7 @@ See [PLAN.md](PLAN.md) for milestones and deferred features.
 
 ## Local delivery decisions
 
-The first version stays on the owner's computer. Application entry points bind to loopback. Hosting, SMTP and external mail configuration are deferred; account notifications work independently. Docker deployment definitions are prepared but unverified. A future public deployment must configure HTTPS, worker routing, SMTP, backups and operational monitoring.
+The first version stays on the owner's computer. Application entry points bind to loopback. Auth email templates and explicit confirmation actions work with local Mailpit; Google sign-in is enabled only after provider setup and a server-side feature flag. External SMTP and Google credentials remain owner configuration; account notifications work independently. See `docs/authentication.md`. A future public deployment must configure HTTPS, worker routing, SMTP, backups and operational monitoring.
 
 Timed movement notes are relational rows linked to joint actions and scenes. Draft/reviewer RPCs enforce timing and classification membership; table triggers also protect direct writes. Remove a note's action link before removing its classification. Review corrections preserve submitted notes and record an immutable diff. Published video overlays use approved notes without regenerating identical frames.
 

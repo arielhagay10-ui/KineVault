@@ -37,10 +37,11 @@ describe("equipment grip capabilities", () => {
     expect(equipmentGripHands(object(slug))).toEqual([]);
   });
 
-  it("keeps dumbbells single handed and lets shared weights use both hands", () => {
-    expect(equipmentGripHands(object("dumbbell"))).toEqual(["left", "right"]);
+  it("allows both hands on a shared free weight", () => {
+    expect(equipmentGripHands(object("dumbbell"))).toEqual(["left", "right", "both"]);
     expect(equipmentGripHands(object("barbell"))).toEqual(["left", "right", "both"]);
     expect(equipmentGripHands(object("kettlebell"))).toEqual(["left", "right", "both"]);
+    expect(workshopSceneSchema.safeParse(scene(object("dumbbell", { attachment: "both" }))).success).toBe(true);
   });
 
   it.each(["cable-machine", "cable-row-machine"] as const)("uses the %s attachment's hand count", slug => {

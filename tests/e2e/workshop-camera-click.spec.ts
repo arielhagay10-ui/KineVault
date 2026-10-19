@@ -42,10 +42,15 @@ test("right-click selects the hit item and enters Move from Camera", async ({ pa
     await expandWorkshopControls(page, "Precise placement");
     await page.getByRole("button", { name: "Front", exact: true }).click();
     const cameraButton = page.getByRole("button", { name: "Camera", exact: true });
-    const moveButton = page.getByRole("button", { name: "Move with mouse", exact: true });
+    const moveButton = page.getByRole("button", { name: "Move", exact: true });
     await cameraButton.click();
     const canvas = page.locator("canvas");
     await canvas.scrollIntoViewIfNeeded();
+    await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => {
+      const bounds = element.getBoundingClientRect();
+      return Math.abs(element.width / element.height - bounds.width / bounds.height);
+    })).toBeLessThan(.005);
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     const bounds = (await canvas.boundingBox())!;
     const fit = fitWorkshopCamera(scene, "front", bounds.width / bounds.height, 34);
     const camera = new PerspectiveCamera(34, bounds.width / bounds.height, .1, 100);
@@ -59,7 +64,7 @@ test("right-click selects the hit item and enters Move from Camera", async ({ pa
     const item = project(weight.x, weight.y + .2, weight.z);
     await page.mouse.click(item.x, item.y, { button: "right" });
     await expect(moveButton).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByLabel("Selected item").getByRole("heading", { level: 2 })).toHaveText("Dumbbell");
+    await expect(page.getByRole("region", { name: "Selected item", exact: true }).getByRole("heading", { level: 2 })).toHaveText("Dumbbell");
     await expandWorkshopControls(page, "Precise placement");
     await expect(page.getByRole("textbox", { name: "Position X meters", exact: true })).toHaveValue("1.4");
     await expect(page.getByRole("textbox", { name: "Position Y meters", exact: true })).toHaveValue("1.1");
@@ -67,7 +72,7 @@ test("right-click selects the hit item and enters Move from Camera", async ({ pa
     const body = project(0, 1.9, .1);
     await page.mouse.click(body.x, body.y, { button: "right" });
     await expect(moveButton).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByLabel("Selected item").getByRole("heading", { level: 2 })).toHaveText("Anatomical figure");
+    await expect(page.getByRole("region", { name: "Selected item", exact: true }).getByRole("heading", { level: 2 })).toHaveText("Anatomical figure");
     await expandWorkshopControls(page, "Precise placement");
     await expect(page.getByRole("textbox", { name: "Position X meters", exact: true })).toHaveValue("0");
     const metrics = page.locator('[data-camera-position]');

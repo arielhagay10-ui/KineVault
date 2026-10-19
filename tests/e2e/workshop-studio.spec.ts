@@ -1,5 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
+import { enableWorkshopFreeDrag, dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { openWorkshopTool, selectWorkshopObject, selectWorkshopJoint, jointField, openWorkshopMenu, expandWorkshopControls, cableAttachmentButton } from "./workshop-menu.helpers";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -12,6 +12,57 @@ import { fitWorkshopCamera } from "../../src/lib/motion/workshop-camera";
 
 test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
+for (const facing of ["front", "supine"] as const) test(`bench-supported ${facing} placement directs body movement to the bench`, async ({ page }) => {
+  test.setTimeout(120_000);
+  const fixture = await createOwner();
+  const bench = { ...createStudioObject("bench", "00000000-0000-4000-8000-000000000098", 0), benchAngle: 0 };
+  try {
+    const created = await fixture.owner.rpc("create_workshop_exercise", { p_scene: {
+      ...blankWorkshopScene, annotations: [], studio: { body: { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scale: 1 }, objects: [bench], seating: { benchId: bench.id, facing } },
+    } });
+    if (created.error) throw created.error;
+    await page.setViewportSize({ width: 1600, height: 1100 });
+    await page.goto("/sign-in");
+    await page.getByLabel("Email", { exact: true }).fill(fixture.email); await page.getByLabel("Password", { exact: true }).fill(fixture.password);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await page.goto(`/my-exercises/${created.data}/workshop`);
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+    await dismissWorkshopTutorial(page);
+    await page.getByRole("textbox", { name: "Exercise name", exact: true }).fill(`Bench placement ${facing}`);
+    await openWorkshopTool(page, "Equipment");
+    await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
+    await openWorkshopTool(page, "Position");
+    await expect(page.getByRole("button", { name: "Select bench", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Position X meters", { exact: true })).toHaveCount(0);
+    await expandWorkshopControls(page, "Fine adjustment");
+    await expect(page.getByRole("button", { name: "Move up", exact: true })).toBeDisabled();
+    mkdirSync(".local-artifacts/workshop", { recursive: true });
+    await page.screenshot({ path: `.local-artifacts/workshop/bench-placement-${facing}.png`, fullPage: true });
+    await page.getByRole("button", { name: "Select bench", exact: true }).click();
+    await openWorkshopTool(page, "Position");
+    await page.getByLabel("Position X meters", { exact: true }).fill("1.25");
+    await page.getByLabel("Position X meters", { exact: true }).press("Enter");
+    await openWorkshopTool(page, "Equipment");
+    await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
+    await openWorkshopTool(page, "Position");
+    await page.getByRole("button", { name: "Leave bench", exact: true }).click();
+    await openWorkshopTool(page, "Position");
+    await expect(page.getByLabel("Position X meters", { exact: true })).toBeEnabled();
+    await page.getByLabel("Position X meters", { exact: true }).fill("0.4");
+    await page.getByLabel("Position X meters", { exact: true }).press("Enter");
+    await expect(page.getByLabel("Position X meters", { exact: true })).toHaveValue("0.4");
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+    await page.reload();
+    await openWorkshopTool(page, "Equipment");
+    await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
+    await openWorkshopTool(page, "Position");
+    await expect(page.getByLabel("Position X meters", { exact: true })).toHaveValue("0.4");
+    await expect(page.getByRole("button", { name: "Select bench", exact: true })).toHaveCount(0);
+  } finally { await cleanupLocalFixture(fixture); }
+});
+
 test("shoulder alignment, plane lock and cuff preferences survive bench edits and reload", async ({ page }) => {
   page.setDefaultTimeout(60_000);
   test.setTimeout(150_000);
@@ -23,7 +74,7 @@ test("shoulder alignment, plane lock and cuff preferences survive bench edits an
     if (created.error) throw created.error;
     await page.setViewportSize({ width: 1600, height: 1100 });
     await page.goto("/sign-in");
-    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password").fill(fixture.password);
+    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password", { exact: true }).fill(fixture.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
@@ -59,7 +110,7 @@ test("shoulder alignment, plane lock and cuff preferences survive bench edits an
     await expect(jointField(page, "z")).toHaveValue("-10");
     await selectWorkshopObject(page, "Right cuff cable");
     await cableAttachmentButton(page, "rope").click();
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.reload();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -111,7 +162,7 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
     const created = await fixture.owner.rpc("create_workshop_exercise", { p_scene: { ...keenanFlapsScene, annotations: keenanFlapsScene.annotations?.map(item => ({ ...item, jointAction: null })) } });
     if (created.error) throw created.error;
     await page.setViewportSize({ width: 1600, height: 1100 });
-    await page.goto("/sign-in"); await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password").fill(fixture.password);
+    await page.goto("/sign-in"); await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password", { exact: true }).fill(fixture.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -129,7 +180,7 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
       await page.getByLabel("Sitting direction", { exact: true }).selectOption(direction);
       await expect(page.getByLabel("Sitting direction", { exact: true })).toHaveValue(direction);
       await page.locator("canvas").screenshot({ path: `${artifacts}/seat-${direction.replaceAll(" ", "-")}.png` });
-      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.getByRole("button", { name: "Save exercise", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await selectWorkshopObject(page, "Adjustable bench");
@@ -143,10 +194,10 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
       await page.getByLabel("Cuff placement").selectOption(site);
       for (const side of ["right", "left"]) {
         await page.getByRole("button", { name: `Cuff ${side} arm`, exact: true }).click();
-        await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
+        await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
         await page.locator("canvas").screenshot({ path: `${artifacts}/cuff-${site}-${side}.png` });
       }
-      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.getByRole("button", { name: "Save exercise", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await selectWorkshopObject(page, "Right cuff cable");
@@ -157,7 +208,7 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
     await page.getByRole("button", { name: "Cuff right arm", exact: true }).click();
     await page.getByRole("button", { name: "Above head", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "Pulley height meters", exact: true })).toHaveValue("2.8");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopObject(page, "Right cuff cable");
@@ -166,7 +217,7 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
     // Restore the slightly raised pulley for the latest reference setup.
     const exerciseHeight = String(keenanFlapsScene.studio!.objects[1].pulleyHeight);
     await page.getByRole("textbox", { name: "Pulley height meters", exact: true }).fill(exerciseHeight);
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopObject(page, "Right cuff cable");
@@ -181,7 +232,9 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
           element.dispatchEvent(new Event("input", { bubbles: true }));
         }, step * 600);
         await expect(page.getByLabel("Preview time")).toHaveValue(String(step * 600));
-        await page.locator("canvas").screenshot({ path: `${artifacts}/flaps-${view}-${step}.png` });
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        // CI retains start, finish and return; local visual reviews keep every sample.
+        if (!process.env.CI || step === 0 || step === 4 || step === 8) await page.locator("canvas").screenshot({ path: `${artifacts}/flaps-${view}-${step}.png` });
       }
     }
     if (process.env.CAPTURE_KEENAN === "1") {
@@ -212,7 +265,7 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
     await page.getByRole("button", { name: "Chest supported", exact: true }).click();
     await openWorkshopTool(page, "Equipment");
     await page.getByRole("button", { name: "Remove item", exact: true }).click();
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
     expect(errors).toEqual([]);
   } finally { await cleanupLocalFixture(fixture); }
@@ -245,7 +298,7 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
   mkdirSync(artifacts, { recursive: true });
   try {
     await page.setViewportSize({ width: 1600, height: 1100 });
-    await page.goto("/sign-in"); await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password").fill(fixture.password);
+    await page.goto("/sign-in"); await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password", { exact: true }).fill(fixture.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
     await dismissWorkshopTutorial(page);
@@ -255,7 +308,7 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
     await openWorkshopTool(page, "Contacts");
     for (const grip of ["left hand", "right hand", "both hands"]) {
       await page.getByRole("button", { name: `Hold with ${grip}`, exact: true }).click();
-      await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
+      await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
       for (const view of ["Front", "Side"]) {
         await page.getByRole("button", { name: view, exact: true }).click();
         await page.locator("canvas").screenshot({ path: `${artifacts}/kettlebell-${grip.replaceAll(" ", "-")}-${view}.png` });
@@ -303,18 +356,18 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
       await cableAttachmentButton(page, kind).click();
       for (const grip of ["left hand", "right hand", ...(kind === "d-handle" ? [] : ["both hands"])]) {
         await page.getByRole("button", { name: `Hold with ${grip}`, exact: true }).click();
-        await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
+        await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
       }
       for (const view of ["Front", "Side"]) {
         await page.getByRole("button", { name: view, exact: true }).click();
-        await openWorkshopTool(page, "Timeline");
+        await openWorkshopTool(page, "Contacts");
         for (let step = 0; step <= 8; step++) {
           await page.getByLabel("Preview time").evaluate((element, value) => {
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(element, String(value));
             element.dispatchEvent(new Event("input", { bubbles: true }));
           }, step * 400);
           await expect(page.getByLabel("Preview time")).toHaveValue(String(step * 400));
-          await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
+          await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
           await page.locator("canvas").screenshot({ path: `${artifacts}/${kind}-${view}-${step}.png` });
         }
         await openWorkshopTool(page, "Contacts");
@@ -323,7 +376,7 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
       await page.getByRole("button", { name: "Play", exact: true }).click();
       await expect.poll(() => page.getByLabel("Preview time").inputValue()).not.toBe("3200");
       await page.getByRole("button", { name: "Pause", exact: true }).click();
-      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.getByRole("button", { name: "Save exercise", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload();
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -353,7 +406,7 @@ test("support controls, explicit animation and presentation survive saving witho
   try {
     await page.setViewportSize({ width: 1440, height: 1050 });
     await page.goto("/sign-in");
-    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password").fill(fixture.password);
+    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password", { exact: true }).fill(fixture.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
@@ -422,8 +475,8 @@ test("support controls, explicit animation and presentation survive saving witho
     await page.getByRole("button", { name: /Finish ·/ }).click();
     await expect(page.getByText("Editing 1.60s. Changes affect this moment only.", { exact: true })).toBeVisible();
     await openWorkshopTool(page, "Position");
-    await page.getByRole("button", { name: "Up", exact: true }).click();
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Increase Position Y meters by 0.1", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.reload();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -434,12 +487,14 @@ test("support controls, explicit animation and presentation survive saving witho
     await page.getByRole("button", { name: "Hold with right hand", exact: true }).click();
     await openWorkshopTool(page, "Pose");
     await selectWorkshopJoint(page, "Right elbow");
+    await page.getByText("Held equipment", { exact: true }).click();
     await page.getByRole("button", { name: "Release weight", exact: true }).click();
     await expect(jointField(page, "x")).toBeEnabled();
     await page.setViewportSize({ width: 390, height: 844 });
     await jointField(page, "x").fill("80");
     await expect(jointField(page, "x")).toHaveValue("80");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
     await canvas.scrollIntoViewIfNeeded();
     await expect(canvas).toBeInViewport({ ratio: 1 });
     const mobileBounds = (await canvas.boundingBox())!;
@@ -455,7 +510,7 @@ test("ankles and positive knee bends can be posed and saved", async ({ page }) =
   try {
     await page.setViewportSize({ width: 1600, height: 1050 });
     await page.goto("/sign-in");
-    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password").fill(fixture.password);
+    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password", { exact: true }).fill(fixture.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
@@ -504,7 +559,7 @@ test("wrist poses and slower movement controls work and survive reloading", asyn
   try {
     await page.setViewportSize({ width: 1600, height: 1050 });
     await page.goto("/sign-in");
-    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password").fill(fixture.password);
+    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password", { exact: true }).fill(fixture.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
@@ -517,7 +572,7 @@ test("wrist poses and slower movement controls work and survive reloading", asyn
     await page.getByRole("button", { name: "Add equipment", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Barbell", exact: true }).click();
     await page.getByRole("button", { name: "Front", exact: true }).click();
-    await page.getByRole("button", { name: "Move with mouse", exact: true }).click();
+    await enableWorkshopFreeDrag(page);
     await openWorkshopTool(page, "Position");
     const drag = async (world: Vector3) => {
       const canvas = page.locator("canvas");
@@ -606,14 +661,14 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
   try {
     await page.setViewportSize({ width: 1600, height: 1050 });
     await page.goto("/sign-in");
-    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password").fill(fixture.password);
+    await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password", { exact: true }).fill(fixture.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/my-exercises/new");
     await dismissWorkshopTutorial(page);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Choose equipment", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add equipment", exact: true })).toBeVisible();
     await expect(page.getByLabel("Scrub timeline")).not.toBeVisible();
     await page.reload();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -622,7 +677,7 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
     await page.getByRole("button", { name: "Add equipment", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Barbell", exact: true }).click();
     await page.getByRole("button", { name: "Front", exact: true }).click();
-    await page.getByRole("button", { name: "Move with mouse", exact: true }).click();
+    await enableWorkshopFreeDrag(page);
     const canvas = page.locator("canvas");
     await canvas.scrollIntoViewIfNeeded();
     mkdirSync(".local-artifacts/workshop", { recursive: true });
@@ -643,17 +698,17 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
     await openWorkshopTool(page, "Contacts");
     await page.getByRole("button", { name: "Hold with both hands", exact: true }).click();
     await expect(page.getByText("Held with both hands", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
+    await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
     await openWorkshopTool(page, "Position");
-    await page.getByRole("button", { name: "Up", exact: true }).click();
-    await expect(page.getByLabel("Selected item")).toHaveAttribute("data-grip-reachable", "true");
+    await page.getByRole("button", { name: "Increase Position Y meters by 0.1", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
     await openWorkshopTool(page, "Timeline");
     await expect(page.getByRole("button", { name: "Animate selected item", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: /Finish ·/ }).click();
     await openWorkshopTool(page, "Position");
     const startHeight = Number(await page.getByLabel("Position Y meters", { exact: true }).inputValue());
-    await page.getByRole("button", { name: "Up", exact: true }).click();
-    await page.getByRole("button", { name: "Up", exact: true }).click();
+    await page.getByRole("button", { name: "Increase Position Y meters by 0.1", exact: true }).click();
+    await page.getByRole("button", { name: "Increase Position Y meters by 0.1", exact: true }).click();
     const finishHeight = await page.getByLabel("Position Y meters", { exact: true }).inputValue();
     // Placement nudges round to centimetres, including half-centimetre ties.
     expect(Math.abs(Number(finishHeight) - (startHeight + .2))).toBeLessThanOrEqual(.005 + 1e-12);
@@ -689,7 +744,7 @@ test("creation starts with a simple workshop, supports dragging and holding a ba
     await openWorkshopTool(page, "Pose");
     await selectWorkshopJoint(page, "Left elbow");
     await jointField(page, "x").fill("95");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.setViewportSize({ width: 390, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
@@ -708,15 +763,18 @@ test("existing demo barbells become selectable and movable", async ({ page }) =>
       keyframes: [{ timeMs: 0, poses: {} }, { timeMs: 3200, poses: {} }],
     } });
     if (saved.error) throw saved.error;
-    await page.goto("/sign-in"); await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password").fill(fixture.password);
+    await page.goto("/sign-in"); await page.getByLabel("Email").fill(fixture.email); await page.getByLabel("Password", { exact: true }).fill(fixture.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${draft.data}/workshop`);
+    await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopObject(page, "Barbell");
     await openWorkshopTool(page, "Position");
-    await page.getByRole("button", { name: "Up", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Selected item", exact: true }).getByRole("heading", { level: 2 })).toHaveText("Barbell");
+    await expect(page.getByLabel("Position Y meters", { exact: true })).toHaveValue("1.02");
+    await page.getByRole("button", { name: "Increase Position Y meters by 0.1", exact: true }).click();
     await openWorkshopTool(page, "Position");
     await expect(page.getByLabel("Position Y meters", { exact: true })).toHaveValue("1.12");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.reload();
     await selectWorkshopObject(page, "Barbell");

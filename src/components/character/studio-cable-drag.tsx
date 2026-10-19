@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import type { AnatomyRig } from "@/lib/motion/anatomy";
 import { solveCablePose } from "@/lib/motion/cable-pose";
-import { studioDragDelta } from "@/lib/motion/workshop-mouse";
+import { studioDragDelta, studioSnapTarget, type StudioDragPlane } from "@/lib/motion/workshop-mouse";
 import type { RigPose, StudioObject } from "@/lib/motion/workshop";
 import type { StudioEditor } from "./studio-controls";
 import { useWorkshopLanguage } from "./workshop-language";
@@ -15,8 +15,8 @@ import { useWorkshopLanguage } from "./workshop-language";
 type Wrists = Partial<Record<"left" | "right", Vector3>>;
 export function useCableDrag(rig: AnatomyRig, object: StudioObject, editor?: StudioEditor) {
   const { camera, gl, invalidate } = useThree();
-  const enabled = !!editor && editor.interactionEnabled !== false && !editor.playing && !editor.limbPosing && editor.tool === "select" && !object.machineUse && object.attachment !== "none";
-  const drag = useRef<{ plane: Plane; hit: Vector3; wrists: Wrists; pose: RigPose; right: Vector3; up: Vector3; forward: Vector3; element: HTMLElement; pointerId: number; moved: boolean; sensitivity: number; direction: "view" | "floor" } | null>(null);
+  const enabled = !!editor && editor.interactionEnabled !== false && editor.directDragging !== false && !editor.playing && !editor.limbPosing && editor.tool === "select" && !object.machineUse && object.attachment !== "none";
+  const drag = useRef<{ plane: Plane; hit: Vector3; wrists: Wrists; pose: RigPose; right: Vector3; up: Vector3; forward: Vector3; element: HTMLElement; pointerId: number; moved: boolean; sensitivity: number; direction: StudioDragPlane } | null>(null);
   const getWrists = () => {
     const wrists: Wrists = {};
     for (const side of ["left", "right"] as const) if ([side, "both"].includes(object.attachment)) wrists[side] = rig.handBones[side].getWorldPosition(new Vector3());
@@ -47,11 +47,11 @@ export function useCableDrag(rig: AnatomyRig, object: StudioObject, editor?: Stu
     // onDragEnd is stable; all gesture state lives in the ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor?.onDragEnd]);
-  const solve = (wrists: Wrists, delta: Vector3, pose: RigPose) => {
+  const solve = (wrists: Wrists, delta: Vector3, pose: RigPose, snap = true) => {
     const targets: Wrists = {};
     for (const side of ["left", "right"] as const) if (wrists[side]) {
-      const target = wrists[side]!.clone().add(delta);
-      if (editor?.snap) target.set(Math.round(target.x * 10) / 10, Math.round(target.y * 10) / 10, Math.round(target.z * 10) / 10);
+      let target = wrists[side]!.clone().add(delta);
+      if (editor?.snap && snap) target = studioSnapTarget(target, wrists[side]!, drag.current?.direction ?? editor.dragPlane ?? "view");
       targets[side] = target;
     }
     const result = solveCablePose(rig, pose, targets, editor?.frontalPlane);
@@ -91,9 +91,9 @@ export function useCableDrag(rig: AnatomyRig, object: StudioObject, editor?: Stu
     if (!enabled || !editor || editor.dragging || drag.current || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
     event.preventDefault(); event.stopPropagation();
     const right = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion), up = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion), forward = camera.getWorldDirection(new Vector3());
-    const delta = (event.key === "ArrowUp" ? up.clone() : event.key === "ArrowDown" ? up.clone().negate() : event.key === "ArrowRight" ? right.clone() : right.clone().negate()).multiplyScalar(event.shiftKey ? .1 : .025);
+    const delta = (event.key === "ArrowUp" ? up.clone() : event.key === "ArrowDown" ? up.clone().negate() : event.key === "ArrowRight" ? right.clone() : right.clone().negate()).multiplyScalar(event.altKey ? .005 : event.shiftKey ? .1 : .025);
     editor.onCableDragStart?.(object.id);
-    solve(getWrists(), studioDragDelta(delta, right, up, forward, editor.dragPlane ?? "view", 1), editor.limbPose ?? {}); editor.onDragEnd();
+    solve(getWrists(), studioDragDelta(delta, right, up, forward, editor.dragPlane ?? "view", 1), editor.limbPose ?? {}, false); editor.onDragEnd();
   };
   return { enabled, meshEvents, down, move, finish, keyDown };
 }

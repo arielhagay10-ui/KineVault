@@ -26,7 +26,7 @@ export function WorkshopCameraControls({ view, mode, editable, ready, selectionL
   viewsOnly?: boolean; hideViews?: boolean; hideInteraction?: boolean; hideCommonActions?: boolean; flushTop?: boolean;
 }) {
   const { t } = useWorkshopLanguage();
-  const button = "min-h-11 rounded-lg border border-border bg-card px-3 py-2 text-base disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+  const button = "min-h-11 rounded-lg border border-border bg-card px-2 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
   const selected = "border-primary bg-primary text-primary-foreground";
   return <div role="group" className={`${flushTop ? "" : "mt-3 "}space-y-3`} aria-label={t("Preview controls")}>
     {editable && !viewsOnly && !hideInteraction && <div>
@@ -35,7 +35,7 @@ export function WorkshopCameraControls({ view, mode, editable, ready, selectionL
       </div>
       <WorkshopGuidance className="mt-2 text-sm text-muted-foreground">{t(mode === "camera" ? "Drag to look around. Camera controls do not change your exercise." : "Drag equipment to move it. Round grab buttons move machine handles. Use Camera to look around.")}</WorkshopGuidance>
     </div>}
-    {!hideViews && <div role="group" className="flex flex-wrap gap-2" aria-label={t("Model view")}>
+    {!hideViews && <div role="group" className="flex flex-wrap gap-1" aria-label={t("Model view")}>
       {([["front", "Front"], ["three_quarter", "Three-quarter"], ["side", "Side"], ["back", "Back view"]] as const).map(([angle, label]) => <button key={angle} type="button" disabled={!ready} aria-pressed={view === angle} onClick={() => onViewChange(angle)} className={`${button} ${view === angle ? selected : ""}`}>{t(label)}</button>)}
     </div>}
     {!viewsOnly && <><div role="group" className="flex flex-wrap gap-2" aria-label={t("Camera actions")}>

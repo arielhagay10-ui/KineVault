@@ -1,5 +1,6 @@
+import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { inspectMachineMoment, setWorkshopMode, setWorkshopLanguage } from "./workshop-menu.helpers";
+import { inspectMachineMoment, setWorkshopLanguage } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
@@ -40,21 +41,19 @@ test("row start and finish heights move independently and survive private save/r
     await inspectMachineMoment(page, "Cable row", "Start");
     await expect(height).toHaveValue("1.23");
     await height.fill("1.1"); await height.press("Enter");
-    await page.getByRole("button", { name: "Save first pose", exact: true }).click();
+    await page.getByRole("button", { name: "Capture start", exact: true }).click();
     await inspectMachineMoment(page, "Cable row", "Finish");
     await height.fill("1.45"); await height.press("Enter");
-    await page.getByRole("button", { name: "Save pose", exact: true }).click();
-    await setWorkshopMode(page, "quick");
-    await page.getByRole("button", { name: "Name and save", exact: true }).click();
-    await page.getByRole("button", { name: "Save privately", exact: true }).click();
-    await expect(page.getByRole("article", { name: "Saved private exercise" })).toBeVisible();
+    await page.getByRole("button", { name: "Capture pose", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
+    await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.reload({ waitUntil: "commit", timeout: 60_000 });
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await inspectMachineMoment(page, "Cable row", "Start");
     await expect(height).toHaveValue("1.1");
     await inspectMachineMoment(page, "Cable row", "Finish");
     await expect(height).toHaveValue("1.45");
-    await page.getByRole("region", { name: "Playback controls" }).getByRole("button", { name: "View finish", exact: true }).click();
+    await selectWorkshopMoment(page, "Finish");
     await page.screenshot({ path: `${folder}/controls.png`, fullPage: true });
     for (const view of ["Three-quarter", "Side"]) {
       await page.getByRole("button", { name: view, exact: true }).click();
@@ -102,7 +101,8 @@ test("row start and finish heights move independently and survive private save/r
     await card.getByRole("button", { name: "Play", exact: true }).click();
     await page.waitForTimeout(scene.durationMs + 800);
     await card.getByRole("button", { name: "Pause", exact: true }).click();
-    await card.screenshot({ path: `${folder}/saved-library.png`, timeout: 60_000 });
+    // CI retains failure screenshots; local visual reviews capture the saved library too.
+    if (!process.env.CI) await page.screenshot({ path: `${folder}/saved-library.png`, fullPage: true, timeout: 60_000 });
     expect(errors).toEqual([]);
   } finally {
     await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password });

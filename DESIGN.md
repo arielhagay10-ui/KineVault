@@ -713,6 +713,7 @@ viewport), desktop around 1440px, and widths immediately around layout breakpoin
 | Video, selectors, and timed notes | [MediaGallery](src/components/catalog/media-gallery.tsx) |
 | Taxonomy layouts | [TaxonomyLanding](src/components/catalog/taxonomy-landing.tsx), [Joint action](src/app/joint-actions/[slug]/page.tsx) |
 | Authentication | [AuthForm](src/components/auth/auth-form.tsx) |
+| Confirmation and recovery | [AuthShell](src/components/auth/auth-shell.tsx), [CheckEmailForm](src/components/auth/check-email-form.tsx), [ConfirmEmailForm](src/components/auth/confirm-email-form.tsx). Keep the centered auth panel, themed inputs, explicit resend countdown, and password visibility controls. Google appears only when configured. |
 | Private form and advanced fields | [PrivateExerciseForm](src/components/private-exercises/private-exercise-form.tsx), [AdvancedPrivateFields](src/components/private-exercises/advanced-fields.tsx) |
 | Share controls | [SharePanel](src/components/private-exercises/share-panel.tsx) |
 | 3D viewer and playback | [MotionCanvas](src/components/character/motion-canvas.tsx), [SharedMotion](src/components/character/shared-motion.tsx) |

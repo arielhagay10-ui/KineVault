@@ -89,7 +89,7 @@ for (const scenario of ["playback", "comparison", "camera", "selection"] as cons
           await orbit(page, targets.nth(gestures % canvasCount).locator("canvas"), gestures % 2 ? -1 : 1);
           gestures++;
         } else if (scenario === "selection") {
-          const equipment = page.getByRole("combobox", { name: "Selected equipment", exact: true });
+          const equipment = page.getByRole("combobox", { name: "Selected item", exact: true });
           await equipment.selectOption({ label: gestures % 2 ? "Anatomical figure" : "Dumbbell" });
           await expect(equipment.locator("option:checked")).toHaveText(gestures % 2 ? "Anatomical figure" : "Dumbbell");
           await page.getByRole("button", { name: "Play", exact: true }).click();

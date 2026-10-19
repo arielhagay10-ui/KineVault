@@ -1,0 +1,143 @@
+import { mkdirSync } from "node:fs";
+import { expect } from "@playwright/test";
+import { test } from "../readiness/workshop.fixture";
+import { dismissWorkshopTutorial, enableWorkshopFreeDrag, jointField, openWorkshopMenu, openWorkshopTool, selectWorkshopJoint } from "./workshop-menu.helpers";
+
+test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+
+test("Escape clears joints, equipment and body after menus and grip picking close", async ({ page, workshop }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 911, height: 871 });
+  const editor = page.getByRole("region", { name: "Workshop editor", exact: true });
+  const selected = page.getByRole("combobox", { name: "Selected item", exact: true });
+  const tools = page.getByRole("toolbar", { name: "Movement tools", exact: true });
+  const clearSelection = async () => {
+    await editor.focus();
+    await page.keyboard.press("Escape");
+    await expect(selected).toHaveValue("");
+    await expect(tools.getByRole("button", { name: "Camera", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-workshop-current-hint]")).toHaveCount(0);
+  };
+
+  await selectWorkshopJoint(page, "Right shoulder");
+  await expect(tools.getByRole("button", { name: "Rotate", exact: true })).toHaveAttribute("aria-pressed", "true");
+  const bend = jointField(page, "x");
+  const previousBend = await bend.inputValue();
+  await bend.fill("14");
+  await bend.press("Escape");
+  await expect(bend).toHaveValue(previousBend);
+  await expect(selected).toHaveValue("joint:right-shoulder");
+  await expect(editor).toBeFocused();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(selected).toHaveValue("");
+
+  await openWorkshopTool(page, "Contacts");
+  await selected.selectOption(workshop.weight.id);
+  await page.getByRole("button", { name: /^Edit left grip/ }).click();
+  await page.getByRole("button", { name: "Choose point on equipment", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Choose point on equipment", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await expect(selected).toHaveValue(workshop.weight.id);
+  await openWorkshopMenu(page);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-workshop-menu]")).toHaveJSProperty("open", false);
+  await expect(selected).toHaveValue(workshop.weight.id);
+  const dragOptions = tools.getByLabel("Drag options", { exact: true });
+  await dragOptions.click();
+  await page.keyboard.press("Escape");
+  await expect(tools.locator("details")).toHaveJSProperty("open", false);
+  await expect(selected).toHaveValue(workshop.weight.id);
+  await page.getByRole("button", { name: "Add equipment", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(selected).toHaveValue(workshop.weight.id);
+  await clearSelection();
+  // Selecting again retains equipment; deselection never removes or detaches it.
+  await selected.selectOption(workshop.weight.id);
+  await selected.focus();
+  await page.keyboard.press("Escape");
+  await expect(editor).toBeFocused();
+  await expect(selected).toHaveValue(workshop.weight.id);
+  await page.keyboard.press("Escape");
+  await expect(selected).toHaveValue("");
+  await selected.selectOption(workshop.weight.id);
+  await expect(page.getByRole("button", { name: "Release", exact: true })).toHaveCount(0);
+  await selected.selectOption("body");
+  const exerciseName = page.getByRole("textbox", { name: "Exercise name", exact: true });
+  await exerciseName.fill("Selection regression draft");
+  await exerciseName.press("Escape");
+  await expect(exerciseName).toHaveValue("Selection regression draft");
+  await expect(selected).toHaveValue("body");
+  await expect(editor).toBeFocused();
+  await clearSelection();
+  await expect(selected.locator(`option[value="${workshop.weight.id}"]`)).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+
+  await tools.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
+  await enableWorkshopFreeDrag(page);
+  const hand = page.getByRole("button", { name: /^Drag left hand$/i });
+  await expect(hand).toBeVisible();
+  await hand.hover();
+  const handle = (await hand.boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await expect(selected).toHaveValue("joint:left-wrist");
+  await expect(hand).toBeFocused();
+  await page.mouse.move(handle.x + handle.width / 2 + 15, handle.y + handle.height / 2 - 15, { steps: 5 });
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  await expect(selected).toHaveValue("joint:left-wrist");
+  await page.keyboard.press("Escape");
+  await expect(selected).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+
+  await openWorkshopTool(page, "Contacts");
+  await selected.selectOption(workshop.weight.id);
+  await page.getByRole("button", { name: "Hold with left hand", exact: true }).click();
+  await openWorkshopTool(page, "Position");
+  const transformFields = ["Position X meters", "Position Y meters", "Position Z meters", "Rotation X degrees", "Rotation Y degrees", "Rotation Z degrees", "Scale"];
+  const transform = () => Promise.all(transformFields.map(name => page.getByRole("textbox", { name, exact: true }).inputValue()));
+  const heldTransform = await transform();
+  // Escape also clears held equipment while precise placement is expanded.
+  await clearSelection();
+  await selected.selectOption(workshop.weight.id);
+  await openWorkshopTool(page, "Position");
+  await expect.poll(transform).toEqual(heldTransform);
+  await openWorkshopTool(page, "Contacts");
+  await expect(page.getByRole("button", { name: "Release", exact: true })).toBeVisible();
+});
+
+test("Hide controls expands the new exercise preview and keeps restoration visible", async ({ page, workshop }) => {
+  test.setTimeout(120_000);
+  expect(workshop.draftId).toBeTruthy();
+  await page.setViewportSize({ width: 911, height: 871 });
+  await page.goto("/my-exercises/new");
+  await dismissWorkshopTutorial(page);
+  await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+  const preview = page.locator("[data-workshop-preview]");
+  const inspector = page.getByRole("complementary", { name: "Workshop controls", exact: true });
+  const before = (await preview.boundingBox())!.width;
+  await openWorkshopMenu(page);
+  await page.getByRole("button", { name: "Hide controls", exact: true }).click();
+  await expect(inspector).toBeHidden();
+  await expect.poll(async () => (await preview.boundingBox())!.width).toBeGreaterThan(before + 250);
+  const restore = page.getByRole("button", { name: "Show controls", exact: true }).filter({ visible: true });
+  await expect(restore).toBeInViewport();
+  expect(await page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  mkdirSync(".local-artifacts/workshop-selection-focus", { recursive: true });
+  await page.screenshot({ path: ".local-artifacts/workshop-selection-focus/controls-hidden.png" });
+  await restore.click();
+  await expect(inspector).toBeVisible();
+  await expect.poll(async () => (await preview.boundingBox())!.width).toBeLessThan(before + 2);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWorkshopTool(page, "Pose");
+  await openWorkshopMenu(page);
+  await page.getByRole("button", { name: "Hide controls", exact: true }).click();
+  await expect(inspector).toBeHidden();
+  await expect(preview).toBeVisible();
+  await expect(restore).toBeInViewport();
+  await restore.click();
+  await expect(inspector).toBeVisible();
+});

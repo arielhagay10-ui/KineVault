@@ -10,7 +10,7 @@ export default defineConfig({
   testIgnore: productionServer ? "**/workshop-preview-regression.spec.ts" : undefined,
   timeout: 30_000,
   // Software-rendered workshop canvases need the runner's full CPU budget.
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   use: {
     baseURL: "http://127.0.0.1:3000",
     navigationTimeout: 60_000,

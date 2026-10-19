@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
 import { createQuickScene } from "../../src/lib/motion/quick-create";
 import { cableAttachmentSlugs } from "../../src/lib/motion/workshop";
-import { cableAttachmentButton, jointField, selectWorkshopJoint, selectWorkshopObject, setWorkshopMode, openWorkshopTool } from "./workshop-menu.helpers";
+import { enableWorkshopFreeDrag, cableAttachmentButton, jointField, selectWorkshopJoint, selectWorkshopObject, openWorkshopTool } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
@@ -44,13 +44,14 @@ test("row attachments, independent handle movement, free deadlift poses and save
     await openWorkshopTool(page, "Contacts");
     for (const kind of cableAttachmentSlugs) {
       const button = cableAttachmentButton(page, kind); await button.click(); await expect(button).toHaveAttribute("aria-pressed", "true");
-      await expect(page.getByRole("button", { name: "Leave machine", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Stop using machine", exact: true })).toBeVisible();
       await page.locator("canvas").screenshot({ path: `${folder}/seated-${kind}.png` });
     }
     await cableAttachmentButton(page, "straight-bar").click();
     await page.getByRole("button", { name: "Hold with both hands", exact: true }).click();
-    await page.getByRole("button", { name: "Free body", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Leave machine", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Stop using machine", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Use this machine", exact: true })).toBeVisible();
+    await enableWorkshopFreeDrag(page);
     await expect(page.getByRole("button", { name: "Drag cable handle", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Front", exact: true }).click();
     await openWorkshopTool(page, "Position");
@@ -63,11 +64,11 @@ test("row attachments, independent handle movement, free deadlift poses and save
     await expect(jointField(page, "x")).toHaveValue("0");
     await page.getByRole("button", { name: "Redo", exact: true }).click();
     await expect(jointField(page, "x")).toHaveValue(String(dragged));
-    await page.getByRole("button", { name: "Move with mouse", exact: true }).click();
+    await enableWorkshopFreeDrag(page);
     await dragHandle(page, 25, -15, true);
     await selectWorkshopJoint(page, "Left elbow");
     await expect(jointField(page, "x")).toHaveValue(String(dragged));
-    await page.getByRole("combobox", { name: "Selected equipment", exact: true }).selectOption("body");
+    await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
     await openWorkshopTool(page, "Position");
     await page.getByRole("textbox", { name: "Position X meters", exact: true }).fill("1.3");
     await page.getByRole("textbox", { name: "Position X meters", exact: true }).press("Enter");
@@ -77,17 +78,17 @@ test("row attachments, independent handle movement, free deadlift poses and save
       await selectWorkshopJoint(page, joint); await jointField(page, "x").fill(value); await jointField(page, "x").press("Enter"); await expect(jointField(page, "x")).toHaveValue(value);
     }
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Drag (Left|Right) (hand|foot)$/ })).toHaveCount(4);
+    await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await expect(page.getByRole("button", { name: "Drag cable handle", exact: true })).toHaveCount(0);
-    await page.getByRole("button", { name: "Move with mouse", exact: true }).click();
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await enableWorkshopFreeDrag(page);
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Saved" }).first()).toBeVisible();
     const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single(); if (record.error) throw record.error;
     await expect.poll(async () => {
       const saved = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
       return saved.data.studio_layout;
     }, { timeout: 20_000 }).toMatchObject({ body: { x: 1.3 }, objects: [{ slug: "cable-row-machine", machineUse: false, cableAttachment: "straight-bar", attachment: "both", x: fixture.studio!.objects[0].x }] });
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopJoint(page, "Left hip"); await expect(jointField(page, "x")).toHaveValue("45");
     await page.getByRole("button", { name: "Side", exact: true }).click();
     for (let step = 0; step <= 16; step++) {
@@ -98,7 +99,7 @@ test("row attachments, independent handle movement, free deadlift poses and save
     await selectWorkshopObject(page, "Cable row");
     await openWorkshopTool(page, "Contacts");
     await page.getByRole("button", { name: "Free cable movement", exact: true }).click();
-    await setWorkshopMode(page, "quick");
+    await enableWorkshopFreeDrag(page);
     await expect(page.getByRole("button", { name: "Drag cable handle", exact: true })).toBeVisible();
     await dragHandle(page, -10, -25);
     await openWorkshopTool(page, "Contacts");
@@ -113,7 +114,7 @@ test("row attachments, independent handle movement, free deadlift poses and save
     await expect(page.getByRole("textbox", { name: "Position X meters", exact: true })).toHaveValue(fixedX);
     await selectWorkshopJoint(page, "Left elbow"); expect(Math.abs(Number(await jointField(page, "x").inputValue()))).toBeGreaterThan(1);
     await selectWorkshopObject(page, "Cable machine");
-    await cableAttachmentButton(page, "rope").click(); await page.getByRole("button", { name: "Move with mouse", exact: true }).click();
+    await cableAttachmentButton(page, "rope").click(); await enableWorkshopFreeDrag(page);
     await dragHandle(page, 0, -20);
     await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeEnabled();
     expect(errors).toEqual([]);

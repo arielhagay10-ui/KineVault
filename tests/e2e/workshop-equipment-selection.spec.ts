@@ -7,7 +7,7 @@ import { PerspectiveCamera, Vector3 } from "three";
 import { createStudioObject } from "../../src/lib/motion/studio";
 import { fitWorkshopCamera } from "../../src/lib/motion/workshop-camera";
 import { blankWorkshopScene } from "../../src/lib/motion/workshop";
-import { setWorkshopLanguage, selectWorkshopObject, setWorkshopMode, expandWorkshopControls, openWorkshopRecovery, openWorkshopTool } from "./workshop-menu.helpers";
+import { addWorkshopEquipment, setWorkshopLanguage, selectWorkshopObject, expandWorkshopControls, openWorkshopRecovery, openWorkshopTool } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
@@ -40,28 +40,23 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await page.goto(`/my-exercises/${created.data}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     const workshop = page.getByLabel("Workshop editor", { exact: true });
-    const objects = page.getByLabel("Scene objects", { exact: true });
-    await page.getByRole("button", { name: "Choose equipment", exact: true }).click();
-    const quick = page.getByRole("region", { name: "Quick create", exact: true });
-    await expect(quick.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
-    await expect(quick.getByRole("heading", { name: "Create your own movement", exact: true })).toHaveCount(0);
-    await expect(quick.getByRole("button", { name: /start to finish/ })).toHaveCount(0);
-    await quick.getByRole("button", { name: "Barbell", exact: true }).click();
+    const objects = page.getByRole("combobox", { name: "Selected item", exact: true });
+    await expect(page.getByRole("button", { name: /^(Quick create|Advanced editing)$/, includeHidden: true })).toHaveCount(0);
+    await addWorkshopEquipment(page, "Barbell");
     await openWorkshopTool(page, "Equipment");
-    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
-    await expect(objects.getByRole("button", { name: "Barbell", exact: true })).toBeVisible();
+    await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(1);
+    await expect(objects.getByRole("option", { name: "Barbell", exact: true })).toHaveCount(1);
     await page.getByRole("button", { name: "Undo", exact: true }).click();
-    await expect(objects.getByRole("button", { name: "Barbell", exact: true })).toHaveCount(0);
-    await setWorkshopMode(page, "quick");
-    await page.getByRole("button", { name: "Choose equipment", exact: true }).click();
+    await expect(objects.getByRole("option", { name: "Barbell", exact: true })).toHaveCount(0);
     mkdirSync(".local-artifacts/workshop/equipment-selection", { recursive: true });
-    await page.screenshot({ path: ".local-artifacts/workshop/equipment-selection/quick-equipment.png" });
+    await page.screenshot({ path: ".local-artifacts/workshop/equipment-selection/equipment.png" });
     await expect(page.getByText("Recovery and shortcuts", { exact: true })).not.toBeVisible();
     await openWorkshopRecovery(page);
     await expect(page.getByRole("region", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
     await page.screenshot({ path: ".local-artifacts/workshop/equipment-selection/more.png" });
     await page.locator("[data-workshop-menu] > summary").click();
-    await quick.getByRole("button", { name: "View all equipment", exact: true }).click();
+    await page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "View all equipment", exact: true }).click();
     await expect(page.getByRole("dialog").getByRole("button", { name: "Pec deck", exact: true })).toBeVisible();
     await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
     const openPicker = () => page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
@@ -85,8 +80,14 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await page.screenshot({ path: ".local-artifacts/workshop/equipment-selection/picker.png" });
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
     await page.getByRole("button", { name: "Front", exact: true }).click();
+    await page.getByRole("button", { name: "Camera", exact: true }).click();
     const doubleClickWeight = async () => {
       const canvas = page.locator("canvas");
+      await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => {
+        const bounds = element.getBoundingClientRect();
+        return Math.abs(element.width / element.height - bounds.width / bounds.height);
+      })).toBeLessThan(.005);
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
       const bounds = (await canvas.boundingBox())!;
       const fit = fitWorkshopCamera(scene, "front", bounds.width / bounds.height, 34);
       const camera = new PerspectiveCamera(34, bounds.width / bounds.height, .1, 100);
@@ -99,22 +100,22 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await expect(page.getByRole("tab", { name: "Contacts", exact: true })).toHaveAttribute("aria-selected", "true");
     await expect(workshop).toBeFocused();
     await expect(page.getByRole("button", { name: "Camera", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("tab", { name: "Position", exact: true }).click();
+    await openWorkshopTool(page, "Position");
     await expandWorkshopControls(page, "Precise placement");
     await expect(page.getByRole("textbox", { name: "Position X meters", exact: true })).toHaveValue("1.4");
     await expect(page.getByRole("textbox", { name: "Position Y meters", exact: true })).toHaveValue("1.1");
     await doubleClickWeight();
     await page.keyboard.press("Backspace");
-    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
-    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toHaveCount(0);
+    await openWorkshopTool(page, "Equipment");
+    await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(0);
     await workshop.focus(); await page.keyboard.press("Control+z");
-    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
+    await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(1);
     // The figure cannot be deleted, and text fields retain both editing keys.
     await selectWorkshopObject(page, "Anatomical figure");
     await workshop.focus(); await page.keyboard.press("Delete"); await page.keyboard.press("Backspace");
-    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
-    await expect(objects.getByRole("button", { name: "Anatomical figure", exact: true })).toBeVisible();
-    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
+    await openWorkshopTool(page, "Equipment");
+    await expect(objects.getByRole("option", { name: "Anatomical figure", exact: true })).toHaveCount(1);
+    await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(1);
     await doubleClickWeight();
     const name = page.getByRole("textbox", { name: "Exercise name", exact: true });
     await name.fill("Typed"); await name.press("End"); await name.press("Backspace");
@@ -122,15 +123,14 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await name.press("Home"); await name.press("Delete"); await expect(name).toHaveValue("ype");
     await openPicker(); await dialog.getByRole("searchbox").press("Backspace");
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
-    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
-    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toBeVisible();
+    await openWorkshopTool(page, "Equipment");
+    await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(1);
     // Selection takes focus back from the field; Delete needs no extra click.
     await name.focus(); await doubleClickWeight(); await expect(workshop).toBeFocused();
     await page.keyboard.press("Delete");
-    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
-    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toHaveCount(0);
+    await openWorkshopTool(page, "Equipment");
+    await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(0);
     await workshop.focus(); await page.keyboard.press("Control+s");
-    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
     await expect.poll(async () => {
       const draft = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
       if (draft.error) throw draft.error;
@@ -139,11 +139,10 @@ test("essentials come first and double-click selects equipment for safe keyboard
       return (saved.data.studio_layout as { objects: unknown[] }).objects.length;
     }, { timeout: 20_000 }).toBe(0);
     await page.reload();
-    await setWorkshopMode(page, "advanced");
-    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
-    await expect(objects.getByRole("button", { name: "Dumbbell", exact: true })).toHaveCount(0);
-    await page.getByRole("tab", { name: "Equipment", exact: true }).click();
-    await expect(objects.getByRole("button", { name: "Anatomical figure", exact: true })).toBeVisible();
+    await openWorkshopTool(page, "Equipment");
+    await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(0);
+    await openWorkshopTool(page, "Equipment");
+    await expect(objects.getByRole("option", { name: "Anatomical figure", exact: true })).toHaveCount(1);
     await setWorkshopLanguage(page, "he");
     await page.getByRole("button", { name: "הוספת ציוד", exact: true }).filter({ visible: true }).click();
     await expect(dialog.getByRole("region").first()).toHaveAccessibleName("ציוד בסיסי");

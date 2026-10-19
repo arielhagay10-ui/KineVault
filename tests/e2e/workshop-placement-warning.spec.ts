@@ -31,12 +31,14 @@ test("placement warnings overlay the preview without resizing it and lead to the
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${created.data}/workshop`);
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-    await openWorkshopTool(page, "Contacts"); await page.getByLabel("Selected equipment", { exact: true }).selectOption(weight.id);
+    await openWorkshopTool(page, "Contacts"); await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(weight.id);
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       await openWorkshopTool(page, "Position");
       const x = page.getByLabel("Position X meters", { exact: true });
       await x.fill("0"); await x.press("Enter");
+      const preview = page.getByRole("button", { name: "Preview", exact: true });
+      if (await preview.isVisible()) await preview.click();
       const warning = page.locator("[data-workshop-placement-warning]");
       await expect(warning).toBeVisible();
       const canvas = page.locator("canvas");
@@ -60,13 +62,15 @@ test("placement warnings overlay the preview without resizing it and lead to the
       await warning.getByRole("button", { name: "Inspect placement · Dumbbell 1", exact: true }).click();
       await expect(page.getByRole("tab", { name: "Position", exact: true })).toHaveAttribute("aria-selected", "true");
       await expect(warning).not.toHaveAttribute("open", "");
+      await openWorkshopTool(page, "Position");
       await x.fill("3"); await x.press("Enter");
+      if (await preview.isVisible()) await preview.click();
       await expect(warning).toBeHidden();
       expect(await measure()).toEqual(before);
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.getByRole("button", { name: "Save", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
-    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+    await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     for (const view of ["Front", "Side"]) {
       await page.getByRole("button", { name: view, exact: true }).click();
       await page.locator("canvas").screenshot({ path: `${folder}/rest-${view.toLowerCase()}.png` });

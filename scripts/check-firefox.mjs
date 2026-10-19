@@ -63,9 +63,10 @@ async function checkFirefox(options) {
     }
   } });
   const [{ default: puppeteer }, { createClient }, { PerspectiveCamera, Vector3 }, { blankWorkshopScene }, { createStudioObject },
-    { fitWorkshopCamera }, { cleanupLocalFixture }] = await Promise.all([
+    { fitWorkshopCamera }, { cleanupLocalFixture }, { withPublishedCableRaise }] = await Promise.all([
     import("puppeteer-core"), import("@supabase/supabase-js"), import("three"), import("../src/lib/motion/workshop.ts"),
     import("../src/lib/motion/studio.ts"), import("../src/lib/motion/workshop-camera.ts"), import("../tests/helpers/local-fixtures.ts"),
+    import("../tests/helpers/published-catalog.ts"),
   ]);
   hook.deregister();
   const directory = resolve(".local-artifacts", "firefox-installed", randomUUID());
@@ -143,6 +144,12 @@ async function checkFirefox(options) {
       assert.deepEqual(state, { modal, contained: true });
     };
     const scan = async name => {
+      // Audit settled colors and fonts after changing appearance.
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await Promise.all(document.getAnimations().filter(animation => animation instanceof CSSTransition)
+          .map(animation => animation.finished.catch(() => {})));
+      });
       await page.evaluate(source => { (0, eval)(source); }, axeSource);
       const result = await page.evaluate(async () => window.axe.run(document, {
         runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
@@ -161,33 +168,37 @@ async function checkFirefox(options) {
       await click("Close menu");
       await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, {}, theme);
     };
-    for (const theme of ["light", "dark"]) {
-      await resetPage();
-      await go("/");
-      await appearance(theme);
-      await scan(`${theme}-home`);
-      await go("/exercises?jointAction=shoulder-abduction&equipment=cable");
-      await page.waitForSelector('input[name="jointAction"][value="shoulder-abduction"]:checked');
-      await page.waitForSelector('input[name="equipment"][value="cable"]:checked');
-      await scan(`${theme}-combined-catalog`);
-      const link = await page.waitForSelector('main a[href^="/exercises/"]');
-      await link.click();
-      await page.waitForFunction(() => /^\/exercises\/[^/?]+$/.test(location.pathname));
-      await page.waitForSelector("main h1");
-      await scan(`${theme}-exercise-detail`);
-      record(`${theme}-shoulder-abduction-cable-detail`);
-      await press("Site menu");
-      await page.waitForSelector('dialog[aria-label="Site navigation"][open]');
-      for (const key of ["Tab", "Shift+Tab"]) for (let index = 0; index < 12; index++) {
-        await tab(key === "Shift+Tab");
-        await assertFocus("Site navigation");
-      }
-      await scan(`${theme}-navigation-dialog`);
-      await page.keyboard.press("Escape");
-      await page.waitForFunction(() => !document.querySelector('dialog[aria-label="Site navigation"][open]')
-        && document.activeElement?.getAttribute("aria-label") === "Site menu");
-      record(`${theme}-navigation-keyboard-focus-escape`);
-    }
+    await withPublishedCableRaise(options.origin, async published => {
+      report.catalogFixture = { id: published.id, slug: published.slug };
+      for (const theme of ["light", "dark"]) {
+        await resetPage();
+        await go("/");
+        await appearance(theme);
+        await scan(`${theme}-home`);
+        await go("/exercises?jointAction=shoulder-abduction&equipment=cable");
+        await page.waitForSelector('input[name="jointAction"][value="shoulder-abduction"]:checked');
+        await page.waitForSelector('input[name="equipment"][value="cable"]:checked');
+        await scan(`${theme}-combined-catalog`);
+        const link = await page.waitForSelector(`main a[href="/exercises/${published.slug}"]`);
+        await link.click();
+        await page.waitForFunction(() => /^\/exercises\/[^/?]+$/.test(location.pathname));
+        await page.waitForSelector("main h1");
+        await scan(`${theme}-exercise-detail`);
+        record(`${theme}-shoulder-abduction-cable-detail`);
+        await press("Site menu");
+        await page.waitForSelector('dialog[aria-label="Site navigation"][open]');
+        for (const key of ["Tab", "Shift+Tab"]) for (let index = 0; index < 12; index++) {
+          await tab(key === "Shift+Tab");
+          await assertFocus("Site navigation");
+        }
+        await scan(`${theme}-navigation-dialog`);
+        await page.keyboard.press("Escape");
+        await page.waitForFunction(() => !document.querySelector('dialog[aria-label="Site navigation"][open]')
+          && document.activeElement?.getAttribute("aria-label") === "Site menu");
+        record(`${theme}-navigation-keyboard-focus-escape`);
+        }
+    });
+    report.catalogFixtureWithdrawn = true;
     account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     if (account.error) throw new Error("Local Firefox fixture account could not be created");
     const signedIn = await owner.auth.signInWithPassword({ email, password });
@@ -212,19 +223,21 @@ async function checkFirefox(options) {
       await page.waitForSelector('[data-anatomy-state="ready"]', { timeout: 60000 });
       if (await page.$('[data-workshop="studio"][data-tutorial-open="true"]')) await click("Close tutorial");
       if (await page.$('[aria-label="Recover draft"]')) {
-        await click("Keep server version");
+        await click("Continue with saved exercise");
         await page.waitForFunction(() => !document.querySelector('[aria-label="Recover draft"]'));
       }
       await scan(`${theme}-quick-workshop`);
-      const advanced = await press("Advanced editing");
-      await page.waitForFunction(button => button.getAttribute("aria-pressed") === "true", {}, advanced);
       await click("Position", 'button[role="tab"]');
       await click("Front");
       await click("Camera");
       await click("Fit scene");
-      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       const canvas = await page.waitForSelector("canvas");
       await canvas.scrollIntoView();
+      await page.waitForFunction(canvas => {
+        const bounds = canvas.getBoundingClientRect();
+        return Math.abs(canvas.width / canvas.height - bounds.width / bounds.height) < .005;
+      }, {}, canvas);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       const bounds = await canvas.boundingBox();
       assert.ok(bounds && bounds.width > 0 && bounds.height > 0, "Visible workshop canvas required");
       const fit = fitWorkshopCamera(scene, "front", bounds.width / bounds.height, 34);
@@ -233,22 +246,37 @@ async function checkFirefox(options) {
       camera.lookAt(fit.target);
       camera.updateMatrixWorld();
       const point = new Vector3(weight.x, weight.y + .2, weight.z).project(camera);
-      await page.mouse.click(bounds.x + (point.x + 1) * bounds.width / 2, bounds.y + (1 - point.y) * bounds.height / 2, { count: 2 });
+      const pointer = { x: bounds.x + (point.x + 1) * bounds.width / 2, y: bounds.y + (1 - point.y) * bounds.height / 2 };
+      await page.evaluate(() => {
+        window.firefoxPointerEvents = [];
+        for (const type of ["pointerdown", "pointerup", "click", "dblclick"]) document.addEventListener(type, event => {
+          if (window.firefoxPointerEvents.length < 12) window.firefoxPointerEvents.push({ type, detail: event.detail,
+            x: event.clientX, y: event.clientY, target: event.target.tagName });
+        }, true);
+      });
+      await page.mouse.click(pointer.x, pointer.y, { count: 2 });
+      report.pointer = { theme, bounds, ...pointer, events: await page.evaluate(() => window.firefoxPointerEvents) };
+      save();
       await page.waitForFunction(() => document.querySelector('[aria-label="Selected item"] h2')?.textContent === "Dumbbell");
       await scan(`${theme}-selected-equipment`);
       await click("Equipment", 'button[role="tab"]');
-      await press("Anatomical figure");
-      await page.waitForFunction(() => document.querySelector('select[aria-label="Selected equipment"] option:checked')?.textContent === "Anatomical figure");
-      await press("Dumbbell");
-      await page.waitForFunction(() => document.querySelector('select[aria-label="Selected equipment"] option:checked')?.textContent === "Dumbbell");
+      const objects = await page.waitForSelector('select[aria-label="Selected item"]');
+      await objects.focus();
+      await page.keyboard.press("Home");
+      await page.keyboard.press("ArrowDown");
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => document.querySelector('select[aria-label="Selected item"] option:checked')?.textContent === "Anatomical figure");
+      await page.keyboard.press("ArrowDown");
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => document.querySelector('select[aria-label="Selected item"] option:checked')?.textContent === "Dumbbell");
       record(`${theme}-canvas-and-keyboard-equipment-selection`);
       const trigger = await element("Add equipment");
       await trigger.focus();
       await page.keyboard.press("Enter");
       await page.waitForSelector('dialog[open] input[type="search"]');
-      await page.waitForFunction(() => document.activeElement === document.querySelector('dialog[open] input[type="search"]'));
+      await assertFocus("Choose equipment");
       await trigger.focus();
-      await page.waitForFunction(() => document.activeElement === document.querySelector('dialog[open] input[type="search"]'));
+      await assertFocus("Choose equipment");
       for (const key of ["Tab", "Shift+Tab"]) for (let index = 0; index < 20; index++) {
         await tab(key === "Shift+Tab");
         await assertFocus("Choose equipment");

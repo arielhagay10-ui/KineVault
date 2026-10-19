@@ -6,6 +6,8 @@
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
     "start": "node scripts/start-production.mjs",
+    "docker:up": "powershell -ExecutionPolicy Bypass -File scripts/start-local-docker.ps1",
+    "docker:down": "powershell -ExecutionPolicy Bypass -File scripts/start-local-docker.ps1 -Stop",
     "lint": "eslint .",
     "pretypecheck": "next typegen",
     "typecheck": "tsc --noEmit",

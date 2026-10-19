@@ -1,5 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
+import { openWorkshopTool, dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -32,8 +32,7 @@ test("adding a cable exposes attachments and grips; precise placement stays clos
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Add equipment", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Cable machine", exact: true }).click();
-    await page.getByRole("button", { name: "Start and finish", exact: true }).click();
-    await page.getByText("Grip and equipment options", { exact: true }).click();
+    await openWorkshopTool(page, "Contacts");
     const cable = page.getByRole("region", { name: "Cable attachment and grip", exact: true });
     await expect(cable).toBeVisible();
     for (const name of ["D handle", "Rope", "Straight bar", "Angled bar", "V bar", "Cuff"]) {
@@ -44,7 +43,6 @@ test("adding a cable exposes attachments and grips; precise placement stays clos
     await cable.getByRole("button", { name: "Hold with both hands", exact: true }).click();
     await cable.getByRole("group", { name: "Left wrist", exact: true }).getByRole("button", { name: "Palm up", exact: true }).click();
     await expect(cable.getByRole("group", { name: "Left wrist", exact: true }).getByRole("button", { name: "Palm up", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("button", { name: "Advanced editing", exact: true }).click();
     await expect(cable.getByRole("button", { name: "Rope", exact: true })).toHaveAttribute("aria-pressed", "true");
     await cable.getByRole("button", { name: "Cuff", exact: true }).click();
     await expect(cable.getByRole("button", { name: "Cuff left arm", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -62,7 +60,7 @@ test("adding a cable exposes attachments and grips; precise placement stays clos
     await precise.click();
     await expect(page.getByLabel("Position X meters", { exact: true })).not.toBeVisible();
     await page.getByRole("textbox", { name: "Exercise name", exact: true }).fill("Visible cable options");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
     const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
     const signedIn = await owner.auth.signInWithPassword({ email, password });
@@ -84,6 +82,17 @@ test("adding a cable exposes attachments and grips; precise placement stays clos
     await expect(precise).toHaveAttribute("aria-expanded", "false");
     await precise.click();
     await expect(page.getByLabel("Position X meters", { exact: true })).toHaveValue("1.75");
+    await openWorkshopTool(page, "Contacts");
+    const loaded = page.waitForResponse(response => response.url().endsWith("attachment-d-handle.v1.glb") && response.ok());
+    await cable.getByRole("button", { name: "D handle", exact: true }).click();
+    await loaded;
+    await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible();
+    await page.route("**/attachment-angled-bar.v1.glb", route => route.abort());
+    const failed = page.waitForEvent("requestfailed", request => request.url().endsWith("attachment-angled-bar.v1.glb"));
+    await cable.getByRole("button", { name: "Angled bar", exact: true }).click();
+    await failed;
+    await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible();
+    await page.screenshot({ path: ".local-artifacts/workshop/cable-controls/replacement-fallback.png" });
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(errors).toEqual([]);

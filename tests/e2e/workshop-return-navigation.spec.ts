@@ -43,7 +43,7 @@ test("saved workshop has visible return navigation on desktop, mobile and in foc
       await page.screenshot({ path: `.local-artifacts/workshop/return-navigation/${width}.png` });
     }
     await openWorkshopMenu(page);
-    await page.getByRole("button", { name: "Focus mode", exact: true }).click();
+    await page.getByRole("button", { name: "Hide controls", exact: true }).click();
     await expect(back).toBeInViewport();
     await back.click();
     await expect(page).toHaveURL(/\/my-exercises$/);

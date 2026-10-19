@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 import { blankWorkshopScene, type WorkshopScene } from "@/lib/motion/workshop";
 import { MotionCanvas } from "./motion-canvas";
 import type { StudioEditor } from "./studio-controls";
+import { createQuickScene } from "@/lib/motion/quick-create";
 
 const noop = () => undefined;
 const editor: StudioEditor = {
@@ -28,4 +29,13 @@ it.each(["none", "group:chest", "mesh:creator-chosen-muscle"])("preserves the sa
 it("preserves inferred highlights in the exercise viewer", () => {
   const markup = renderToStaticMarkup(createElement(MotionCanvas, { scene: blankWorkshopScene, timeMs: 0 }));
   expect(markup).toContain('value="group:deltoid" selected=""');
+});
+
+it("does not wait for hidden machine assets in an isolated anatomy viewer", () => {
+  const scene = createQuickScene("lat-pulldown-machine");
+  scene.studio!.presentation = { highlight: "group:lats", isolate: true, view: "front" };
+  const viewer = renderToStaticMarkup(createElement(MotionCanvas, { scene, timeMs: 0 }));
+  expect(viewer).toContain('data-equipment-state="ready"');
+  const editing = renderToStaticMarkup(createElement(MotionCanvas, { scene, editor, timeMs: 0 }));
+  expect(editing).toContain('data-equipment-state="loading"');
 });

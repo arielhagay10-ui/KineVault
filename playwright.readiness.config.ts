@@ -31,7 +31,9 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"], ...chromium } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"],
+      ...(process.env.PLAYWRIGHT_FIREFOX_EXECUTABLE ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_FIREFOX_EXECUTABLE } } : {}),
+    } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
     { name: "android-touch", use: { ...devices["Pixel 7"], ...chromium } },
     { name: "iphone-touch", use: { ...devices["iPhone 13"] } },

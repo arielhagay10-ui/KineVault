@@ -10,7 +10,7 @@ import { failRenderClaim } from "./lib/fail-render.mjs";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseUrl = process.env.SUPABASE_URL_INTERNAL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const renderToken = process.env.RENDER_WORKER_TOKEN;
 const appUrl = (process.env.RENDER_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");

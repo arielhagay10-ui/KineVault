@@ -1,10 +1,32 @@
+import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { expect, type Page } from "@playwright/test";
 import { test } from "../readiness/workshop.fixture";
-import { dismissWorkshopTutorial, openWorkshopTool, setWorkshopMode } from "./workshop-menu.helpers";
+import { dismissWorkshopTutorial, openWorkshopTool } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
-async function saveDuringAutosave(page: Page, draftId: string, trigger: "button" | "keyboard" | "quick create") {
+test("a new saved workshop draft keeps its equipment after refresh", async ({ page, workshop }) => {
+  test.setTimeout(120_000);
+  await page.goto("/my-exercises/new");
+  await dismissWorkshopTutorial(page);
+  await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: "Add equipment", exact: true }).click();
+  await page.getByRole("button", { name: "Dumbbell", exact: true }).click();
+  await page.getByRole("button", { name: "Hold with both hands", exact: true }).click();
+  await page.getByLabel("Exercise name", { exact: true }).fill("New shared hold save fixture");
+  await page.getByRole("button", { name: "Save exercise", exact: true }).click();
+  await expect(page).toHaveURL(/\/my-exercises\/[\da-f-]+\/workshop$/);
+  await expect(page).not.toHaveURL(new RegExp(workshop.draftId));
+  await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+  await page.reload();
+  await dismissWorkshopTutorial(page);
+  await expect(page.getByLabel("Exercise name", { exact: true })).toHaveValue("New shared hold save fixture");
+  await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption({ label: "Dumbbell · Held with both hands" });
+  await openWorkshopTool(page, "Contacts");
+  await expect(page.getByRole("button", { name: "Hold with both hands", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+async function saveDuringAutosave(page: Page, draftId: string, trigger: "button" | "keyboard" | "captured poses") {
   test.setTimeout(120_000);
   let releaseFirst!: () => void;
   let markStarted!: () => void;
@@ -31,20 +53,17 @@ async function saveDuringAutosave(page: Page, draftId: string, trigger: "button"
     await openWorkshopTool(page, "Position");
     await page.getByLabel("Exercise name", { exact: true }).fill("Queued save fixture");
     await firstStarted;
-    await expect(page.getByText("Saving…", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save exercise", exact: true })).toHaveAttribute("aria-busy", "true");
     const position = page.getByRole("textbox", { name: "Position X meters", exact: true });
     await position.fill("0.45");
-    if (trigger === "quick create") {
+    if (trigger === "captured poses") {
       await position.press("Tab");
-      await page.getByRole("button", { name: "Save first pose", exact: true }).click();
-      await page.getByRole("button", { name: "View finish", exact: true }).click();
-      const finishPose = page.getByRole("button", { name: "Save pose", exact: true });
+      await page.getByRole("button", { name: "Capture start", exact: true }).click();
+      await selectWorkshopMoment(page, "Finish");
+      const finishPose = page.getByRole("button", { name: "Capture pose", exact: true });
       if (await finishPose.isEnabled()) await finishPose.click();
-      await setWorkshopMode(page, "quick");
-      await page.getByRole("button", { name: "Name and save", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "Name and save", exact: true })).toBeVisible();
     }
-    const save = page.getByRole("button", { name: trigger === "quick create" ? /^(Save privately|Saving…)$/ : "Save", exact: true });
+    const save = page.getByRole("button", { name: "Save exercise", exact: true });
     await expect(save).toBeEnabled();
     const saved = page.waitForResponse(response => response.request().method() === "POST"
       && hasEditedPosition(response.request().postData() ?? "") && response.ok());
@@ -53,7 +72,7 @@ async function saveDuringAutosave(page: Page, draftId: string, trigger: "button"
     releaseFirst();
     await editedStarted;
     await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-    await expect(page.getByText("Saving…", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save exercise", exact: true })).toHaveAttribute("aria-busy", "true");
     await expect(page.getByText(/Saved at.*Private/)).toHaveCount(0);
     releaseEdited();
     await saved;
@@ -68,27 +87,22 @@ async function saveDuringAutosave(page: Page, draftId: string, trigger: "button"
   }
 }
 
-for (const trigger of ["button", "keyboard", "quick create"] as const) {
+for (const trigger of ["button", "keyboard", "captured poses"] as const) {
   test(`manual Save by ${trigger} queues a numeric edit behind an autosave`, async ({ page, workshop }) => {
     await saveDuringAutosave(page, workshop.draftId, trigger);
   });
 }
 
-for (const trigger of ["button", "keyboard", "quick create", "details"] as const) {
+for (const trigger of ["button", "keyboard", "details"] as const) {
   test(`unnamed Save by ${trigger} asks for a name and saves from the prompt`, async ({ page, workshop }) => {
     test.setTimeout(120_000);
     if (trigger === "details") {
       await page.goto("/my-exercises/new");
       await dismissWorkshopTutorial(page);
     }
-    await setWorkshopMode(page, "advanced");
     await page.getByLabel("Exercise name", { exact: true }).fill(" ");
-    let save = page.getByRole("button", { name: "Save", exact: true });
-    if (trigger === "quick create") {
-      await setWorkshopMode(page, "quick");
-      await page.getByRole("button", { name: "Name and save", exact: true }).click();
-      save = page.getByRole("button", { name: "Save privately", exact: true });
-    } else if (trigger === "details") {
+    let save = page.getByRole("button", { name: "Save exercise", exact: true });
+    if (trigger === "details") {
       await page.getByText("More", { exact: true }).click();
       save = page.getByRole("button", { name: "Save & add details", exact: true });
     }
@@ -97,9 +111,10 @@ for (const trigger of ["button", "keyboard", "quick create", "details"] as const
     else await save.click();
     const prompt = page.getByRole("dialog", { name: "Name your exercise", exact: true });
     const name = prompt.getByRole("textbox", { name: "Exercise name", exact: true });
-    await expect(name).toBeFocused();
+    await expect(name).not.toBeFocused();
+    await expect(prompt.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
     await name.fill(" ");
-    await expect(prompt.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+    await expect(prompt.getByRole("button", { name: "Save exercise", exact: true })).toBeDisabled();
     if (trigger === "button") {
       await page.screenshot({ path: ".local-artifacts/workshop/save-name-prompt.png" });
       await name.press("Escape");
@@ -118,7 +133,6 @@ for (const trigger of ["button", "keyboard", "quick create", "details"] as const
       await expect(prompt).toHaveCount(0);
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
       await page.reload();
-      await setWorkshopMode(page, "advanced");
       await expect(page.getByLabel("Exercise name", { exact: true })).toHaveValue("Named from save prompt");
     }
   });
