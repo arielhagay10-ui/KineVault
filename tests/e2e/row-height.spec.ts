@@ -101,7 +101,8 @@ test("row start and finish heights move independently and survive private save/r
     await card.getByRole("button", { name: "Play", exact: true }).click();
     await page.waitForTimeout(scene.durationMs + 800);
     await card.getByRole("button", { name: "Pause", exact: true }).click();
-    await page.screenshot({ path: `${folder}/saved-library.png`, fullPage: true, timeout: 60_000 });
+    // CI retains failure screenshots; local visual reviews capture the saved library too.
+    if (!process.env.CI) await page.screenshot({ path: `${folder}/saved-library.png`, fullPage: true, timeout: 60_000 });
     expect(errors).toEqual([]);
   } finally {
     await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password });
