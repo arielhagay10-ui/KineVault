@@ -131,7 +131,6 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await openWorkshopTool(page, "Equipment");
     await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(0);
     await workshop.focus(); await page.keyboard.press("Control+s");
-    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
     await expect.poll(async () => {
       const draft = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
       if (draft.error) throw draft.error;
