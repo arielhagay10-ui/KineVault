@@ -78,9 +78,12 @@ test("Escape clears joints, equipment and body after menus and grip picking clos
   await enableWorkshopFreeDrag(page);
   const hand = page.getByRole("button", { name: /^Drag left hand$/i });
   await expect(hand).toBeVisible();
+  await hand.hover();
   const handle = (await hand.boundingBox())!;
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
   await page.mouse.down();
+  await expect(selected).toHaveValue("joint:left-wrist");
+  await expect(hand).toBeFocused();
   await page.mouse.move(handle.x + handle.width / 2 + 15, handle.y + handle.height / 2 - 15, { steps: 5 });
   await page.keyboard.press("Escape");
   await page.mouse.up();
