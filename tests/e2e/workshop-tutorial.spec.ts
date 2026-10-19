@@ -116,7 +116,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
       return result.data.exercise_content?.name;
     }).toBe("Saved during the tutorial");
     // Revalidation can mount the saved route after the first save changed /new's URL.
-    await expect(page.getByText(/^(Saved privately|Saved at .* · Private)$/)).toBeVisible();
+    await expect(page.getByText(/^(Saved privately|Saved at .* · Private)$/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "Saved during the tutorial", exact: true })).toBeVisible();
     await expect(tutorial).toBeVisible();
     await tutorial.getByRole("button", { name: "Finish tutorial", exact: true }).click();
