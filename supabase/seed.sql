@@ -134,6 +134,8 @@ from (values
   ('cable', 'single-cable', 'Single Cable'),
   ('cable', 'dual-cable', 'Dual Cable'),
   ('machine', 'lat-pulldown-machine', 'Lat Pulldown Machine'),
+  ('machine', 'smith-machine', 'Smith Machine'),
+  ('machine', 'leg-press', 'Leg Press'),
   ('machine', 'cable-row-machine', 'Cable Row'),
   ('machine', 'pec-deck', 'Pec Deck'),
   ('machine', 'lateral-raise-machine', 'Lateral Raise Machine'),

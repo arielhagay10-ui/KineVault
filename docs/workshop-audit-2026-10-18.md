@@ -115,3 +115,9 @@ Final verification: 803 unit tests, 71 worker checks, 725 isolated database chec
 Dependency review found no production alerts. Eight development alerts share an unpatched transitive `braces@3.0.3` advisory, [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm). The registry still offers 3.0.3; forcing audit fixes would downgrade unrelated toolchains. No dependency versions were changed.
 
 Before pushing, review the workshop changes together with their imported modules and shared fixtures. The workspace also contains substantial unrelated authentication, administration, design and asset changes; those have not received this review's full scope. Do not stage the whole workspace or the main workshop component alone. Physical-device checks and the complete application/browser/media matrix remain outside this audit.
+
+## Fresh-database CI follow-up
+
+CI exposed missing Smith-machine and leg-press taxonomy rows: the original machine migration ran before taxonomy seeding, and the seed omitted both. Migration `20261019060143_workshop_machine_taxonomy.sql` inserts the category and equipment idempotently; the seed now includes both machines. Two owner-save regressions fail before the repair and pass afterward. All 727 database checks pass with the full migration chain applied to an empty application schema. Apply the forward migration without resetting existing records.
+
+The isolated candidate also passes all 23 media tests and all four performance checks using the default Turbopack builder. Catalog initial JavaScript measures 169,126 bytes against the 200,000-byte limit. Local readiness records 66 passes and two skips across Chromium, WebKit and touch emulation; the 17 bundled-Firefox cases fail at process launch on this Windows host and require Linux CI. No performance budgets were raised.
