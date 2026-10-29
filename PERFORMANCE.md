@@ -1,5 +1,21 @@
 # Local performance checks
 
+## Beta follow-up, 22 October 2026
+
+Chrome production checks passed for public route transfer, lazy anatomy, and blank/held/machine workshop resource budgets. Installed Firefox 157.0.1 passed eight compatibility checks and 14 light/dark axe scans with zero violations. The checker now waits for the hydrated Account/Appearance trigger or the standalone workshop, rather than requiring a navigation control inside the workshop.
+
+The home mascot was served unoptimized at 825,262 transferred bytes despite a 240px desktop/96px phone display. Enabling Next.js image optimization with those display sizes reduced its measured desktop transfer to 10,107 bytes, 98.8% less. Home total cold transfer fell from 1,095,446 to 275,509 bytes, 74.8% less. Layout dimensions and original source artwork are retained. A 50,000-byte mascot budget now prevents regression.
+
+The matched route measurements use 1440 × 1000 Chrome, disabled browser cache and the same local production build configuration. Initial encoded JavaScript was 167,851 bytes on home, 168,867 on Explore and 166,151 on the fixture detail; none loaded a model before interaction. These are browser network measurements, not module-level bundle attribution, field Web Vitals, real-device FPS or a guarantee of production latency. SwiftShader workshop runs establish resource regression checks only.
+
+Evidence: `.local-artifacts/efficiency-review/home-mascot-before.json`, `home-mascot-after.json`, `blank-performance.json`, `held-performance.json`, `machine-performance.json`; Firefox `.local-artifacts/firefox-installed/66709b8c-88cf-4fa5-bc07-f390903671e5/results.json`. Desktop/mobile light/dark visuals were inspected through the production performance flow.
+
+## Workshop supports — 20 October 2026
+
+Matched production scenes ran three times each on Windows x64, Intel Core Ultra 9 275HX, at 1440 × 1000 using Chrome's SwiftShader renderer and Economy detail. Median p95 frame intervals were 129.1 ms without contacts and 112.5 ms with contacts (ratio 0.871; target ≤1.10). Each scene used 11 draw calls, recorded zero React commits during sampling, and added zero pose solves during camera-only movement. The existing route, lazy anatomy, blank, held-equipment and machine performance checks passed.
+
+These software-rendered timings establish the automated regression result, not smooth playback on a physical GPU. Device performance remains unverified. Raw samples, renderer identity and fixtures are in `.local-artifacts/supports/performance/matched-browser.json`; repeat with `tests/performance/workshop-supports.spec.ts` against a production build.
+
 Rechecked on 3 October 2026 using local Docker PostgreSQL, 50,000 synthetic exercises, normalized junctions, aliases, and `EXPLAIN (ANALYZE, BUFFERS)`. Catalog queries run as an anonymous visitor; duplicate detection runs as an authenticated draft owner. Fixtures stay in a UUID-named temporary database. Development records remain intact.
 
 | Scenario | Before optimization, ms | Latest run, ms |

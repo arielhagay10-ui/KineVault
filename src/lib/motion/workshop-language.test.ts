@@ -3,6 +3,10 @@ import { createWorkshopLanguage, parseLocalizedWorkshopNumber, workshopDirection
 import { workshopTutorialSteps } from "./workshop-tutorial";
 
 describe("workshop language", () => {
+  it("translates support placement and contact repair controls", () => {
+    const { t } = createWorkshopLanguage("he");
+    for (const text of ["Body part", "Body support", "Support on…", "Change support…", "Adjust position", "Reposition body", "Contact orientation degrees", "Left forearm", "Sit on floor", "This support stays anchored throughout the movement."]) expect(t(text)).toMatch(/[א-ת]/);
+  });
   it("translates the complete tutorial into Hebrew", () => {
     const { t } = createWorkshopLanguage("he");
     for (const step of workshopTutorialSteps) {
@@ -19,6 +23,7 @@ describe("workshop language", () => {
 
   it("substitutes named parameters and localizes compound labels", () => {
     const { t } = createWorkshopLanguage("he");
+    expect(t("Drag {limb}", { limb: "Left hand" })).toBe("גרירת יד שמאל");
     expect(t("Favorite {equipment}", { equipment: "Cable row" })).toBe("הוספת חתירה בכבל למועדפים");
     expect(t("Start Row pull percent")).toBe("התחלה משיכת חתירה באחוזים");
     expect(t("Enter a number from {min} to {max}.", { min: -1.5, max: 2 })).toMatch(/2/);

@@ -12,6 +12,7 @@ import { loadReviewContent, loadReviewOptions } from "@/lib/moderation/content";
 import { formatReviewValue, humanLabel, reviewFieldLabels, type ReviewField } from "@/lib/moderation/schema";
 import { loadWorkshopScene } from "@/lib/motion/load-scene";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader, secondaryActionClass } from "@/components/ui/page-layout";
 
 export default async function SubmissionReviewPage({ params, searchParams }: {
   params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -70,21 +71,18 @@ export default async function SubmissionReviewPage({ params, searchParams }: {
   const defaultSlug = candidate?.slug ?? (editorial?.name ?? original.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 120);
 
   return <div className="space-y-8">
-    <Link href="/admin/submissions" className="text-sm font-semibold text-primary">Review queue</Link>
-    <header><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{humanLabel(submission.status)}</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">{original.name}</h1>
-      <p className="mt-3 text-sm text-muted-foreground">{profile.data?.display_name || `Contributor ${submission.owner_id.slice(0, 8)}`} · {submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "Draft"} · Motion reuse {submission.allow_motion_reuse ? "allowed with attribution" : "not authorized"}</p>
-      {identity?.role === "admin" && <Link href={`/admin/roles?user=${submission.owner_id}`} className="mt-3 inline-block text-xs font-semibold text-primary">Manage contributor role</Link>}
-    </header>
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <section className="rounded-2xl border border-border bg-card p-5">
+    <PageHeader title={original.name} back={{ href: "/admin/submissions", label: "Review queue" }}
+      description={<>{humanLabel(submission.status)} · {profile.data?.display_name || `Contributor ${submission.owner_id.slice(0, 8)}`} · {submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "Draft"} · Motion reuse {submission.allow_motion_reuse ? "allowed with attribution" : "not authorized"}</>}
+      actions={identity?.role === "admin" && <Link href={`/admin/roles?user=${submission.owner_id}`} className={secondaryActionClass}>Manage contributor role</Link>} />
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="min-w-0 rounded-xl border border-border bg-card p-5">
         <h2 className="text-lg font-semibold">Demonstration</h2>
         {media?.webm || media?.mp4 ? <video controls muted loop playsInline preload="metadata" aria-label="Submitted motion demonstration" poster={media.poster ?? undefined} className="mt-4 aspect-square max-h-[550px] w-full rounded-xl bg-muted object-contain">
           {media.webm && <source src={media.webm} type="video/webm" />}{media.mp4 && <source src={media.mp4} type="video/mp4" />}
         </video> : <p className="mt-4 text-sm text-muted-foreground">Render: {renderJob?.status ?? "Not queued"}{renderJob?.error_code ? ` (${humanLabel(renderJob.error_code)})` : ""}.</p>}
         {scene && <details className="mt-5"><summary className="cursor-pointer text-sm font-semibold text-primary">Inspect motion source and camera views</summary><SharedMotion scene={scene} /></details>}
       </section>
-      <section className="rounded-2xl border border-border bg-card p-5"><h2 className="mb-5 text-lg font-semibold">Review decision</h2>
+      <section className="min-w-0 rounded-xl border border-border bg-card p-5"><h2 className="mb-5 text-lg font-semibold">Review decision</h2>
       <ReviewDecisions key={submission.status} submissionId={id} status={submission.status} defaultSlug={defaultSlug}
           targets={[...targets.values()]} relatedId={target?.id ?? null} renderFailed={renderJob?.status === "failed"} disabled={disabled} candidate={candidate} />
       {publishedVersion?.exercises && <Link href={`/exercises/${publishedVersion.exercises.slug}`} className="mt-4 inline-block text-sm font-semibold text-primary underline">View exercise</Link>}
@@ -96,9 +94,9 @@ export default async function SubmissionReviewPage({ params, searchParams }: {
     </section>}
     <section className="rounded-2xl border border-border bg-card p-5">
       <h2 className="text-lg font-semibold">Compare with the public database</h2>
-      <form className="mt-4 flex gap-3"><label className="sr-only" htmlFor="comparison-search">Exercise name</label>
-        <input id="comparison-search" name="q" maxLength={100} defaultValue={search} placeholder="Find another exercise by name" className="min-w-0 flex-1 rounded-xl border border-border px-4 py-2.5 text-sm" />
-        <button className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">Search</button>
+      <form role="search" className="mt-4 flex flex-wrap gap-3"><label className="sr-only" htmlFor="comparison-search">Exercise name</label>
+        <input id="comparison-search" name="q" maxLength={100} defaultValue={search} placeholder="Find another exercise by name" className="min-h-11 min-w-0 flex-1 basis-52 rounded-xl border border-input bg-card px-4 text-sm" />
+        <button className={secondaryActionClass}>Search</button>
       </form>
       <div className="mt-4 flex flex-wrap gap-2">{[...targets.values()].map((item) => <Link key={item.id} href={`/admin/submissions/${id}?compare=${item.id}${search ? `&q=${encodeURIComponent(search)}` : ""}`}
         className={`rounded-lg border px-3 py-2 text-sm ${item.id === target?.id ? "border-primary bg-muted" : "border-border"}`}>{item.name}</Link>)}</div>

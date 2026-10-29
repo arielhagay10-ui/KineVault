@@ -1,17 +1,29 @@
 import { z } from "zod";
-import { cableAttachmentSlugs, jointLimits, jointSlugs, studioAssetSlugs } from "./workshop";
+import { bandAnchorTargets, cableAttachmentSlugs, jointLimits, jointSlugs, studioAssetSlugs, supportRegions, selfSupportSurfaces } from "./workshop";
 import { maxPulleyHeight, studioAttachmentSlots } from "./studio";
 import { isStudioMachine } from "./studio-machines";
 import { equipmentGripHands } from "./equipment-capabilities";
 
 const finite = z.number().finite();
+const bandAnchor = z.object({
+  target: z.enum(bandAnchorTargets), objectId: z.uuid().optional(),
+  point: z.object({ x: finite.min(-10).max(10), y: finite.min(-10).max(10), z: finite.min(-10).max(10) }).strict(),
+}).strict();
 const transformFields = {
   x: finite.min(-10).max(10), y: finite.min(-3).max(10), z: finite.min(-10).max(10),
   rotationX: finite.min(-180).max(180), rotationY: finite.min(-180).max(180), rotationZ: finite.min(-180).max(180),
   scale: finite.min(0.5).max(2),
 };
+const seatOffsetFields = { seatOffsetX: finite.min(-.1).max(.1).optional(), seatOffsetZ: finite.min(-.12).max(.12).optional() };
 export const studioLayoutSchema = z.object({
   body: z.object(transformFields).strict(),
+  supports: z.array(z.object({
+    region: z.enum(supportRegions), objectId: z.uuid().nullable(), surface: z.enum(["floor", "seat", "pad", "body", ...selfSupportSurfaces]),
+    point: z.object({ x: finite.min(-10).max(10), y: finite.min(-10).max(10), z: finite.min(-10).max(10) }).strict(),
+    normal: z.object({ x: finite.min(-1).max(1), y: finite.min(-1).max(1), z: finite.min(-1).max(1) }).strict()
+      .refine(value => Math.abs(value.x ** 2 + value.y ** 2 + value.z ** 2 - 1) <= 0.001, "Support normal must be a unit vector"),
+    turn: finite.min(-180).max(180),
+  }).strict()).max(13).optional(),
   frontalPlane: z.boolean().optional(),
   seating: z.object({ benchId: z.uuid(), facing: z.enum(["front", "left", "right", "back", "supine", "prone"]) }).strict().optional(),
   presentation: z.object({
@@ -22,10 +34,20 @@ export const studioLayoutSchema = z.object({
     ...transformFields, id: z.uuid(), name: z.string().trim().min(1).max(60), slug: z.enum(studioAssetSlugs),
     attachment: z.enum(["none", "left", "right", "both"]), pulleyHeight: finite.min(0.2).max(maxPulleyHeight),
     poseDriver: z.enum(["arm", "weight", "left-arm", "right-arm"]).optional(),
-    frames: z.array(z.object({ ...transformFields, timeMs: z.number().int().min(0).max(60_000), machinePosition: finite.min(0).max(1).optional(), machineHandleHeight: finite.min(0.7).max(1.85).optional() }).strict()).min(1).max(24).optional(),
+    frames: z.array(z.object({ ...transformFields, ...seatOffsetFields, timeMs: z.number().int().min(0).max(60_000), machinePosition: finite.min(0).max(1).optional(), machineHandleHeight: finite.min(0.7).max(1.85).optional(), machinePositionLeft: finite.min(0).max(1).optional(), machinePositionRight: finite.min(0).max(1).optional() }).strict()).min(1).max(24).optional(),
+    ...seatOffsetFields,
+    seatFootSupport: z.boolean().optional(),
+    pressGrip: z.enum(["wide", "neutral", "angled"]).optional(),
     machinePosition: finite.min(0).max(1).optional(),
+    machinePositionLeft: finite.min(0).max(1).optional(),
+    machinePositionRight: finite.min(0).max(1).optional(),
+    rowSeatHeight: finite.min(.56).max(.78).optional(),
+    rowGrip: z.enum(["neutral", "wide"]).optional(),
+    rowFootSupport: z.boolean().optional(),
     machineHandleHeight: finite.min(0.7).max(1.85).optional(),
     machineUse: z.boolean().optional(),
+    machineRange: z.object({ min: finite.min(.3).max(3.05), max: finite.min(.3).max(3.05) }).strict().refine(range => range.max - range.min >= .1, "Bar range must span at least 10 cm").optional(),
+    band: z.object({ start: bandAnchor, end: bandAnchor, length: finite.min(.2).max(6) }).strict().optional(),
     machineGrip: z.enum(["supinated", "pronated"]).optional(),
     machineMode: z.enum(["regular", "reverse"]).optional(),
     machinePalm: z.enum(["inward", "outward"]).optional(),
@@ -47,8 +69,42 @@ export const studioLayoutSchema = z.object({
   if (new Set(layout.objects.map(object => object.id)).size !== layout.objects.length) context.addIssue({ code: "custom", path: ["objects"], message: "Scene object IDs must be unique" });
   if (layout.seating && !layout.objects.some(object => object.id === layout.seating!.benchId && object.slug === "bench")) context.addIssue({ code: "custom", path: ["seating", "benchId"], message: "Seating requires a bench in the scene" });
   const hands = new Set<string>();
+  const regions = new Set<string>();
+  layout.supports?.forEach((contact, index) => {
+    const issue = (message: string) => context.addIssue({ code: "custom", path: ["supports", index], message });
+    if (regions.has(contact.region)) issue("A body region can have one support");
+    regions.add(contact.region);
+    const object = layout.objects.find(item => item.id === contact.objectId);
+    const self = selfSupportSurfaces.some(surface => surface === contact.surface);
+    if (self ? contact.objectId !== null || !/-(hand|forearm|elbow)$/.test(contact.region) : contact.objectId === null ? contact.surface !== "floor" : !object || (object.slug === "bench" ? !["seat", "pad"].includes(contact.surface) : contact.surface !== "body")) issue("Select a valid support surface");
+    if (object && object.attachment !== "none" && ["dumbbell", "barbell", "kettlebell"].includes(object.slug)) issue("Release this weight before using it as a support");
+    if (object?.slug === "resistance-band") issue("Choose a solid support surface");
+    if (contact.surface === "floor" && (Math.abs(contact.point.y) > 1e-6 || Math.abs(contact.normal.x) > 1e-6 || Math.abs(contact.normal.y - 1) > 1e-6 || Math.abs(contact.normal.z) > 1e-6)) issue("Floor supports must lie on the floor and face upward");
+    if (layout.seating) issue("Convert bench seating before adding supports");
+    if (layout.objects.some(item => item.machineUse)) issue("Release machine controls before adding supports");
+    for (const side of ["left", "right"] as const) {
+      if (!contact.region.startsWith(`${side}-`)) continue;
+      if (contact.region === `${side}-hand` && layout.objects.some(item => studioAttachmentSlots(item).some(slot => slot === `${side}-hand` || slot === `${side}-wrist`))) issue("Release held equipment before supporting this hand");
+      if (contact.region === `${side}-forearm` && layout.objects.some(item => studioAttachmentSlots(item).some(slot => slot === `${side}-hand` || slot === `${side}-wrist`))) issue("Use an elbow support or release held equipment before supporting this forearm");
+      if ([`${side}-hand`, `${side}-forearm`, `${side}-elbow`].includes(contact.region) && layout.objects.some(item => item.elbowLocks?.[side])) issue("Release the elbow lock before supporting this arm");
+    }
+  });
   if (layout.objects.filter(object => object.machineUse).length > 1) context.addIssue({ code: "custom", path: ["objects"], message: "Use one machine at a time" });
   for (const [index, object] of layout.objects.entries()) {
+    if (!["row-machine", "t-bar-row-machine"].includes(object.slug) && (object.rowGrip !== undefined || object.rowFootSupport !== undefined)) context.addIssue({ code: "custom", path: ["objects", index], message: "Row grips and foot supports require a row machine" });
+    if (object.slug !== "row-machine" && object.rowSeatHeight !== undefined) context.addIssue({ code: "custom", path: ["objects", index, "rowSeatHeight"], message: "Row seat requires a seated plate-loaded row" });
+    if (!["row-machine", "shoulder-press-machine", "chest-press-machine"].includes(object.slug) && (object.machinePositionLeft !== undefined || object.machinePositionRight !== undefined || object.frames?.some(frame => frame.machinePositionLeft !== undefined || frame.machinePositionRight !== undefined))) context.addIssue({ code: "custom", path: ["objects", index], message: "Independent levers require a row or shoulder press" });
+    if (!["bench", "row-machine", "shoulder-press-machine", "chest-press-machine", "lat-pulldown-machine", "cable-row-machine", "pec-deck", "leg-press"].includes(object.slug) && (object.seatOffsetX !== undefined || object.seatOffsetZ !== undefined || object.seatFootSupport !== undefined || object.frames?.some(frame => frame.seatOffsetX !== undefined || frame.seatOffsetZ !== undefined))) context.addIssue({ code: "custom", path: ["objects", index], message: "Seat controls require seated equipment" });
+    if (object.slug === "leg-press" && object.seatFootSupport === false) context.addIssue({ code: "custom", path: ["objects", index, "seatFootSupport"], message: "Leg press requires sled foot contacts" });
+    if (object.pressGrip !== undefined && (object.slug !== "chest-press-machine" && object.slug !== "shoulder-press-machine" || object.slug === "shoulder-press-machine" && object.pressGrip === "angled")) context.addIssue({ code: "custom", path: ["objects", index, "pressGrip"], message: "Press grip requires a shoulder press" });
+    if (object.machineRange && object.slug !== "smith-machine") context.addIssue({ code: "custom", path: ["objects", index, "machineRange"], message: "Bar range requires a Smith machine" });
+    if (object.band) {
+      if (object.slug !== "resistance-band") context.addIssue({ code: "custom", path: ["objects", index, "band"], message: "Band anchors require a resistance band" });
+      for (const end of ["start", "end"] as const) {
+        const anchor = object.band[end];
+        if (anchor.target === "equipment" ? !layout.objects.some(item => item.id === anchor.objectId && item.id !== object.id && item.slug !== "resistance-band") : anchor.objectId !== undefined) context.addIssue({ code: "custom", path: ["objects", index, "band", end], message: "Choose equipment in this scene for the band anchor" });
+      }
+    }
     if (object.poseDriver !== undefined && !["dumbbell", "barbell", "kettlebell"].includes(object.slug)) context.addIssue({ code: "custom", path: ["objects", index, "poseDriver"], message: "Pose driving requires a held weight" });
     if (object.slug !== "cable-row-machine") {
       if (object.machineHandleHeight !== undefined) context.addIssue({ code: "custom", path: ["objects", index, "machineHandleHeight"], message: "Handle height requires a cable row" });
@@ -61,7 +117,7 @@ export const studioLayoutSchema = z.object({
     if (object.machineGrip !== undefined && object.slug !== "lat-pulldown-machine") context.addIssue({ code: "custom", path: ["objects", index, "machineGrip"], message: "Grip selection requires a pulldown machine" });
     if ((object.machinePosition !== undefined || object.machineUse !== undefined || object.frames?.some(frame => frame.machinePosition !== undefined)) && !isStudioMachine(object.slug)) context.addIssue({ code: "custom", path: ["objects", index, "slug"], message: "Machine controls require a machine" });
     if (object.machineUse && layout.seating) context.addIssue({ code: "custom", path: ["objects", index, "machineUse"], message: "Stand up from the bench before using a machine" });
-    if (object.machineUse && layout.objects.some(item => item.attachment !== "none" && !(item.id === object.id && item.slug === "cable-row-machine" && item.cableAttachment))) context.addIssue({ code: "custom", path: ["objects", index, "machineUse"], message: "Release held equipment before using a machine" });
+    if (object.machineUse && layout.objects.some(item => item.attachment !== "none" && !(item.id === object.id && (["row-machine", "t-bar-row-machine", "shoulder-press-machine", "chest-press-machine"].includes(item.slug) || item.slug === "cable-row-machine" && item.cableAttachment)))) context.addIssue({ code: "custom", path: ["objects", index, "machineUse"], message: "Release held equipment before using a machine" });
     if (object.benchAngle !== undefined && object.slug !== "bench") context.addIssue({ code: "custom", path: ["objects", index, "benchAngle"], message: "Only benches have a pad angle" });
     if (object.cableAttachment !== undefined && !["cable-machine", "cable-row-machine"].includes(object.slug)) context.addIssue({ code: "custom", path: ["objects", index, "cableAttachment"], message: "Only cable machines have cable attachments" });
     if (object.cuffPosition !== undefined && !["cable-machine", "cable-row-machine"].includes(object.slug)) context.addIssue({ code: "custom", path: ["objects", index, "cuffPosition"], message: "Cuff placement requires a cable machine" });

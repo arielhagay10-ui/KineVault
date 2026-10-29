@@ -2,6 +2,16 @@ import { expect, it } from "vitest";
 import type { StudioEditor } from "@/components/character/studio-controls";
 import { canBeginStudioDrag, canUseStudioLimbNudge, canUseStudioMachineHandle, workshopEditorForInteraction } from "./workshop-interaction";
 
+it("preserves explicit support interaction locks when the canvas is editable", () => {
+  const editor = { interactionEnabled: false, directDragging: true, tool: "select", playing: false,
+    supportEdit: { region: "left-hand", picking: true, adjusting: false } } as StudioEditor;
+  const effective = workshopEditorForInteraction(editor, true)!;
+  expect(effective.interactionEnabled).toBe(false);
+  expect(canBeginStudioDrag(effective, { kind: "body" }, 0)).toBe(false);
+  expect(canUseStudioMachineHandle(effective)).toBe(false);
+  expect(effective.supportEdit).toEqual(editor.supportEdit);
+});
+
 it("finishes elbow capture and reports reach in Camera mode without allowing pointer drag", () => {
   let capturePending = true;
   const elbowLocks: Record<string, { x: number; y: number; z: number }> = {};

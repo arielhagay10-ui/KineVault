@@ -38,7 +38,7 @@ test("single editor preserves private creation, recovery, picker, RTL and mobile
     await page.goto("/my-exercises/new");
     await dismissWorkshopTutorial(page);
     await expect(page.getByRole("button", { name: /^(Quick create|Advanced editing)$/, includeHidden: true })).toHaveCount(0);
-    for (const name of ["Equipment", "Position", "Contacts", "Pose", "Timeline", "View", "Setups", "Settings"]) {
+    for (const name of ["Item settings", "Position", "Contacts", "Pose", "Timeline", "View", "Setups", "Settings"]) {
       await openWorkshopTool(page, name);
       await expect(page.getByRole("tab", { name, exact: true, includeHidden: true })).toHaveAttribute("aria-selected", "true");
     }
@@ -153,7 +153,7 @@ test("finish inspection keeps the editing pose and animated placement locked", a
     await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("-1");
     await expect(page.getByLabel("Editing pose", { exact: true }).locator("option:checked")).toContainText("New pose");
     await expect(page.getByLabel("Editing pose", { exact: true }).locator("option")).toHaveCount(3);
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption({ label: "Cable row" });
     await openWorkshopTool(page, "Position");
     await expandWorkshopControls(page, "Precise placement");

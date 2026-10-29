@@ -39,7 +39,10 @@ export function MediaGallery({ groups, annotations = [] }: { groups: MediaGroup[
         {current.mp4 && <source src={current.mp4} type="video/mp4" />}
       </video>
     </div>
-    {failed && <p role="alert" className="mt-3 text-sm text-muted-foreground">The demonstration could not be loaded. Reload to try again.</p>}
+    {failed && <div role="alert" className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+      <p className="text-muted-foreground">The demonstration could not be loaded. Reload this page to try again.</p>
+      <button type="button" onClick={() => window.location.reload()} className="min-h-11 rounded-lg border border-input bg-card px-4 font-medium text-primary hover:bg-muted">Reload demonstration</button>
+    </div>}
     <div className="mt-4 flex flex-wrap items-center gap-4">
       {presentations.length > 1 && <label className="text-sm">Character
         <select value={current.presentation} className="ml-2 rounded-lg border bg-card p-2 capitalize" onChange={(event) => {

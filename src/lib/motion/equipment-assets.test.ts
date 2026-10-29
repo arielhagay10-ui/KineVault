@@ -2,9 +2,12 @@ import { readFile } from "node:fs/promises";
 import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Triangle, Vector3, type Object3D } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { describe, expect, it, vi } from "vitest";
+import { legPressSolePoint } from "./leg-press";
 import { attachmentAssets, createEquipmentAssetInstance, disposeEquipmentAsset, equipmentAssets, equipmentAssetsSettled, updateCableAttachmentScale, updateEquipmentAsset } from "./equipment-assets";
 import { createQuickScene } from "./quick-create";
 import { machineCarriagePoint, machineHandlePoint } from "./studio-machines";
+import { plateRow } from "./plate-row";
+import { tBarRow } from "./t-bar-row";
 
 function source() {
   const root = new Group();
@@ -34,6 +37,46 @@ function surfaceDistance(root: Object3D, point: Vector3) {
 }
 
 describe("equipment assets", () => {
+  it("keeps T-bar grips, chest pad and foot platforms on the shipped mesh", async () => {
+    const definition = equipmentAssets["t-bar-row-machine"], bytes = await readFile(`public${definition.url}`);
+    const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const asset = createEquipmentAssetInstance(gltf.scene, definition);
+    try {
+      const normal = new Vector3(0, 0, -1).applyAxisAngle(new Vector3(1, 0, 0), tBarRow.padAngle);
+      expect(surfaceDistance(asset.groups.Static, tBarRow.pad.clone().addScaledVector(normal, .07))).toBeLessThan(.002);
+      for (const sign of [-1, 1]) {
+        const top = new Vector3(0, .02, 0).applyAxisAngle(new Vector3(1, 0, 0), tBarRow.foot.angle)
+          .add(new Vector3(sign * .24, .26, -.79));
+        expect(surfaceDistance(asset.groups.Static, top)).toBeLessThan(.007);
+      }
+      for (let i = 0; i <= 16; i++) {
+        const object = { ...createQuickScene("t-bar-row-machine").studio!.objects[0], machinePosition: i / 16 };
+        updateEquipmentAsset(asset, object);
+        for (const side of ["left", "right"] as const) {
+          expect(surfaceDistance(asset.groups.Lever, machineHandlePoint(object, side))).toBeLessThan(.026);
+        }
+      }
+    } finally { disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene); }
+  });
+  it("keeps the row seat, chest pad and footplates on their rendered contact surfaces", async () => {
+    const definition = equipmentAssets["row-machine"], bytes = await readFile(`public${definition.url}`);
+    const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const asset = createEquipmentAssetInstance(gltf.scene, definition);
+    try {
+      for (const height of [plateRow.seat.min, plateRow.seat.standard, plateRow.seat.max]) {
+        const object = { ...createQuickScene("row-machine").studio!.objects[0], rowSeatHeight: height };
+        updateEquipmentAsset(asset, object);
+        expect(surfaceDistance(asset.groups.Seat, new Vector3(0, height, plateRow.seat.z))).toBeLessThan(.002);
+        expect(surfaceDistance(asset.groups.Static, new Vector3(0, height + .697, plateRow.pad.z - .07))).toBeLessThan(.004);
+        for (const sign of [-1, 1]) {
+          const top = new Vector3(0, plateRow.foot.thickness / 2, 0)
+            .applyAxisAngle(new Vector3(1, 0, 0), plateRow.foot.angle)
+            .add(new Vector3(sign * plateRow.foot.x, plateRow.foot.y, plateRow.foot.z));
+          expect(surfaceDistance(asset.groups.Static, top)).toBeLessThan(.002);
+        }
+      }
+    } finally { disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene); }
+  });
   it("keeps rigid cable grips full-sized when the solver has no cuff radius", () => {
     const group = new Group();
     group.add(new Mesh(new BoxGeometry(.68, .05, .05), new MeshStandardMaterial()));
@@ -159,7 +202,7 @@ describe("equipment assets", () => {
     disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene);
   });
 
-  it("keeps the complete equipment library below 3 MB without external textures", async () => {
+  it("keeps the expanded equipment library below 4.2 MB without external textures", async () => {
     let total = 0;
     for (const definition of [...Object.values(equipmentAssets), ...Object.values(attachmentAssets)]) {
       const bytes = await readFile(`public${definition.url}`);
@@ -169,7 +212,7 @@ describe("equipment assets", () => {
       expect(document.images ?? []).toEqual([]);
       expect(document.buffers.every((buffer: { uri?: string }) => !buffer.uri)).toBe(true);
     }
-    expect(total).toBeLessThan(3_000_000);
+    expect(total).toBeLessThan(4_200_000);
   });
 
   it.each(["smith-machine", "leg-press", "cable-row-machine", "pec-deck"] as const)("moves %s GLB groups with the solver at 17 samples", async slug => {
@@ -192,11 +235,26 @@ describe("equipment assets", () => {
           const grip = machineHandlePoint(sampled, side);
           const bounds = new Box3().setFromObject(asset.groups.Handles).expandByScalar(.05);
           if (slug === "leg-press") {
-            const carriage = machineCarriagePoint(sampled);
-            const foot = new Vector3(side === "left" ? .17 : -.17, carriage.y - .085, carriage.z - .085);
+            const foot = legPressSolePoint(sampled, side);
             expect(surfaceDistance(asset.groups.Handles, foot)).toBeLessThan(.005);
           } else expect(bounds.containsPoint(grip)).toBe(true);
         }
+      }
+    }
+    disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene);
+  });
+
+  it.each(["row-machine", "shoulder-press-machine", "chest-press-machine"] as const)("keeps %s pivots and grips on the rendered levers at 17 samples", async slug => {
+    const definition = equipmentAssets[slug];
+    const bytes = await readFile(`public${definition.url}`);
+    const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const asset = createEquipmentAssetInstance(gltf.scene, definition);
+    const object = createQuickScene(slug).studio!.objects[0];
+    for (let step = 0; step <= 16; step++) {
+      const sampled = { ...object, machinePosition: step / 16 };
+      updateEquipmentAsset(asset, sampled);
+      for (const [side, lever] of [["left", asset.groups.LeftLever], ["right", asset.groups.RightLever]] as const) {
+        expect(surfaceDistance(lever, machineHandlePoint(sampled, side))).toBeLessThan(.03);
       }
     }
     disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene);

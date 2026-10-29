@@ -20,8 +20,8 @@ export function OverlayScrollbars() {
       }
       for (const element of pending) {
         if (!element.isConnected || element === document.documentElement || element instanceof HTMLTextAreaElement || instances.has(element)) continue;
-        // Reparenting an open dialog removes it from WebKit's native modal layer.
-        if (element.querySelector("dialog[open]")) continue;
+        // Reparenting removes open dialogs and popovers from the native top layer.
+        if (element.querySelector("dialog[open], [popover]:popover-open")) continue;
         const style = getComputedStyle(element);
         if (element !== document.body && !/auto|scroll/.test(`${style.overflowX} ${style.overflowY}`)) continue;
         const originalPosition = element.style.position;
@@ -63,7 +63,7 @@ export function OverlayScrollbars() {
     document.addEventListener("scroll", onInteraction, { passive: true, capture: true });
     const onResize = () => {
       // Rebuilding ancestors can exit fullscreen or remove native dialog modality.
-      if (pointers.size || document.fullscreenElement || document.querySelector("dialog[open]")) {
+      if (pointers.size || document.fullscreenElement || document.querySelector("dialog[open], [popover]:popover-open")) {
         instances.forEach(instance => instance.update(true));
         return;
       }

@@ -88,7 +88,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await page.reload(); await expect(name).toHaveValue("Keyboard fixture saved");
     await inspectMachineMoment(page, "Cable row", "Finish");
     await expect(travel).toHaveValue("31");
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await workshop.focus(); await page.keyboard.press("Control+d");
     await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(1);
     await page.keyboard.press("Control+z");
@@ -97,7 +97,7 @@ test("workshop shortcuts edit scenes, respect controls and save pending field ed
     await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(1);
     const copiedRow = page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true });
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption((await copiedRow.getAttribute("value"))!);
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await workshop.focus(); await page.keyboard.press("Delete");
     await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).getByRole("option", { name: /^Cable row copy(?: \d+)?$/, exact: true })).toHaveCount(0);
     await page.keyboard.press("Control+z");

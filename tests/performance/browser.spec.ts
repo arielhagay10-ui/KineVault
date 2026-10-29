@@ -48,18 +48,23 @@ test("verified production route transfer, lazy anatomy and workshop resource bas
       const responses = [...network.values()];
       const posters = responses.filter(item => item.mime === "image/webp");
       const transfer = { requests: responses.length, bytes: responses.reduce((sum, item) => sum + item.bytes, 0),
-        posterBytes: posters.reduce((sum, item) => sum + item.bytes, 0), largestPosterBytes: Math.max(0, ...posters.map(item => item.bytes)) };
+        posterBytes: posters.reduce((sum, item) => sum + item.bytes, 0), largestPosterBytes: Math.max(0, ...posters.map(item => item.bytes)),
+        mascotBytes: responses.filter(item => item.url.includes("home-mascot.png")).reduce((sum, item) => sum + item.bytes, 0) };
       // CDP includes cross-origin image bytes hidden by Resource Timing without TAO headers.
       Object.assign(measured, { network: transfer });
       result[route] = measured;
       expect(measured.modelRequests, `${route} must not load anatomy until requested`).toBe(0);
       expect(measured.jsBytes, `${route} initial JS budget`).toBeLessThan(200_000);
       expect(transfer.requests, `${route} bounded initial requests`).toBeLessThan(65);
+      if (route === "/") {
+        expect(transfer.mascotBytes, "Visible home mascot must load").toBeGreaterThan(0);
+        expect(transfer.mascotBytes, "Home mascot transfer budget").toBeLessThan(50_000);
+      }
       for (const theme of ["light", "dark"]) for (const mobile of [false, true]) {
         await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 });
-        await page.getByRole("button", { name: "Site menu", exact: true }).click();
+        await page.getByRole("button", { name: /^(Appearance|Account)$/ }).click();
         await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
-        await page.getByRole("button", { name: "Close menu", exact: true }).click();
+        await page.getByRole("button", { name: "Close account options", exact: true }).click();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         const label = route === "/" ? "home" : route.split("/").filter(Boolean).join("-");
         await page.screenshot({ path: `.local-artifacts/efficiency-review/${label}-${mobile ? "mobile" : "desktop"}-${theme}.png`, fullPage: true });
@@ -195,9 +200,9 @@ test("verified production route transfer, lazy anatomy and workshop resource bas
     for (const theme of ["light", "dark"]) for (const mobile of [false, true]) {
       await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 });
       await page.goto("/my-exercises");
-      await page.getByRole("button", { name: "Site menu", exact: true }).click();
+      await page.getByRole("button", { name: /^(Appearance|Account)$/ }).click();
       await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
-      await page.getByRole("button", { name: "Close menu", exact: true }).click();
+      await page.getByRole("button", { name: "Close account options", exact: true }).click();
       await page.goto("/my-exercises/new?metrics=1");
       if (mobile) await page.getByRole("button", { name: "Preview", exact: true }).click();
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
@@ -268,7 +273,7 @@ for (const workload of ["blank", "held", "machine"] as const satisfies readonly 
       // invalidates a device profile if its render dimensions change mid-capture.
       await openWorkshopTool(page, "View");
       await page.getByLabel("Preview detail", { exact: true }).selectOption("economy");
-      await openWorkshopTool(page, "Equipment");
+      await openWorkshopTool(page, "Item settings");
       await page.getByRole("button", { name: "Camera", exact: true }).click();
       await page.waitForTimeout(1000);
       const sample = () => viewer.evaluate(element => {

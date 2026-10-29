@@ -1,7 +1,7 @@
 import { openWorkshopDeviceRecovery } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { addWorkshopEquipment, setWorkshopLanguage } from "./workshop-menu.helpers";
+import { addWorkshopEquipment, openWorkshopMenu, setWorkshopLanguage } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -31,7 +31,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     await page.goto("/my-exercises/new");
     const tutorial = page.getByRole("dialog", { name: "Workshop tutorial", exact: true });
     await expect(tutorial.getByRole("heading", { name: "Set up your scene", exact: true })).toBeVisible();
-    await expect(page.locator('[data-tutorial-target="equipment"]')).toHaveAttribute("data-tutorial-active", "true");
+    await expect(page.getByRole("button", { name: "Add equipment", exact: true })).toHaveAttribute("data-tutorial-active", "true");
     await expect(page.locator("[data-tutorial-spotlight]")).toBeVisible();
     await expect(page.locator("[data-tutorial-dimmer]")).toBeVisible();
     const desktopPanel = await tutorial.boundingBox();
@@ -51,7 +51,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     await expect(tutorial.getByRole("heading", { name: "Build the movement", exact: true })).toBeVisible();
     await openWorkshopDeviceRecovery(page);
     await page.getByRole("button", { name: "Restore device draft", exact: true }).click();
-    await expect(page.locator('[data-tutorial-target="pose"]')).toHaveAttribute("data-tutorial-active", "true");
+    await expect(page.getByRole("combobox", { name: "Body joint", exact: true })).toHaveAttribute("data-tutorial-active", "true");
     await expect.poll(async () => {
       const spotlight = await page.locator("[data-tutorial-spotlight]").boundingBox();
       const controls = await page.locator('[data-tutorial-target="pose"]').boundingBox();
@@ -60,14 +60,15 @@ test("tutorial points to usable controls, resumes and remains optional on later 
         && Math.abs(spotlight.y - controls.y + 5) < 1
         && Math.abs(spotlight.height - controls.height - 10) < 1;
     }).toBe(true);
+    await expect(tutorial).toContainText("or select it directly in the scene");
     await page.screenshot({ path: ".local-artifacts/workshop/tutorial/desktop-pose.png" });
     await page.getByRole("button", { name: "Capture start", exact: true }).click();
     await selectWorkshopMoment(page, "Finish");
-    await expect(page.locator('[data-tutorial-target="pose"]')).toHaveAttribute("data-tutorial-active", "true");
+    await expect(page.getByRole("combobox", { name: "Body joint", exact: true })).toHaveAttribute("data-tutorial-active", "true");
     await tutorial.getByRole("button", { name: "Close tutorial", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Tutorial", exact: true })).toBeFocused();
+    await expect(page.locator("[data-workshop-menu] > summary")).toBeFocused();
     await page.reload();
-    await expect(page.getByRole("button", { name: "Tutorial", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("button", { name: "Tutorial", exact: true, includeHidden: true })).toHaveAttribute("aria-expanded", "false");
     await openWorkshopDeviceRecovery(page);
     await page.getByRole("button", { name: "Restore device draft", exact: true }).click();
     await page.getByRole("button", { name: "Capture start", exact: true }).click();
@@ -80,16 +81,19 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     try {
       const next = await cleanContext.newPage();
       await next.goto("/my-exercises/new");
+      await openWorkshopMenu(next);
       await expect(next.getByRole("button", { name: "Tutorial", exact: true })).toHaveAttribute("aria-expanded", "false");
       await next.getByRole("button", { name: "Tutorial", exact: true }).click();
       await expect(next.getByRole("dialog", { name: "Workshop tutorial", exact: true })).toBeVisible();
       await next.getByRole("button", { name: "Close tutorial", exact: true }).click();
     } finally { await cleanContext.close(); }
     await setWorkshopLanguage(page, "he");
+    await openWorkshopMenu(page);
     await page.getByRole("button", { name: "מדריך", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "מדריך הסדנה", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "סגירת המדריך", exact: true }).click();
     await setWorkshopLanguage(page, "en");
+    await openWorkshopMenu(page);
     await page.getByRole("button", { name: "Tutorial", exact: true }).click();
     for (let index = 0; index < 3; index++) {
       await tutorial.getByRole("button", { name: "Next tip", exact: true }).click();
@@ -122,6 +126,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     await tutorial.getByRole("button", { name: "Finish tutorial", exact: true }).click();
     await expect(tutorial).toHaveCount(0);
     await page.setViewportSize({ width: 390, height: 844 });
+    await openWorkshopMenu(page);
     await page.getByRole("button", { name: "Tutorial", exact: true }).click();
     await expect(tutorial.getByRole("heading", { name: "Set up your scene", exact: true })).toBeInViewport();
     const mobilePanel = await tutorial.boundingBox();

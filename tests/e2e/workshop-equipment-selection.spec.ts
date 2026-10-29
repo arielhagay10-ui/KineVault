@@ -43,7 +43,7 @@ test("essentials come first and double-click selects equipment for safe keyboard
     const objects = page.getByRole("combobox", { name: "Selected item", exact: true });
     await expect(page.getByRole("button", { name: /^(Quick create|Advanced editing)$/, includeHidden: true })).toHaveCount(0);
     await addWorkshopEquipment(page, "Barbell");
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(1);
     await expect(objects.getByRole("option", { name: "Barbell", exact: true })).toHaveCount(1);
     await page.getByRole("button", { name: "Undo", exact: true }).click();
@@ -104,16 +104,35 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await expandWorkshopControls(page, "Precise placement");
     await expect(page.getByRole("textbox", { name: "Position X meters", exact: true })).toHaveValue("1.4");
     await expect(page.getByRole("textbox", { name: "Position Y meters", exact: true })).toHaveValue("1.1");
+    await workshop.focus();
+    await page.keyboard.press("l");
+    await expect(page.getByRole("button", { name: "Unlock placement", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("textbox", { name: "Position X meters", exact: true })).toBeDisabled();
+    await page.getByRole("button", { name: "Camera", exact: true }).click();
+    await doubleClickWeight();
+    await expect(page.getByRole("button", { name: "Unlock placement", exact: true })).toBeVisible();
+    await page.keyboard.press("l");
+    await expect(page.getByRole("button", { name: "Lock placement", exact: true })).toHaveAttribute("aria-pressed", "false");
+    await openWorkshopTool(page, "Position");
+    await expandWorkshopControls(page, "Precise placement");
+    await expect(page.getByRole("textbox", { name: "Position X meters", exact: true })).toBeEnabled();
+    const canvas = page.locator("canvas");
+    const emptySpace = { position: { x: 20, y: 20 } };
+    await canvas.click(emptySpace);
+    await expect(objects).toHaveValue(weight.id);
+    await canvas.dblclick(emptySpace);
+    await expect(objects).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Camera", exact: true })).toHaveAttribute("aria-pressed", "true");
     await doubleClickWeight();
     await page.keyboard.press("Backspace");
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(0);
     await workshop.focus(); await page.keyboard.press("Control+z");
     await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(1);
     // The figure cannot be deleted, and text fields retain both editing keys.
     await selectWorkshopObject(page, "Anatomical figure");
     await workshop.focus(); await page.keyboard.press("Delete"); await page.keyboard.press("Backspace");
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await expect(objects.getByRole("option", { name: "Anatomical figure", exact: true })).toHaveCount(1);
     await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(1);
     await doubleClickWeight();
@@ -123,12 +142,12 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await name.press("Home"); await name.press("Delete"); await expect(name).toHaveValue("ype");
     await openPicker(); await dialog.getByRole("searchbox").press("Backspace");
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(1);
     // Selection takes focus back from the field; Delete needs no extra click.
     await name.focus(); await doubleClickWeight(); await expect(workshop).toBeFocused();
     await page.keyboard.press("Delete");
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(0);
     await workshop.focus(); await page.keyboard.press("Control+s");
     await expect.poll(async () => {
@@ -139,9 +158,9 @@ test("essentials come first and double-click selects equipment for safe keyboard
       return (saved.data.studio_layout as { objects: unknown[] }).objects.length;
     }, { timeout: 20_000 }).toBe(0);
     await page.reload();
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await expect(objects.getByRole("option", { name: "Dumbbell", exact: true })).toHaveCount(0);
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await expect(objects.getByRole("option", { name: "Anatomical figure", exact: true })).toHaveCount(1);
     await setWorkshopLanguage(page, "he");
     await page.getByRole("button", { name: "הוספת ציוד", exact: true }).filter({ visible: true }).click();

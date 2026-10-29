@@ -12,7 +12,7 @@ let sequence = 0;
 async function runScript(script, mode, item, options = {}) {
   const key = `curationFixture${sequence++}`;
   const entry = pathToFileURL(resolve("scripts", script)).href;
-  const calls = { captures: 0, uploads: [], completions: [], claims: 0, writes: [] };
+  const calls = { captures: 0, uploads: [], completions: [], claims: 0, writes: [], envLoads: 0, clients: 0, sql: 0, fileWrites: 0 };
   const manifest = script === "author-seated-curl.mjs"
     ? { slug: "seated-dumbbell-curl", ...item }
     : { userId: "00000000-0000-4000-8000-000000000001", items: [{ slug: "dumbbell-curl", ...item }] };
@@ -39,13 +39,13 @@ async function runScript(script, mode, item, options = {}) {
       upload: async path => { calls.uploads.push(path); return { error: null }; } }) },
   };
   const dependencies = {
-    "@supabase/supabase-js": { createClient: () => client },
-    "node:child_process": { execFileSync: (_command, args) => options.sql ? options.sql(args.at(-1)) : "submission-one" },
+    "@supabase/supabase-js": { createClient: () => { calls.clients++; return client; } },
+    "node:child_process": { execFileSync: (_command, args) => { calls.sql++; return options.sql ? options.sql(args.at(-1)) : "submission-one"; } },
     "node:crypto": { randomUUID: () => "asset-one", createHash: () => {}, randomBytes: () => {} },
     "node:fs": { existsSync: () => mode !== "prepare" },
     "node:fs/promises": { mkdir: async () => {},
       readFile: async path => String(path).endsWith("manifest.json") ? JSON.stringify(manifest) : Buffer.from("output"),
-      writeFile: async (path, contents) => { if (String(path).endsWith("manifest.json")) calls.writes.push(JSON.parse(contents)); } },
+      writeFile: async (path, contents) => { calls.fileWrites++; if (String(path).endsWith("manifest.json")) calls.writes.push(JSON.parse(contents)); } },
     "@playwright/test": { chromium: {} },
     "../src/lib/motion/seated-curl.ts": { seatedCurlScene: {} },
     "../src/lib/motion/incline-curl.ts": { inclineCurlScene: {} },
@@ -55,7 +55,7 @@ async function runScript(script, mode, item, options = {}) {
     } },
   };
   globalThis[key] = { dependencies, process: {
-    loadEnvFile() {}, argv: ["node", script, mode],
+    loadEnvFile() { calls.envLoads++; }, argv: ["node", script, mode],
     env: { NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:15421", RENDER_APP_URL: "http://127.0.0.1:3000" },
   }, console: { log() {} } };
   const source = await readFile(new URL(entry), "utf8");
@@ -122,32 +122,32 @@ for (const script of scripts) {
   });
 }
 
-test("single-exercise claiming checkpoints the generation returned by the RPC", async () => {
-  const result = await runScript("author-seated-curl.mjs", "claim", { submission: "submission-one" });
-  assert.ifError(result.error);
-  assert.equal(result.calls.writes.at(-1).claimId, "claim-one");
-});
+for (const mode of ["prepare", "revise", "publish", undefined]) {
+  test(`catalog batch ${mode ?? "default"} refuses scripted authoring before loading credentials`, async () => {
+    const result = await runScript("curate-local-demos.mjs", mode, {});
+    assert.match(result.error?.message ?? "", /retired.*workshop/i);
+    assert.equal(result.calls.envLoads, 0);
+    assert.equal(result.calls.clients, 0);
+    assert.equal(result.calls.sql, 0);
+    assert.equal(result.calls.fileWrites, 0);
+    assert.equal(result.calls.claims, 0);
+    assert.equal(result.calls.captures, 0);
+    assert.deepEqual(result.calls.uploads, []);
+    assert.deepEqual(result.calls.writes, []);
+  });
+}
 
-test("catalog preparation checkpoints the generation returned by the RPC", async () => {
-  const result = await runScript("curate-local-demos.mjs", "prepare", {}, { sql(query) {
-    if (query.startsWith("begin;")) return JSON.stringify(query.includes("submit_private_exercise") ? "submission-one" : "draft-one");
-    if (query.startsWith("update public.roles")) return "";
-    if (query.includes("slug='dumbbell-curl'")) return query.includes("pending_media") ? "candidate-one" : "";
-    return "existing-published-exercise";
-  } });
-  assert.ifError(result.error);
-  assert.equal(result.calls.writes.at(-1).items[0].claimId, "claim-one");
-});
-
-test("legacy single-exercise claiming never adopts the database's current claim", async () => {
-  const result = await runScript("author-seated-curl.mjs", "claim", { job: "job-one", submission: "submission-one" });
-  assert.match(result.error?.message ?? "", /manifest.*claim/i);
-  assert.equal(result.calls.claims, 0);
-  assert.deepEqual(result.calls.writes, []);
-});
-
-test("single-exercise claiming leaves unrelated queued jobs untouched", async () => {
-  const result = await runScript("author-seated-curl.mjs", "claim", { submission: "submission-one" }, { sql: () => "unrelated-submission" });
-  assert.match(result.error?.message ?? "", /Unrelated jobs/);
-  assert.equal(result.calls.claims, 0);
-});
+for (const mode of ["prepare", "submit", "claim", "publish", undefined]) {
+  test(`single-exercise ${mode ?? "default"} refuses scripted authoring before loading credentials`, async () => {
+    const result = await runScript("author-seated-curl.mjs", mode, {});
+    assert.match(result.error?.message ?? "", /retired.*workshop/i);
+    assert.equal(result.calls.envLoads, 0);
+    assert.equal(result.calls.clients, 0);
+    assert.equal(result.calls.sql, 0);
+    assert.equal(result.calls.fileWrites, 0);
+    assert.equal(result.calls.claims, 0);
+    assert.equal(result.calls.captures, 0);
+    assert.deepEqual(result.calls.uploads, []);
+    assert.deepEqual(result.calls.writes, []);
+  });
+}

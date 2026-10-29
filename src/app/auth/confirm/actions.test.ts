@@ -6,6 +6,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 vi.mock("@/lib/auth-pending-email", () => ({ clearPendingEmail: mocks.clear }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth: { verifyOtp: mocks.verify } }) }));
+import { AuthApiError, AuthRetryableFetchError } from "@supabase/supabase-js";
 import { confirmEmail } from "./actions";
 
 function form(values: Record<string, string>) {
@@ -45,6 +46,25 @@ it("always sends recovery through password update before resuming the original d
 
 it("does not redirect outside the app after a valid confirmation", async () => {
   await expect(confirmEmail(initial, form({ ...valid, next: "//outside.example" }))).rejects.toThrow("redirect:/dashboard");
+});
+
+it.each([
+  new AuthRetryableFetchError("sensitive outage details", 503),
+  new AuthApiError("sensitive server details", 500, "unexpected_failure"),
+])("keeps the same confirmation link retryable during an outage: %s", async error => {
+  mocks.verify.mockResolvedValue({ error });
+  const result = await confirmEmail(initial, form(valid));
+  expect(result.error).toMatch(/try again in a moment/i);
+  expect(result.error).not.toMatch(/expired|used|sensitive/i);
+  expect(mocks.clear).not.toHaveBeenCalled();
+});
+
+it("asks rate-limited confirmation attempts to wait instead of replacing the link", async () => {
+  mocks.verify.mockResolvedValue({ error: new AuthApiError("rate limited", 429, undefined) });
+  const result = await confirmEmail(initial, form(valid));
+  expect(result.error).toMatch(/wait|too many/i);
+  expect(result.error).not.toMatch(/expired|used/i);
+  expect(mocks.clear).not.toHaveBeenCalled();
 });
 
 it("offers recovery for expired or used links without returning provider messages", async () => {

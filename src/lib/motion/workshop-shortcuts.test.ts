@@ -25,6 +25,7 @@ describe("workshop keyboard commands", () => {
     [key("]"), "next"],
     [key("e"), "edit"],
     [key("c"), "camera"],
+    [key("l"), "lock"],
     [key("Delete"), "remove"],
     [key("Backspace"), "remove"],
     [key("?", { shiftKey: true }), "help"],
@@ -36,6 +37,16 @@ describe("workshop keyboard commands", () => {
   it("supports physical command keys with the Hebrew keyboard layout", () => {
     expect(workshopShortcut(key("ז", { code: "KeyZ", ctrlKey: true }), canvas)).toBe("undo");
     expect(workshopShortcut(key("ד", { code: "KeyS", metaKey: true }), canvas)).toBe("save");
+    expect(workshopShortcut(key("ך", { code: "KeyL" }), canvas)).toBe("lock");
+  });
+
+  it("locks only from the preview, without intercepting typing or modified keys", () => {
+    for (const context of [{ ...canvas, typing: true }, { ...canvas, interactive: true }, { ...canvas, blocked: true }]) {
+      expect(workshopShortcut(key("l", { code: "KeyL" }), context)).toBeNull();
+    }
+    for (const modifier of ["ctrlKey", "metaKey", "altKey", "shiftKey", "repeat", "isComposing"]) {
+      expect(workshopShortcut(key("l", { code: "KeyL", [modifier]: true }), canvas)).toBeNull();
+    }
   });
 
   it("leaves typing, native undo and editing keys to text fields", () => {

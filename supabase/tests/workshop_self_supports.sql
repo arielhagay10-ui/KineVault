@@ -1,0 +1,15 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(8);
+select set_config('test.self_layout','{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"objects":[],"supports":[{"region":"left-hand","objectId":null,"surface":"self:left-hip","point":{"x":0,"y":-0.3,"z":0.15},"normal":{"x":0,"y":0,"z":1},"turn":0}]}',true);
+select ok(private.valid_studio_layout(current_setting('test.self_layout')::jsonb),'hand can brace on thigh');
+select ok(private.valid_studio_layout(jsonb_set(current_setting('test.self_layout')::jsonb,'{supports,0,surface}','"self:torso"')),'hand can brace on torso');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.self_layout')::jsonb,'{supports,0,region}','"left-knee"')),'self support cannot drive its target chain');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.self_layout')::jsonb,'{supports,0,surface}','"self:left-shoulder"')),'arm targets rejected');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.self_layout')::jsonb,'{supports,0,normal}','{"x":0,"y":0,"z":0}')),'self normal remains validated');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.self_layout')::jsonb,'{supports,0,point,x}','11')),'self coordinates remain bounded');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.self_layout')::jsonb,'{supports,0,surface}','"floor"')),'floor plane checks preserved');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.self_layout')::jsonb,'{supports}',(current_setting('test.self_layout')::jsonb->'supports') || (current_setting('test.self_layout')::jsonb->'supports'))),'duplicate self contacts rejected');
+select * from finish();
+rollback;

@@ -3,6 +3,12 @@ import { blankWorkshopScene, identityTransform } from "./workshop";
 import { DraftSaveQueue, clearDraftRecoveryCopies, clearMatchingRecovery, confirmDraftRecovery, draftSnapshot, migrateDraftRecovery, parseDraftRecovery, persistDraftRecovery, readDraftRecovery, removeOwnedDraftRecovery, draftRecoveryKey } from "./workshop-draft";
 
 describe("private workshop recovery", () => {
+  it("retains whether a first capture happened without changing the scene save signature", () => {
+    const value = { scene: blankWorkshopScene, name: "Curl", privateId: null, updatedAt: 3, firstPoseInitialized: false };
+    const captured = { ...value, firstPoseInitialized: true };
+    expect(parseDraftRecovery(JSON.stringify(value))?.firstPoseInitialized).toBe(false);
+    expect(draftSnapshot(value)).toBe(draftSnapshot(captured));
+  });
   it("isolates accounts and validates recovery rather than trusting stored JSON", () => {
     expect(draftRecoveryKey("a", "draft")).not.toBe(draftRecoveryKey("b", "draft"));
     expect(parseDraftRecovery('{"scene":{}}')).toBeNull();

@@ -20,6 +20,7 @@ export function studioCameraPoints(objects: StudioObject[] | undefined) {
     "leg-press": { width: 1.05, height: 2, depth: [-1.45, 1.1] },
     "cable-row-machine": { width: 0.6, height: 2.5, depth: [-0.95, 1.9] },
     "pec-deck": { width: 1.3, height: 2.8, depth: [-1.5, 1.05] },
+    "t-bar-row-machine": { width: .78, height: 1.62, depth: [-1.12, 1.18] },
   };
   return objects?.flatMap(object => {
     const size = bounds[object.slug];

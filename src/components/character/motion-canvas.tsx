@@ -28,12 +28,16 @@ import { identityTransform } from "@/lib/motion/workshop";
 import { maxPulleyHeight } from "@/lib/motion/studio";
 import { StudioBody, StudioEquipment, type StudioEditor } from "./studio-controls";
 import { applyStudioSeating } from "@/lib/motion/studio-seat";
+import type { SupportSolveReport } from "@/lib/motion/support-contacts";
+import { WorkshopSupportOverlay } from "./workshop-support-overlay";
 import { applyStudioMachine, type MachineReachReport } from "@/lib/motion/studio-machines";
 import { constrainFrontalPose, resolveStudioObject } from "@/lib/motion/studio-constraints";
 import { cameraDistanceForPoints, studioCameraPoints } from "@/lib/motion/studio-camera";
+import { rowUsesHand } from "@/lib/motion/plate-row";
 import { styleWorkshopEquipment, fadeWorkshopEquipment, fitWorkshopCamera, oppositeCameraPosition, workshopCameraView, zoomCameraPosition, type WorkshopCameraAction, type WorkshopCameraCommand } from "@/lib/motion/workshop-camera";
 import { workshopEditorForInteraction } from "@/lib/motion/workshop-interaction";
 import { muscleGroups } from "@/lib/motion/anatomy";
+import { savedMuscleHighlight, savedMuscleHighlightLabel } from "@/lib/motion/saved-muscle-highlights";
 import { ZoomIn, ZoomOut, Scan } from "@/components/ui/icons";
 import { WorkshopCameraControls, WorkshopPreviewFallback, type WorkshopInteractionMode } from "./workshop-camera-controls";
 import { useWorkshopLanguage } from "./workshop-language";
@@ -129,7 +133,7 @@ function PreviewPixelRatio({ quality, playback, dragging }: { quality: PreviewQu
   return null;
 }
 
-function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, timeMs, playback, solvesRef, solveStartedRef, modelUrl, gesture, interactive = true, faded = false, onRigReady, onMachineReachChange }: {
+function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, timeMs, playback, solvesRef, solveStartedRef, modelUrl, gesture, interactive = true, faded = false, onRigReady, onMachineReachChange, onSupportReachChange }: {
   pose: RigPose; scene: WorkshopScene; target: string; isolate: boolean;
   onLoaded: (muscles: MuscleOption[]) => void; onHighlight: (count: number) => void;
   editor?: StudioEditor;
@@ -137,6 +141,7 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
   solveStartedRef: React.RefObject<number | null>; modelUrl: string; gesture?: WorkshopGestureScene;
   interactive?: boolean; faded?: boolean; onRigReady?: (rig: AnatomyRig | null) => void;
   onMachineReachChange?: (report: MachineReachReport | undefined) => void;
+  onSupportReachChange?: (reports: SupportSolveReport[]) => void;
 }) {
   const { scene: source } = useGLTF(modelUrl);
   const rig = useMemo(() => createAnatomyRig(source), [source]);
@@ -149,12 +154,14 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
   const selectedEquipmentId = !activeEditor?.playing && activeEditor?.selection?.kind === "object" ? activeEditor.selection.id : null;
   const lastMachineReport = useRef<string | null>(null);
   const lastMachineReportAt = useRef(-Infinity);
+  const lastSupportReport = useRef("");
   const invalidate = useThree(state => state.invalidate);
   const asset = scene.equipment;
   const pushdown = isCablePushdown(scene);
   const attachments = scene.studio?.objects.filter(object => object.cableAttachment !== "cuff").map(object => object.attachment) ?? [];
-  const leftGrip = attachments.includes("left") || attachments.includes("both"), rightGrip = attachments.includes("right") || attachments.includes("both");
-  const gripping = scene.studio?.objects.some(object => object.machineUse) || leftGrip && rightGrip ? true : leftGrip ? "left" : rightGrip ? "right" : asset?.slug === "single-cable" ? pushdown ? true : "left" : asset?.slug === "dumbbell-pair";
+  const rowGrip = (side: "left" | "right") => scene.studio?.objects.some(object => ["row-machine", "t-bar-row-machine"].includes(object.slug) && object.machineUse && rowUsesHand(object, side));
+  const leftGrip = attachments.includes("left") || attachments.includes("both") || rowGrip("left"), rightGrip = attachments.includes("right") || attachments.includes("both") || rowGrip("right");
+  const gripping = scene.studio?.objects.some(object => object.machineUse && !["row-machine", "t-bar-row-machine"].includes(object.slug)) || leftGrip && rightGrip ? true : leftGrip ? "left" : rightGrip ? "right" : asset?.slug === "single-cable" ? pushdown ? true : "left" : asset?.slug === "dumbbell-pair";
   const forearmRotation = forearmRotationForScene(scene);
   // Publish pointer previews before body transforms, pose solving and contacts.
   // This path performs no React updates or persistence work.
@@ -172,12 +179,17 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
     if (previous?.scene === liveScene && previous.timeMs === liveTime && previous.dragging === draggingJoint) return;
     lastSolve.current = { scene: liveScene, timeMs: liveTime, dragging: draggingJoint };
     // Begin each equipment solve from the authored pose, preventing IK drift.
-    if (interactive && activeEditor?.dragging && activeEditor.selection?.kind === "joint") return;
+    if (draggingJoint && !activeEditor?.jointPosePreview) return;
     solvesRef.current++;
     solveStartedRef.current = performance.now();
     poseAnatomyRig(rig, livePose, gripping, forearmRotation);
     plantAnatomyFeet(rig, liveScene.motionStyle, livePose); correctAuthoredArmPath(rig, liveScene.motionStyle, livePose);
-    applyStudioSeating(rig, liveScene.studio, liveTime, livePose);
+    const supports = applyStudioSeating(rig, liveScene.studio, liveTime, livePose);
+    if (onSupportReachChange && !playback?.playing && !activeEditor?.dragging && !activeEditor?.adjusting) {
+      const reports = supports ?? [];
+      const signature = reports.map(report => `${report.region}:${report.reachable}:${!!report.orientationLimited}`).join(",");
+      if (signature !== lastSupportReport.current) { lastSupportReport.current = signature; onSupportReachChange(reports); }
+    }
     const report = applyStudioMachine(rig, liveScene, liveTime);
     // Contact repair controls describe the editable paused pose. Do not send
     // time-stamped machine reports through the entire editor during playback.
@@ -203,6 +215,7 @@ function Figure({ pose, scene, target, isolate, onLoaded, onHighlight, editor, t
     onHighlight(highlightAnatomyRig(rig, target, isolate)); invalidate();
   }, [rig, target, isolate, onHighlight, invalidate]);
   return <MotionFrameContext.Provider value={frame}>
+    {activeEditor?.supportEdit && <WorkshopSupportOverlay rig={rig} scene={scene} editor={activeEditor} timeMs={timeMs} />}
     <StudioBody transform={scene.studio?.body ?? identityTransform} rig={rig} editor={activeEditor}>
       <primitive object={rig.root} dispose={null} />
     </StudioBody>
@@ -265,9 +278,13 @@ function WorkshopCameraDriver({ scene, view, command, getFocus }: { scene: Works
   const { width, height } = useThree(state => state.size);
   const invalidate = useThree(state => state.invalidate);
   const currentScene = useRef(scene), lastCommand = useRef(0);
+  const lastFit = useRef<{ camera: typeof camera; controls: typeof controls; view: AnatomyView } | null>(null);
   useLayoutEffect(() => { currentScene.current = scene; }, [scene]);
   useLayoutEffect(() => {
     if (!controls || !(camera instanceof PerspectiveCamera)) return;
+    // Selection panels resize the viewport without requesting a new camera view.
+    if (lastFit.current?.camera === camera && lastFit.current.controls === controls && lastFit.current.view === view) return;
+    lastFit.current = { camera, controls, view };
     const fit = fitWorkshopCamera(currentScene.current, view, width / height, camera.fov);
     camera.position.copy(fit.position); controls.target.copy(fit.target); controls.update(); invalidate();
   }, [camera, controls, view, width, height, invalidate]);
@@ -338,13 +355,17 @@ function LinkedCamera({ value, onChange }: { value?: WorkshopLinkedCamera | null
   return null;
 }
 
-export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-[430px]", showMuscleControls = true, editor, simplifiedControls = false, interactionMode, onInteractionModeChange, onMachineReachChange, compact = false, linkedCamera, onCameraChange, controlsTarget, fillViewport = false, onMetrics, canvasOverlay }: {
+export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-[430px]", showMuscleControls = true, muscleSlugs, secondaryMuscleSlugs, editor, simplifiedControls = false, interactionMode, onInteractionModeChange, onMachineReachChange, onSupportReachChange, onSupportRigReady, compact = false, linkedCamera, onCameraChange, controlsTarget, fillViewport = false, onMetrics, canvasOverlay }: {
   scene: WorkshopScene; timeMs: number; playback?: MotionPlaybackClock; className?: string; showMuscleControls?: boolean;
   gesture?: WorkshopGestureScene;
+  muscleSlugs?: readonly string[];
+  secondaryMuscleSlugs?: readonly string[];
   editor?: StudioEditor;
   simplifiedControls?: boolean; interactionMode?: WorkshopInteractionMode;
   onInteractionModeChange?: (mode: WorkshopInteractionMode) => void;
   onMachineReachChange?: (report: MachineReachReport | undefined) => void;
+  onSupportReachChange?: (reports: SupportSolveReport[]) => void;
+  onSupportRigReady?: (rig: AnatomyRig | null) => void;
   compact?: boolean; linkedCamera?: WorkshopLinkedCamera | null;
   onCameraChange?: (value: WorkshopLinkedCamera) => void;
   controlsTarget?: HTMLElement | null;
@@ -373,7 +394,7 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
   const [faded, setFaded] = useState(false), [fullscreen, setFullscreen] = useState(false);
   const [failure, setFailure] = useState<"error" | "unsupported" | null>(null);
   const [previewMessage, setPreviewMessage] = useState("");
-  const onRigReady = useCallback((rig: AnatomyRig | null) => { rigRef.current = rig; }, []);
+  const onRigReady = useCallback((rig: AnatomyRig | null) => { rigRef.current = rig; onSupportRigReady?.(rig); }, [onSupportRigReady]);
   const onUnsupported = useCallback(() => setFailure("unsupported"), []);
   useEffect(() => {
     const update = () => setFullscreen(document.fullscreenElement === wrapper.current);
@@ -386,7 +407,11 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
   const styleTargets: Record<string, string> = { squat: "group:quadriceps", "split-squat": "group:quadriceps", hinge: "group:hamstrings", row: "group:lats", "bench-press": "group:chest" };
   const initialTarget = styleTargets[scene.motionStyle ?? ""] ?? (elbowMotion ? scene.equipment?.slug === "single-cable" ? "group:triceps" : "group:biceps" : "group:deltoid");
   const [targetChoice, setTarget] = useState<string | null>(null);
-  const target = (editor ? null : targetChoice) ?? scene.studio?.presentation?.highlight ?? (editor ? "none" : initialTarget);
+  const savedHighlight = !editor && muscleSlugs !== undefined ? savedMuscleHighlight(muscleSlugs, secondaryMuscleSlugs) : undefined;
+  const presentationHighlight = scene.studio?.presentation?.highlight;
+  const defaultHighlight = presentationHighlight && presentationHighlight !== "none"
+    ? presentationHighlight : savedHighlight ?? presentationHighlight;
+  const target = (editor ? null : targetChoice) ?? defaultHighlight ?? (editor ? "none" : initialTarget);
   const overhead = scene.equipment?.slug === "single-cable" || scene.studio?.objects.some(object => object.slug === "cable-machine") || scene.keyframes.some(frame => Math.abs(frame.poses["left-shoulder"]?.z ?? 0) > 120
     || (Math.abs(frame.poses["left-shoulder"]?.x ?? 0) >= 60 && Math.abs(frame.poses["left-shoulder"]?.z ?? 0) >= 60));
   const [isolateChoice, setIsolate] = useState<boolean | null>(null);
@@ -442,13 +467,18 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
   const pose = useMemo(() => constrainFrontalPose(sampleWorkshopPose(scene.keyframes, timeMs), scene.studio?.frontalPlane), [scene.keyframes, timeMs, scene.studio?.frontalPlane]);
   const retryPreview = () => { useGLTF.clear(modelUrl); setMuscles([]); setSettledEquipment({}); setFailure(null); setAttempt(value => value + 1); };
   const qualityControl = <label className="flex min-h-11 flex-wrap items-center gap-2 text-sm"><span>{t("Preview detail")}</span><select aria-label={t("Preview detail")} value={quality} onChange={event => { if ((event.target.value === "contact") !== (quality === "contact")) setMuscles([]); setQuality(event.target.value as PreviewQuality); }} className="min-h-11 rounded-lg border bg-card px-3 text-foreground"><option value="auto">{t("Auto")}</option><option value="economy">{t("Economy")}</option><option value="contact">{t("Contact detail")}</option></select></label>;
-  const selectedHighlight = muscleGroups.find(item => `group:${item.id}` === target)?.label ?? muscles.find(item => item.id === target)?.label ?? target;
+  const selectedHighlight = savedMuscleHighlightLabel(target) ?? muscleGroups.find(item => `group:${item.id}` === target)?.label ?? muscles.find(item => item.id === target)?.label ?? target;
   const equipmentNames = scene.studio?.objects.map(object => object.name).join(", ") || scene.equipment?.slug.replaceAll("-", " ") || "No equipment";
   return (<div ref={wrapper} className={`min-w-0 ${fullscreen ? "h-full overflow-y-auto bg-background p-4" : fillViewport ? "flex min-h-0 flex-1 flex-col" : ""}`} data-anatomy-state={failure ?? (muscles.length ? "ready" : "loading")} data-equipment-state={equipmentReady ? "ready" : "loading"} data-highlight-count={count} data-isolated={isolate} data-anatomy-quality={quality} data-anatomy-model={modelUrl}>
     <div role="group" className={`relative overflow-hidden rounded-2xl bg-muted ${fullscreen ? "h-[60vh] min-h-52" : className}`} aria-label={t("3D exercise preview")} aria-busy={!failure && !muscles.length}>
       <AnatomyBoundary key={attempt} onRetry={retryPreview} onError={() => setFailure("error")}>
         <PreviewGraphicsGuard onUnsupported={onUnsupported} fallback={<WorkshopPreviewFallback state="unsupported" onRetry={retryPreview} />}>
-        <Canvas camera={camera} frameloop="demand" dpr={1} style={{ cursor: editor?.gripEdit?.picking ? "crosshair" : undefined }} fallback={<span aria-hidden="true" />}>
+        <Canvas camera={camera} frameloop="demand" dpr={1} onPointerMissed={event => {
+          if (editor && event.type === "dblclick" && event.button === 0) {
+            editor.onSelect(null);
+            changeMode("camera");
+          }
+        }} style={{ cursor: editor?.gripEdit?.picking || editor?.supportEdit?.picking ? "crosshair" : editor?.supportEdit?.adjusting ? "grab" : undefined }} fallback={<span aria-hidden="true" />}>
           <EquipmentReadinessContext.Provider value={reportEquipmentReadiness}>
           <color attach="background" args={["#f7f8f8"]} />
           <hemisphereLight args={["#ffffff", "#85989b", 0.95]} />
@@ -456,7 +486,7 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
           <directionalLight position={[4, 3, -4]} color="#dce9f8" intensity={1.1} />
           {visibleEquipment.some(object => object.slug in equipmentAssets) && <EquipmentStudioLighting objects={visibleEquipment} />}
           {editor && <gridHelper args={[20, 100, "#adbfc0", "#dce5e5"]} />}
-          <Suspense fallback={null}><Figure pose={pose} scene={scene} target={target} isolate={isolate} onLoaded={setMuscles} onHighlight={setCount} editor={canvasEditor} timeMs={timeMs} playback={playback} gesture={gesture} modelUrl={modelUrl} solveStartedRef={solveStartedRef} solvesRef={solvesRef} interactive={mode === "edit"} faded={faded} onRigReady={onRigReady} onMachineReachChange={onMachineReachChange} /></Suspense>
+          <Suspense fallback={null}><Figure pose={pose} scene={scene} target={target} isolate={isolate} onLoaded={setMuscles} onHighlight={setCount} editor={canvasEditor} timeMs={timeMs} playback={playback} gesture={gesture} modelUrl={modelUrl} solveStartedRef={solveStartedRef} solvesRef={solvesRef} interactive={mode === "edit"} faded={faded} onRigReady={onRigReady} onMachineReachChange={onMachineReachChange} onSupportReachChange={onSupportReachChange} /></Suspense>
           <PreviewPixelRatio quality={quality} playback={playback} dragging={!!editor?.dragging} />
           <MotionMetrics wrapper={wrapper} solvesRef={solvesRef} solveStartedRef={solveStartedRef} onMetrics={onMetrics} />
           <OrbitControls makeDefault enabled={!editor?.dragging && !editor?.gripEdit?.picking} enableDamping={!onCameraChange} rotateSpeed={editor?.sensitivity ?? 1} panSpeed={editor?.sensitivity ?? 1} zoomSpeed={editor?.sensitivity ?? 1} mouseButtons={{ LEFT: simplifiedControls && mode === "edit" ? undefined : MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: simplifiedControls && mode === "edit" ? MOUSE.ROTATE : MOUSE.PAN }} touches={{ ONE: simplifiedControls && mode === "edit" ? undefined : TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }} target={simplifiedControls ? undefined : [0, 1.38, 0]} enablePan={!!editor || !!onCameraChange} minDistance={simplifiedControls ? 1 : 2.5} maxDistance={simplifiedControls ? 100 : editor ? 25 : 12} />
@@ -494,9 +524,9 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
       ] as const).map(([angle, label]) => <button key={angle} type="button" aria-pressed={view === angle}
         onClick={() => changeView(angle)}
         className={`rounded-lg border px-3 py-1.5 text-xs ${view === angle ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}>{label}</button>)}</div>}
-      {editor ? <details className={`mt-3 ${simplifiedControls ? "text-base" : "max-h-40 overflow-y-auto text-xs"}`}><summary className={`cursor-pointer text-muted-foreground ${simplifiedControls ? "min-h-11 py-2" : ""}`}>{t("Muscle highlights and credits")}</summary><AnatomyControls muscles={muscles} target={target} isolate={isolate} count={count} onTargetChange={changeTarget} onIsolateChange={changeIsolate} unavailable={!!failure} />
+      {editor ? <details className={`mt-3 ${simplifiedControls ? "text-base" : "max-h-40 overflow-y-auto text-xs"}`}><summary className={`cursor-pointer text-muted-foreground ${simplifiedControls ? "min-h-11 py-2" : ""}`}>{t("Muscle highlights and credits")}</summary><AnatomyControls muscles={muscles} target={target} isolate={isolate} count={count} onTargetChange={changeTarget} onIsolateChange={changeIsolate} unavailable={!!failure} savedHighlight={savedHighlight} />
         <p className="mt-3 text-[10px] text-muted-foreground">{t("Z-Anatomy · BodyParts3D ·")}<a href="/models/z-anatomy/ATTRIBUTION.md" className="underline">{t("Credits and licenses")}</a></p></details>
-        : <><AnatomyControls muscles={muscles} target={target} isolate={isolate} count={count} onTargetChange={changeTarget} onIsolateChange={changeIsolate} unavailable={!!failure} />
+        : <><AnatomyControls muscles={muscles} target={target} isolate={isolate} count={count} onTargetChange={changeTarget} onIsolateChange={changeIsolate} unavailable={!!failure} savedHighlight={savedHighlight} />
       <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
         <a href="https://github.com/Z-Anatomy/Models-of-human-anatomy" className="underline">{t("Z-Anatomy")}</a> {t("by Gauthier Kervyn and contributors ·")}<a href="https://creativecommons.org/licenses/by-sa/4.0/" className="underline">{t("CC BY-SA 4.0")}</a>{t(". BodyParts3D © The Database Center for Life Science ·")}<a href="https://creativecommons.org/licenses/by-sa/2.1/jp/" className="underline">{t("CC BY-SA 2.1 Japan")}</a>{t(". Adapted geometry, materials and posing.")}<a href="/models/z-anatomy/ATTRIBUTION.md" className="underline">{t("Credits")}</a> · <a href={anatomyModelUrl} download className="underline">{t("Model")}</a>
       </p></>}
@@ -504,7 +534,7 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
     {controlsTarget && !fullscreen && createControlsPortal((<div className="space-y-5">
       {qualityControl}
       <WorkshopCameraControls hideViews hideInteraction hideCommonActions={fillViewport} view={view} mode={mode} editable={!!editor} ready={!!muscles.length && !failure} selectionLabel={selectionLabel} faded={faded} fullscreen={fullscreen} onViewChange={changeView} onModeChange={value => { setLocalMode(value); onInteractionModeChange?.(value); }} onAction={cameraAction} onFadeChange={setFaded} onFullscreen={toggleFullscreen} />
-      <section aria-label={t("Muscle highlights and credits")} className="space-y-3 border-t pt-4"><h3 className="font-semibold">{t("Muscle highlights and credits")}</h3><AnatomyControls muscles={muscles} target={target} isolate={isolate} count={count} onTargetChange={changeTarget} onIsolateChange={changeIsolate} unavailable={!!failure} /><p className="text-sm text-muted-foreground">{t("Z-Anatomy · BodyParts3D ·")}<a href="/models/z-anatomy/ATTRIBUTION.md" className="underline">{t("Credits and licenses")}</a></p></section>
+      <section aria-label={t("Muscle highlights and credits")} className="space-y-3 border-t pt-4"><h3 className="font-semibold">{t("Muscle highlights and credits")}</h3><AnatomyControls muscles={muscles} target={target} isolate={isolate} count={count} onTargetChange={changeTarget} onIsolateChange={changeIsolate} unavailable={!!failure} savedHighlight={savedHighlight} /><p className="text-sm text-muted-foreground">{t("Z-Anatomy · BodyParts3D ·")}<a href="/models/z-anatomy/ATTRIBUTION.md" className="underline">{t("Credits and licenses")}</a></p></section>
       <p className="text-sm text-muted-foreground"><span data-workshop-translate="false">{equipmentNames}</span> · {scene.keyframes.length} {t("poses")}</p>
     </div>), controlsTarget)}
   </div>);

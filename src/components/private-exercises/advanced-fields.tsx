@@ -15,7 +15,7 @@ export const privateInstructionFields = ["setup_instructions", "execution_instru
 
 export function AdvancedPrivateFields({ initial, options }: { initial?: ReviewPatch; options: ReviewOptions }) {
   const input = "mt-2 min-h-11 w-full rounded-xl border bg-card p-3 text-base";
-  const taxonomies = { grip: options.grips, stance: options.stances, plane: options.planes, resistance_source: options.resistanceSources };
+  const taxonomies = { stance: options.stances, plane: options.planes };
   return <details className="rounded-2xl border bg-card p-6"><summary className="min-h-11 cursor-pointer text-lg font-semibold">Instructions and detailed classifications (optional)</summary>
     <div className="mt-6 grid gap-5 sm:grid-cols-2">
       <label className="text-base font-semibold sm:col-span-2">Aliases<Textarea name="aliases" aria-label="Aliases" maxLength={3300} rows={3}

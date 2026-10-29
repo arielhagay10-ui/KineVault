@@ -85,7 +85,7 @@ test("publish a minimal private draft, report it, verify it and hide it", async 
     await signIn(visitor, accounts[1].email);
     await reviewer.auth.signInWithPassword({ email: accounts[1].email, password });
     await visitor.goto("/admin");
-    await visitor.getByRole("link", { name: "Community exercises", exact: false }).click();
+    await visitor.getByRole("link", { name: "Review exercises", exact: true }).click();
     await expect(visitor.getByRole("heading", { name: "Exercise moderation", exact: true })).toBeVisible();
     await visitor.getByLabel("Exercise name", { exact: true }).fill(name);
     await visitor.getByLabel("Exercise status", { exact: true }).selectOption("reported");

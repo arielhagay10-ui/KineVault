@@ -9,7 +9,7 @@ import json
 import math
 import sys
 from pathlib import Path
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "public/models/equipment"
@@ -34,6 +34,8 @@ def new_scene():
         "pad": ((.055, .075, .078), 0, .65),
         "iron": ((.085, .105, .11), .5, .53),
         "accent": ((.57, .45, .20), .35, .47),
+        "band": ((.28, .37, .17), 0, .62),
+        "row-arm": ((.46, .075, .045), .5, .36),
     }
     global mats, groups
     mats, groups = {}, {}
@@ -137,7 +139,86 @@ def machine(name):
         tube("Moving bar", (-1.4, 0, 0), (1.4, 0, 0), .025, "chrome", "Handles")
         for x in (-.56, .56):
             tube("Knurled grip", (x - .12, 0, 0), (x + .12, 0, 0), .028, "rubber", "Handles")
+    elif name == "row-machine":
+        feet(.70, 1.14, -.83)
+        group("Seat")
+        beam("Seat pedestal", (0, .10, -.17), (0, .49, -.17), .115)
+        beam("Seat sliding post", (0, .40, -.17), (0, .60, -.17), .075, "chrome", "Seat")
+        box("Adjustable seat", (0, .605, -.17), (.48, .11, .50), "pad", "Seat", .035)
+        tube("Seat adjustment pin", (.05, .44, -.17), (.16, .44, -.17), .018, "accent")
+        beam("Seat base tie", (-.70, .10, -.17), (.70, .10, -.17))
+        beam("Chest pad column", (0, .10, .42), (0, 1.29, .37), .085)
+        beam("Chest pad bracket", (0, 1.29, .37), (0, 1.29, .168), .075)
+        box("Chest pad", (0, 1.29, .168), (.34, .45, .14), "pad", bevel=.04)
+        for x in (-.25, .25):
+            box("Foot platform", (x, .17, .55), (.28, .06, .40), "rubber", bevel=.014)
+            bpy.context.object.rotation_euler[0] = math.radians(-12)
+            beam("Foot platform support", (x, .08, .40), (x, .165, .68), .055)
+        for side, parent in ((1, "LeftLever"), (-1, "RightLever")):
+            x = side * .55
+            beam("Bearing tower", (x, .10, .98), (x, .62, .55), .11)
+            beam("Bearing tie", (side * .70, .10, .98), (0, .10, .98))
+            tube("Bearing housing", (x - .06, .62, .55), (x + .06, .62, .55), .085, "iron", sides=24)
+            group(parent)
+            beam("Independent row arm", (0, 0, 0), (0, .76, .12), .105, "row-arm", parent)
+            tube("Handle bracket", (0, .76, .12), (-side * .25, .80, .08), .025, "chrome", parent)
+            tube("Neutral grip", (-side * .25, .67, .08), (-side * .25, .91, .08), .026, "rubber", parent)
+            tube("Upper grip upright", (0, .76, .12), (side * .10, .94, .02), .025, "chrome", parent)
+            tube("Upper back grip", (-side * .25, .94, .02), (side * .10, .94, .02), .026, "rubber", parent)
+            tube("Outside handle return", (side * .10, .94, .02), (side * .17, .83, .02), .025, "chrome", parent)
+            beam("Loading arm", (0, 0, 0), (0, -.11, .42), .13, "row-arm", parent)
+            tube("Load horn", (0, -.11, .42), (side * .46, -.11, .42), .026, "chrome", parent)
+            for offset in (.15, .21):
+                tube("Load plate", (side * offset, -.11, .42), (side * (offset + .045), -.11, .42), .22, "iron", parent, 32)
+            tube("Pivot axle", (-.07, 0, 0), (.07, 0, 0), .045, "chrome", parent)
+    elif name == "shoulder-press-machine":
+        source = (ROOT / "src/lib/motion/shoulder-press.ts").read_text()
+        press = json.loads(source.split("export const shoulderPress = ", 1)[1].split(" as const;", 1)[0])
+        mats["frame"] = mats["chrome"]
+        for key, color in (("pad", (.008, .010, .012)), ("rubber", (.005, .006, .007)), ("iron", (.018, .022, .025))):
+            mats[key].diffuse_color = (*color, 1)
+            mats[key].node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (*color, 1)
+        base, seat, back = press["base"], press["seat"], press["back"]
+        feet(base["width"], base["front"], base["back"])
+        box("Seat", seat["center"], seat["size"], "pad", bevel=.035)
+        beam("Seat pedestal", (0, .1, 0), (0, .51, 0), .1)
+        beam("Seat bearer", (0, .5, -.30), (0, .5, .24), .085)
+        beam("Seat base tie", (-base["width"], .1, 0), (base["width"], .1, 0))
+        box("Back pad", back["center"], back["size"], "pad", bevel=.04)
+        bpy.context.object.rotation_euler[0] = math.radians(back["degrees"])
+        beam("Backrest spine", (0, .1, -.31), (0, 1.76, -.37), .09)
+        beam("Back pad bracket", (0, 1.22, -.35), (0, 1.22, -.28), .07)
+        beam("Rear brace", (0, .1, -.65), (0, 1.2, -.32), .075)
+        for side, parent in ((1, "LeftLever"), (-1, "RightLever")):
+            pivot = (side * press["pivot"]["x"], press["pivot"]["y"], press["pivot"]["z"])
+            axis = Vector((1, side * press["axisSlope"], 0)).normalized()
+            beam("Pivot upright", (side * base["width"], .1, -.54), pivot, .09)
+            beam("Pivot base tie", (side * base["width"], .1, -.54), (0, .1, -.54))
+            tube("Bearing", Vector(pivot) - axis * .06, Vector(pivot) + axis * .06, .075, "iron", sides=24)
+            group(parent)
+            beam("Lever arm", (0, 0, 0), press["arm"], .08, parent=parent)
+            wide, neutral = press["wide"], press["neutral"]
+            wx, wy, wz = wide["center"]
+            nx, ny, nz = neutral["center"]
+            swivel_name = "LeftNeutralGrip" if side == 1 else "RightNeutralGrip"
+            swivel = group(swivel_name)
+            swivel.parent = group(parent)
+            swivel.location = xyz((0, wy, wz))
+            tube("Handle bearing", -axis * .05, axis * .05, .04, "chrome", swivel_name)
+            handle_dx = wide["halfLength"] * math.cos(math.radians(wide["degrees"]))
+            handle_dy = side * wide["halfLength"] * math.sin(math.radians(wide["degrees"]))
+            tube("Wide pronated grip", (side * wx - handle_dx, -handle_dy, 0), (side * wx + handle_dx, handle_dy, 0), .026, "rubber", swivel_name)
+            tube("Neutral grip", (side * nx, ny - wy, nz - wz - neutral["halfLength"]), (side * nx, ny - wy, nz - wz + neutral["halfLength"]), .026, "rubber", swivel_name)
+            load = (0, press["load"]["y"], press["load"]["z"])
+            beam("Loading arm", (0, 0, 0), load, .08, parent=parent)
+            tube("Load horn", load, (side * press["load"]["hornLength"], load[1], load[2]), .025, "chrome", parent)
+            for offset in (.12, .18):
+                tube("Load plate", (side * offset, load[1], load[2]), (side * (offset + .045), load[1], load[2]), press["load"]["radius"], "iron", parent, 24)
+            tube("Pivot axle", -axis * .055, axis * .055, .04, "chrome", parent)
     elif name == "leg-press":
+        source = (ROOT / "src/lib/motion/leg-press.ts").read_text()
+        press = json.loads(source.split("export const legPress = ", 1)[1].split(" as const;", 1)[0])
+        back_y, back_z = press["back"]["center"][1] - 1, press["back"]["center"][2] + .98
         feet(.64, 1.05, -1.25)
         for side in (-1, 1):
             x = side * .64
@@ -148,19 +229,17 @@ def machine(name):
             box("Sled carriage", (x, 0, 0), (.13, .19, .23), "iron", "Handles")
         beam("Top brace", (-.64, 1.85, .97), (.64, 1.85, .97))
         box("Seat cushion", (0, .52, -.48), (.56, .14, .48), "pad")
-        back = box("Inclined back support", (0, 1.0, -.98), (.55, 1.12, .14), "pad")
-        back.rotation_euler[0] = -math.pi / 4
+        back = box("Inclined back support", tuple(press["back"]["center"]), tuple(press["back"]["size"]), "pad")
+        back.rotation_euler[0] = math.radians(press["back"]["degrees"])
         beam("Seat pedestal", (0, .1, -.48), (0, .44, -.48), .1)
         beam("Seat bearer", (0, .43, -.72), (0, .43, -.24), .09)
-        beam("Backrest spine", (0, .54, -.52), (0, 1.35, -1.33), .09)
-        beam("Rear backrest leg", (0, .1, -1.07), (0, .93, -1.05), .09)
-        beam("Backrest tie", (0, .93, -1.05), (0, .93, -.91), .09)
+        beam("Backrest spine", (0, .54 + back_y, -.52 + back_z), (0, 1.35 + back_y, -1.33 + back_z), .09)
+        beam("Rear backrest leg", (0, .1, -1.07), (0, .93 + back_y, -1.05 + back_z), .09)
+        beam("Backrest tie", (0, .93 + back_y, -1.05 + back_z), (0, .93 + back_y, -.91 + back_z), .09)
         beam("Rear seat crossmember", (-.64, .1, -1.07), (.64, .1, -1.07))
         beam("Seat crossmember", (-.64, .1, -.48), (.64, .1, -.48))
-        # Solver feet touch the near face at local y=z=-.085 metres.
-        face_offset = -.085 + .045 / math.sqrt(2)
-        sled = box("Foot sled", (0, face_offset, face_offset), (1.03, .09, .68), "frame", "Handles")
-        sled.rotation_euler[0] = math.pi / 4
+        sled = box("Foot sled", tuple(press["plateCenter"]), tuple(press["plateSize"]), "frame", "Handles")
+        sled.rotation_euler[0] = math.radians(press["plateDegrees"])
         tube("Plate axle", (-1.05, .08, .08), (1.05, .08, .08), .027, "chrome", "Handles")
         beam("Sled crossmember", (-.64, .04, .04), (.64, .04, .04), .075, parent="Handles")
         for x in (-.87, -.95, .87, .95):
@@ -217,7 +296,43 @@ def machine(name):
 def static(name):
     new_scene()
     group("Static")
-    if name == "cable-machine":
+    if name == "stool":
+        box("Seat cushion", (0, .555, 0), (.46, .09, .46), "pad", bevel=.045)
+        box("Seat tray", (0, .494, 0), (.42, .035, .42), "frame", bevel=.02)
+        for x in (-1, 1):
+            for z in (-1, 1):
+                beam("Splayed leg", (x * .24, .04, z * .24), (x * .16, .49, z * .16), .045)
+                box("Rubber shoe", (x * .24, .025, z * .24), (.075, .05, .075), "rubber")
+            beam("Foot brace", (x * .21, .23, -.21), (x * .21, .23, .21), .025)
+        for z in (-.21, .21):
+            beam("Foot brace", (-.21, .23, z), (.21, .23, z), .025)
+    elif name == "plyo-box":
+        box("Box core", (0, .25, 0), (.6, .5, .75), "pad", bevel=.025)
+        box("Non-slip top", (0, .499, 0), (.57, .012, .72), "rubber", bevel=.006)
+        for x in (-.29, .29):
+            for z in (-.365, .365):
+                box("Corner protector", (x, .25, z), (.024, .46, .024), "frame", bevel=.005)
+        for x in (-.301, .301):
+            box("Recessed carry grip", (x, .3, 0), (.008, .065, .18), "rubber", bevel=.02)
+            box("Carry grip rim", (x, .345, 0), (.012, .014, .2), "frame", bevel=.005)
+        for z in (-.376, .376):
+            for i in range(3):
+                box("Height mark", (-.2 + i * .024, .08, z), (.009, .035, .004), "accent", bevel=0)
+    elif name == "resistance-band":
+        vertices, faces = [], []
+        for i in range(64):
+            angle = 2 * math.pi * i / 64
+            for radial, height in ((-.012, -.002), (.012, -.002), (.012, .002), (-.012, .002)):
+                vertices.append(tuple(xyz((.35 + (.35 + radial) * math.cos(angle), .025 + height, (.11 + radial) * math.sin(angle)))))
+        for i in range(64):
+            for corner in range(4):
+                faces.append((i * 4 + corner, ((i + 1) % 64) * 4 + corner, ((i + 1) % 64) * 4 + (corner + 1) % 4, i * 4 + (corner + 1) % 4))
+        mesh = bpy.data.meshes.new("Continuous loop")
+        mesh.from_pydata(vertices, [], faces)
+        obj = bpy.data.objects.new("Loop band", mesh)
+        bpy.context.collection.objects.link(obj)
+        finish("Loop band", obj, "band", "Static")
+    elif name == "cable-machine":
         feet(.37, .4, -.4)
         beam("Tower base tie", (-.37, .12, 0), (.37, .12, 0))
         beam("Tower", (0, .14, 0), (0, 3.35, 0), .13)
@@ -334,7 +449,8 @@ def export(name):
                 obj.select_set(True)
             bpy.context.view_layer.objects.active = meshes[0]
             bpy.ops.object.join()
-    path = OUT / (name + ".v1.glb")
+    version = ".v3.glb" if name == "row-machine" else ".v2.glb" if name in ("shoulder-press-machine", "leg-press") else ".v1.glb"
+    path = OUT / (name + version)
     bpy.ops.export_scene.gltf(filepath=str(path), export_format="GLB", export_yup=True,
                               export_animations=False, export_cameras=False,
                               export_lights=False, export_extras=False)
@@ -349,7 +465,7 @@ def export(name):
 def thumbnail(name):
     directory = EVIDENCE / "thumbnails"
     directory.mkdir(parents=True, exist_ok=True)
-    carriage = {"smith-machine": (0, 1.855, -.12), "leg-press": (0, 1.3, .44),
+    carriage = {"smith-machine": (0, 1.855, -.12), "leg-press": (0, 1.42, .56),
                 "cable-row-machine": (0, 1.23, .59), "lat-pulldown-machine": (0, 2.09, .22)}
     if "Handles" in groups and name in carriage:
         groups["Handles"].location = xyz(carriage[name])
@@ -372,6 +488,23 @@ def thumbnail(name):
         groups["RightArm"].location = xyz((-.289, 2.62, 0))
         groups["LeftArm"].rotation_euler[2] = math.radians(35.5)
         groups["RightArm"].rotation_euler[2] = -math.radians(35.5)
+    if "LeftLever" in groups:
+        row = name == "row-machine"
+        chest = name == "chest-press-machine"
+        if not row:
+            kind = "chest-press" if chest else "shoulder-press"
+            source = (ROOT / ("src/lib/motion/" + kind + ".ts")).read_text()
+            press = json.loads(source.split("export const " + ("chestPress" if chest else "shoulderPress") + " = ", 1)[1].split(" as const;", 1)[0])
+        for side, part in ((1, "LeftLever"), (-1, "RightLever")):
+            groups[part].location = xyz((side * .55, .62, .55) if row else (side * press["pivot"][0], press["pivot"][1], press["pivot"][2]) if chest else (side * press["pivot"]["x"], press["pivot"]["y"], press["pivot"]["z"]))
+            groups[part].rotation_euler[0] = math.radians(-6 if row else press["startDegrees"])
+            if not row:
+                rotation = Quaternion(xyz((1, 0, side * press["axisSlope"]) if chest else (1, side * press["axisSlope"], 0)).normalized(), math.radians(press["startDegrees"]))
+                groups[part].rotation_mode = "QUATERNION"
+                groups[part].rotation_quaternion = rotation
+                swivel = groups["LeftNeutralGrip" if side == 1 else "RightNeutralGrip"]
+                swivel.rotation_mode = "QUATERNION"
+                swivel.rotation_quaternion = rotation.inverted()
     attachment = name.startswith("attachment-")
     # Fit the actual projected bounds, including moving roots, with equal margins.
     bpy.context.view_layer.update()
@@ -408,24 +541,25 @@ def thumbnail(name):
 
 
 stats = {}
-parser = argparse.ArgumentParser()
-parser.add_argument("--only", nargs="*", help="Regenerate selected equipment/attachment slugs")
-selected = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []).only
-for slug in ("smith-machine", "leg-press", "cable-row-machine", "pec-deck"):
-    if selected is None or slug in selected:
-        machine(slug)
-for slug in ("cable-machine", "bench", "squat-rack", "barbell", "dumbbell", "kettlebell"):
-    if selected is None or slug in selected:
-        static(slug)
-for slug in ("d-handle", "rope", "straight-bar", "angled-bar", "lat-bar", "v-bar", "cuff"):
-    if selected is None or "attachment-" + slug in selected:
-        attachment(slug)
-if selected is None or "lat-pulldown-machine" in selected:
-    new_scene()
-    bpy.ops.import_scene.gltf(filepath=str(OUT / "lat-pulldown.v1.glb"))
-    groups = {name: bpy.data.objects[name] for name in ("Static", "Weights", "Handles")}
-    thumbnail("lat-pulldown-machine")
-report_path = EVIDENCE / "blender-export.json"
-if selected is not None and report_path.exists():
-    stats = {**json.loads(report_path.read_text())["assets"], **stats}
-report_path.write_text(json.dumps({"blender": bpy.app.version_string, "assets": stats}, indent=2))
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--only", nargs="*", help="Regenerate selected equipment/attachment slugs")
+    selected = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []).only
+    for slug in ("smith-machine", "leg-press", "cable-row-machine", "pec-deck", "row-machine", "shoulder-press-machine"):
+        if selected is None or slug in selected:
+            machine(slug)
+    for slug in ("cable-machine", "bench", "squat-rack", "barbell", "dumbbell", "kettlebell", "stool", "plyo-box", "resistance-band"):
+        if selected is None or slug in selected:
+            static(slug)
+    for slug in ("d-handle", "rope", "straight-bar", "angled-bar", "lat-bar", "v-bar", "cuff"):
+        if selected is None or "attachment-" + slug in selected:
+            attachment(slug)
+    if selected is None or "lat-pulldown-machine" in selected:
+        new_scene()
+        bpy.ops.import_scene.gltf(filepath=str(OUT / "lat-pulldown.v1.glb"))
+        groups = {name: bpy.data.objects[name] for name in ("Static", "Weights", "Handles")}
+        thumbnail("lat-pulldown-machine")
+    report_path = EVIDENCE / "blender-export.json"
+    if selected is not None and report_path.exists():
+        stats = {**json.loads(report_path.read_text())["assets"], **stats}
+    report_path.write_text(json.dumps({"blender": bpy.app.version_string, "assets": stats}, indent=2))

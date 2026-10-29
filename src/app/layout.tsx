@@ -4,8 +4,8 @@ import "./globals.css";
 import { Comfortaa } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { cookies } from "next/headers";
-import type { Theme } from "@/components/theme-control";
-import { SiteMenu } from "@/components/site-menu";
+import { AppearanceProvider, type Theme } from "@/components/theme-control";
+import { SiteNavigation } from "@/components/site-navigation";
 import { OverlayScrollbars } from "@/components/overlay-scrollbars";
 import { getIdentity } from "@/lib/auth";
 import "overlayscrollbars/styles/overlayscrollbars.css";
@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" data-theme={theme} suppressHydrationWarning className={cn("font-sans", comfortaa.variable, theme === "dark" && "dark")}>
       <head><Script id="appearance-bootstrap" strategy="beforeInteractive">{"if(document.documentElement.dataset.theme==='system'){document.documentElement.classList.toggle('dark',window.matchMedia('(prefers-color-scheme: dark)').matches)}"}</Script></head>
-      <body><div id="main-content" tabIndex={-1}>{children}</div><SiteMenu theme={theme} signedIn={!!identity} role={identity?.role} /><OverlayScrollbars /></body>
+      <body><AppearanceProvider initial={theme}><SiteNavigation signedIn={!!identity} role={identity?.role} /><div id="main-content" tabIndex={-1}>{children}</div><OverlayScrollbars /></AppearanceProvider></body>
     </html>
   );
 }

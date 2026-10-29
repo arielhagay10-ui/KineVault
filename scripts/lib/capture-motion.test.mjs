@@ -13,7 +13,7 @@ test("a stalled capture is cancelled and the next isolated capture encodes all o
     response.writeHead(200, { "content-type": "text/html" });
     response.end(`<div id="render-frame" style="width:640px;height:640px;background:#999">
       <span data-anatomy-state="ready" data-equipment-state="loading">Render fixture</span></div>
-      <button data-site-menu style="position:fixed;inset:0;width:640px;height:640px;background:red;border:0">Site menu fixture</button><script>
+      <button data-site-navigation style="position:fixed;inset:0;width:640px;height:640px;background:red;border:0">Site navigation fixture</button><script>
       setTimeout(() => { document.querySelector('[data-equipment-state]').dataset.equipmentState = 'ready'; }, 1200);
       window.kinevaultRenderFrame = ${request.url === "/stalled"
         ? "() => { while (true) {} }"

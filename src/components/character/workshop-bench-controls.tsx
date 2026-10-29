@@ -20,6 +20,6 @@ export function WorkshopBenchControls({ bench, facing, onPosition, onAngle }: {
     </select></label>}
     <WorkshopNumberField label="Bench pad angle degrees" min={0} max={85} value={bench.benchAngle ?? 45} onChange={onAngle} />
     <div className="flex flex-wrap gap-2">{[["Flat", 0], ["Incline", 45], ["Upright", 85]].map(([label, angle]) => <button key={label} type="button" aria-pressed={(bench.benchAngle ?? 45) === angle} onClick={() => onAngle(Number(angle))} className={button}>{t(String(label))}</button>)}</div>
-    <WorkshopGuidance className="text-sm text-muted-foreground">The figure follows the bench. Leave bench to pose freely.</WorkshopGuidance>
+    <WorkshopGuidance className="text-sm text-muted-foreground">Use Seated position to adjust supported sitting and pose the legs. Lying positions follow the pad.</WorkshopGuidance>
   </section>;
 }

@@ -12,6 +12,16 @@ it.each(["/%5coutside.example", "/%2foutside.example", "/%250aoutside.example", 
   expect(safeNextPath(path)).toBe("/dashboard");
 });
 
+it.each(["/%23/../sign-in", "/%3f/../auth/callback", "/%23/../reset-password"])("rejects auth routes after final URL normalization: %s", path => {
+  expect(safeNextPath(path)).toBe("/dashboard");
+});
+
+it("bounds the encoded destination before it can overflow pending-email validation", () => {
+  expect(safeNextPath("/" + "א".repeat(400))).toBe("/dashboard");
+  expect(safeNextPath("/exercises?q=" + "א".repeat(400))).toBe("/dashboard");
+  expect(safeNextPath("/exercises?q=א")).toBe("/exercises?q=%D7%90");
+});
+
 it("preserves catalog queries and password recovery destinations", () => {
   expect(safeNextPath("/exercises?equipment=cable&jointAction=shoulder-abduction")).toBe("/exercises?equipment=cable&jointAction=shoulder-abduction");
   expect(safeNextPath(null, "/reset-password/update")).toBe("/reset-password/update");

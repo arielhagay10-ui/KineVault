@@ -1,3 +1,5 @@
+const authRoutePattern = /^\/(?:auth|sign-in|sign-up|check-email|reset-password)(?:\/|$)/;
+
 export function safeNextPath(value: unknown, fallback = "/dashboard") {
   if (typeof value !== "string" || !value || value.length > 2048 || !value.startsWith("/")) return fallback;
   try {
@@ -12,10 +14,11 @@ export function safeNextPath(value: unknown, fallback = "/dashboard") {
     }
     if (decoded.startsWith("//") || /[\u0000-\u001f\u007f\\]/.test(decoded)) return fallback;
     const parsed = new URL(decoded, "https://kinevault.invalid");
-    if (parsed.origin !== "https://kinevault.invalid" || parsed.pathname.startsWith("//") || /^\/(?:auth|sign-in|sign-up|check-email|reset-password)(?:\/|$)/.test(parsed.pathname)) return fallback;
+    if (parsed.origin !== "https://kinevault.invalid" || parsed.pathname.startsWith("//") || authRoutePattern.test(parsed.pathname)) return fallback;
     const destination = new URL(value, "https://kinevault.invalid");
-    if (destination.pathname.startsWith("//")) return fallback;
-    return `${destination.pathname}${destination.search}${destination.hash}`;
+    if (destination.pathname.startsWith("//") || authRoutePattern.test(destination.pathname)) return fallback;
+    const path = `${destination.pathname}${destination.search}${destination.hash}`;
+    return path.length <= 2048 ? path : fallback;
   } catch {
     return fallback;
   }

@@ -1,8 +1,10 @@
 import { Vector3 } from "three";
 import { jointControlRange, type JointSlug, type StudioObject, type WorkshopScene } from "./workshop";
 import { generateMachineRepetition } from "./quick-create";
-import { isStudioMachine, machineCarriagePoint, reversePecDeckSeatZ, rowHandleHeight, setMachineHandleHeight, setMachinePosition } from "./studio-machines";
-import { clamp, sampleStudioObject } from "./studio";
+import { isStudioMachine, machineCarriagePoint, machineLever, reversePecDeckSeatZ, rowHandleHeight, setMachineHandleHeight, setMachinePosition } from "./studio-machines";
+import { clamp, sampleStudioObject, setStudioObjectAnimated } from "./studio";
+import { chestPressPositionAtPoint } from "./chest-press";
+import { shoulderPressPositionAtPoint } from "./shoulder-press";
 export type StudioDragPlane = "view" | "floor" | "front" | "side" | "x" | "y" | "z";
 export function studioTranslationAxes(plane: StudioDragPlane = "view") {
   return { x: !["side", "y", "z"].includes(plane), y: !["floor", "x", "z"].includes(plane), z: !["front", "x", "y"].includes(plane) };
@@ -21,7 +23,7 @@ export function studioSnapTarget(target: Vector3, origin: Vector3, plane: Studio
   const axes = studioTranslationAxes(plane);
   return new Vector3(...(["x", "y", "z"] as const).map(axis => axes[axis] ? Math.round(target[axis] / step) * step : origin[axis]) as [number, number, number]);
 }
-export type MachineDragValues = { machinePosition: number; machineHandleHeight?: number };
+export type MachineDragValues = { machinePosition: number; machineHandleHeight?: number; side?: "left" | "right" };
 export function studioDragDelta(delta: Vector3, right: Vector3, up: Vector3, forward: Vector3, plane: StudioDragPlane, sensitivity: number) {
   if (plane === "view") return delta.clone().multiplyScalar(sensitivity);
   // Project camera-plane movement instead of intersecting a fixed plane. A
@@ -32,6 +34,14 @@ export function studioDragDelta(delta: Vector3, right: Vector3, up: Vector3, for
   return right.clone().setY(0).normalize().multiplyScalar(delta.dot(right)).addScaledVector(floorForward.normalize(), delta.dot(up)).multiplyScalar(sensitivity);
 }
 export function machineDragValues(object: StudioObject, point: Vector3, side: "left" | "right" = "left"): MachineDragValues {
+  if (object.slug === "chest-press-machine") return { machinePosition: chestPressPositionAtPoint(object, side, point), side };
+  if (object.slug === "shoulder-press-machine") return { machinePosition: shoulderPressPositionAtPoint(object, side, point), side };
+  if (object.slug === "row-machine" || object.slug === "t-bar-row-machine") {
+    const start = machineLever({ ...object, machinePosition: 0, machinePositionLeft: 0, machinePositionRight: 0 }, side), finish = machineLever({ ...object, machinePosition: 1, machinePositionLeft: 1, machinePositionRight: 1 }, side);
+    const angle = Math.atan2(point.z - start.pivot.z, point.y - start.pivot.y) - Math.atan2(start.grip.z, start.grip.y);
+    const wrapped = Math.atan2(Math.sin(angle), Math.cos(angle));
+    return { machinePosition: clamp((wrapped - start.angle) / (finish.angle - start.angle), 0, 1), ...(["row-machine", "shoulder-press-machine", "chest-press-machine"].includes(object.slug) ? { side } : {}) };
+  }
   if (object.slug === "cable-row-machine") return { machinePosition: clamp((.88 - point.z) / .58, 0, 1), machineHandleHeight: clamp(point.y, rowHandleHeight.min, rowHandleHeight.max) };
   if (object.slug === "pec-deck") {
     const reverse = object.machineMode === "reverse", sign = (side === "left" ? 1 : -1) * (reverse ? -1 : 1);
@@ -49,14 +59,15 @@ export function moveMachineWithMouse(scene: WorkshopScene, id: string, timeMs: n
   if (!object || !isStudioMachine(object.slug) || !Number.isFinite(values.machinePosition) || (values.machineHandleHeight !== undefined && !Number.isFinite(values.machineHandleHeight))) return scene;
   const position = clamp(values.machinePosition, 0, 1);
   const height = object.slug === "cable-row-machine" && values.machineHandleHeight !== undefined ? clamp(values.machineHandleHeight, rowHandleHeight.min, rowHandleHeight.max) : undefined;
-  if (mode === "quick" && object.machineUse) {
+  if (mode === "quick" && object.machineUse && !["row-machine", "shoulder-press-machine", "chest-press-machine"].includes(object.slug)) {
     const start = sampleStudioObject(object, 0), finish = sampleStudioObject(object, scene.durationMs / 2);
     const editingFinish = timeMs > scene.durationMs / 4 && timeMs < scene.durationMs * 3 / 4;
     return generateMachineRepetition(scene, id, editingFinish ? start.machinePosition ?? 0 : position, editingFinish ? position : finish.machinePosition ?? 1,
       height === undefined ? undefined : { start: editingFinish ? start.machineHandleHeight ?? rowHandleHeight.standard : height, finish: editingFinish ? height : finish.machineHandleHeight ?? rowHandleHeight.standard });
   }
   if ((object.frames?.length ?? 0) >= 24 && !object.frames?.some(frame => frame.timeMs === timeMs)) throw new Error("This machine already has 24 moments. Select an existing moment in Advanced before dragging.");
-  let next = setMachinePosition(object, position, timeMs);
+  const animated = ["row-machine", "shoulder-press-machine", "chest-press-machine"].includes(object.slug) ? setStudioObjectAnimated(object, true, timeMs, scene.keyframes.map(frame => frame.timeMs)) : object;
+  let next = setMachinePosition(animated, position, timeMs, values.side);
   if (height !== undefined) next = setMachineHandleHeight(next, height, timeMs);
   return { ...scene, studio: { ...scene.studio!, objects: scene.studio!.objects.map(item => item.id === id ? next : item) } };
 }

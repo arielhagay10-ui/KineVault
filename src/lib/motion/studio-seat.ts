@@ -2,8 +2,10 @@ import { Euler, Quaternion, Vector3 } from "three";
 import type { AnatomyRig } from "./anatomy";
 import { sampleStudioObject, studioPointToWorld } from "./studio";
 import { jointLimits, type RigPose, type StudioLayout } from "./workshop";
+import { applyStudioSupports } from "./support-contacts";
 
 export function applyStudioSeating(rig: AnatomyRig, studio: StudioLayout | undefined, timeMs: number, pose: RigPose) {
+  if (studio?.supports?.length) return applyStudioSupports(rig, studio, timeMs, pose);
   const seating = studio?.seating;
   const item = studio?.objects.find(object => object.id === seating?.benchId && object.slug === "bench");
   if (!studio || !seating || !item) return;
@@ -17,6 +19,8 @@ export function applyStudioSeating(rig: AnatomyRig, studio: StudioLayout | undef
   if (seating.facing === "back") rootRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), (90 - (bench.benchAngle ?? 45)) * radians));
   if (lying) rootRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0),
     (seating.facing === "supine" ? (bench.benchAngle ?? 45) - 90 : 90 - (bench.benchAngle ?? 45)) * radians));
+  // Torso supports determine world alignment even when the saved pose already bends the trunk.
+  if (lying) rootRotation.multiply(rig.bones.pelvis.quaternion.clone().multiply(rig.bones.torso.quaternion).invert());
   const parentRotation = rig.root.parent?.getWorldQuaternion(new Quaternion()) ?? new Quaternion();
   rig.root.quaternion.copy(parentRotation.clone().invert().multiply(rootRotation));
   const chestSupported = seating.facing === "back";
@@ -31,11 +35,15 @@ export function applyStudioSeating(rig: AnatomyRig, studio: StudioLayout | undef
   // Pelvis offsets include pad thickness and the anatomy's back/chest depth.
   const support = new Vector3(0, .673, .253).addScaledVector(along, .12)
     .addScaledVector(normal, seating.facing === "supine" ? .215 : .32);
-  const pelvis = studioPointToWorld(lying ? support : { x: 0, y: 0.82, z: seatZ }, bench);
+  const pelvis = studioPointToWorld(lying ? support : {
+    x: Math.max(-.1, Math.min(.1, bench.seatOffsetX ?? 0)), y: 0.82,
+    z: seatZ + Math.max(-.12, Math.min(.12, bench.seatOffsetZ ?? 0)),
+  }, bench);
   const origin = pelvis.clone().sub(rig.bones.pelvis.position.clone().multiplyScalar(scale).applyQuaternion(rootRotation));
   rig.root.position.copy(rig.root.parent ? rig.root.parent.worldToLocal(origin) : origin);
   rig.root.updateWorldMatrix(true, true);
   for (const side of ["left", "right"] as const) {
+    if (!lying && bench.seatFootSupport === false) continue;
     const hip = rig.bones[`${side}-hip`], knee = rig.bones[`${side}-knee`], foot = rig.footBones[side];
     const ankle = foot.quaternion.clone();
     const upper = knee.position.length() * scale, lower = foot.position.length() * scale;

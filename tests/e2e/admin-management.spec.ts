@@ -83,9 +83,9 @@ test("candidate searches remain bounded without dropping the query", async ({ pa
     await page.getByRole("textbox", { name: "Search candidates", exact: true }).fill("x".repeat(2000));
     await expect(page.getByRole("textbox", { name: "Search candidates", exact: true })).toHaveValue("x".repeat(100));
     await page.getByRole("button", { name: "Search", exact: true }).click();
-    await expect(page.getByText("No candidates on this page.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "No candidates on this page", exact: true })).toBeVisible();
     await page.goto(`/admin/candidates?q=${"x".repeat(101)}`);
-    await expect(page.getByText("No candidates on this page.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "No candidates on this page", exact: true })).toBeVisible();
   });
 });
 

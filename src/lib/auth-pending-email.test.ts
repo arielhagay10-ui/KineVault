@@ -7,6 +7,7 @@ vi.mock("next/headers", () => ({ cookies: async () => ({
   set: mocks.set,
   delete: (name: string) => mocks.values.delete(name),
 }) }));
+import { NextResponse } from "next/server";
 import { clearPendingEmail, getPendingEmail, rememberPendingEmail } from "./auth-pending-email";
 
 beforeEach(() => {
@@ -20,15 +21,30 @@ afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 it("stores only expiring presentation data in an HttpOnly cookie", async () => {
   await rememberPendingEmail({ email: "person@example.com", kind: "signup", next: "//outside.example" });
-  const [name, value, options] = mocks.set.mock.calls[0];
+  const [name, , options] = mocks.set.mock.calls[0];
   expect(options).toMatchObject({ httpOnly: true, secure: true, sameSite: "lax", maxAge: 3600 });
-  expect(JSON.parse(value).next).toBe("/dashboard");
+  expect((await getPendingEmail())?.next).toBe("/dashboard");
   expect((await getPendingEmail())?.remainingSeconds).toBe(60);
   vi.advanceTimersByTime(61_000);
   expect((await getPendingEmail())?.remainingSeconds).toBe(0);
   vi.advanceTimersByTime(3600_000);
   expect(await getPendingEmail()).toBeNull();
   expect(name).toBe("kv-auth-email");
+});
+
+it("keeps long valid continuations within browser cookie limits", async () => {
+  const next = "/exercises?q=" + "?".repeat(2000);
+  await rememberPendingEmail({ email: "person@example.com", kind: "signup", next });
+  const [name, value, options] = mocks.set.mock.calls[0];
+  const response = new NextResponse();
+  response.cookies.set(name, value, options);
+  expect(Buffer.byteLength(response.headers.get("set-cookie")!)).toBeLessThanOrEqual(4096);
+  expect((await getPendingEmail())?.next).toBe(next);
+});
+
+it("continues reading pending email cookies issued before compact encoding", async () => {
+  mocks.values.set("kv-auth-email", JSON.stringify({ email: "person@example.com", kind: "recovery", next: "/my-exercises", retryAt: 0, expiresAt: Date.now() + 3600_000 }));
+  expect(await getPendingEmail()).toMatchObject({ kind: "recovery", next: "/my-exercises", remainingSeconds: 0 });
 });
 
 it("ignores malformed and implausible cooldown cookies", async () => {

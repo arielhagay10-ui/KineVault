@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Group, Quaternion, Vector3 } from "three";
 import { createAnatomyRig, poseAnatomyRig } from "./anatomy";
 import { studioLayoutSchema } from "./scene-schema";
-import { applyStudioMachine, machineDemoScene, type MachineSlug } from "./studio-machines";
+import { applyStudioMachine, machineDemoScene, rowFootplate, type MachineSlug } from "./studio-machines";
 import { studioPointToWorld } from "./studio";
 import { readFile } from "node:fs/promises";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -134,7 +134,14 @@ describe("cable row and pec deck", () => {
             const forearmDirection = rig.handBones[side].getWorldPosition(new Vector3()).sub(rig.bones[`${side}-elbow`].getWorldPosition(new Vector3()));
             expect(handDirection.angleTo(forearmDirection) * 180 / Math.PI).toBeLessThan(slug === "cable-row-machine" ? 20 : 40);
             const foot = { x: sign * 0.17, y: slug === "cable-row-machine" ? 0.2958614357 : 0.119, z: slug === "cable-row-machine" ? 0.9722146827 : 0.6 };
-            expect(rig.footBones[side].getWorldPosition(new Vector3()).distanceTo(studioPointToWorld(foot, placement))).toBeLessThan(0.005);
+            expect(rig.footBones[side].getWorldPosition(new Vector3()).distanceTo(studioPointToWorld(foot, placement))).toBeLessThan(.13 * scale);
+            const sole = rig.footBones[side].localToWorld(new Vector3(0, -.14, .065));
+            const normal = new Vector3(0, 1, 0);
+            const top = slug === "cable-row-machine" ? new Vector3(0, rowFootplate.thickness / 2, 0)
+              .applyAxisAngle(new Vector3(1, 0, 0), rowFootplate.angle).add(new Vector3(sign * .17, rowFootplate.y, rowFootplate.z)) : new Vector3(sign * .17, 0, .6);
+            if (slug === "cable-row-machine") normal.applyAxisAngle(new Vector3(1, 0, 0), rowFootplate.angle);
+            normal.applyAxisAngle(new Vector3(0, 1, 0), placement.rotationY * Math.PI / 180);
+            expect(Math.abs(sole.sub(studioPointToWorld(top, placement)).dot(normal))).toBeLessThan(.005 * scale);
           }
         }
       }

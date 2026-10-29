@@ -31,7 +31,7 @@ export function WorkshopJointPicker({ selected, onSelect, compact = false, bothS
     };
     return <div className="space-y-2">
       <label className="block space-y-2 text-sm font-semibold">{t("Body joint")}
-        <select aria-label={t("Body joint")} value={family ?? ""} onChange={event => choose(event.target.value as JointFamily, compactSide)} className="min-h-11 w-full rounded-lg border bg-background px-3 text-base font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        <select data-tutorial-target="pose" aria-label={t("Body joint")} value={family ?? ""} onChange={event => choose(event.target.value as JointFamily, compactSide)} className="min-h-11 w-full rounded-lg border bg-background px-3 text-base font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           <option value="" disabled>{t("Choose a body joint")}</option>
           {jointFamilies.map(([value, label]) => <option key={value} value={value}>{t(label)}</option>)}
         </select>

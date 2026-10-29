@@ -1,20 +1,66 @@
 # Current workshop
 
+## Plate-loaded row
+
+Select the machine and open Item settings or Contacts. Seat height ranges from 56 to 78 cm before equipment scaling. Choose neutral or upper-back grips; both start with extended arms at the standard seat height. Select Start, Finish or Return below, then adjust each lever's pull percentage. Lever edits animate that pose automatically. Holding one handle preserves seating and leaves the other arm free. Pose controls can move the held arm along its lever path. Editing a leg releases automatic footplate support; Automatic foot support in Seated position restores it. A high seat can put the starting handles outside reach. Adjust the seat, grip or travel before capturing; the rig keeps its limb lengths and anatomical elbow hinge.
+
+Select a shoulder in Pose and enable **Elbow follows shoulder** to coordinate the arm through the normal shoulder sliders, numeric fields or rotation rings. With a hand attached to a machine, edits follow its reachable path while preserving contact; free arms counter-rotate the elbow as the upper arm moves. Both sides and Apply to all poses set the edit scope. The option starts off and switching it off leaves the current pose intact.
+
+## Surface supports
+
+Contacts exposes Body part and Support on… for the figure. Choose a region, enter surface picking, then select the floor or solid equipment. Hover previews the contact; ordinary dragging never attaches. Adjust position slides the selected marker on its original surface. Arrow keys move it by 1 cm; Fine adjustment provides coordinates and contact turn. Escape cancels an active gesture, and Undo restores the complete edit.
+
+Supports anchor throughout the repetition and follow their equipment, including bench pad angle. Hand, forearm, elbow, knee, foot, pelvis, chest and back contacts are independent. Supporting the pelvis leaves the legs editable. Reach and contact-angle limits use the existing Check placement advisory. Reposition body previews a bounded placement change; Use position commits it and Cancel restores the previous scene.
+
+Tools → Setups includes editable floor sitting, kneeling, lying and bench-supported starting poses. The hand-and-knee shortcut flattens its selected bench and grounds the standing foot. Setups replace body poses across the movement in one undoable edit. Existing bench scenes retain their original behavior until support editing converts them.
+
+Contacts survive capture, private saving, recovery, reload, sharing and rendering. Supported hands cannot simultaneously hold equipment; elbow support can accompany a held weight. Release preserves the solved pose, including the held-weight driver. Releasing a torso support is rejected when preserving the movement would need an animated body-placement path. Keep that support or remove the conflicting animation first. Animated sliding is deferred.
+
+Surface picking excludes cables, moving handles, decorations and held weights. The solver uses calibrated anatomical contact offsets and bounded joint solves, without physics or runtime collision simulation. Bench pads and the floor have bounded surface coordinates; other solid contacts stay on their selected mesh face during adjustment.
+
+## Versatile equipment
+
+### Seated position
+
+Seated machines and benches expose Seated position in Contacts and the figure's Position panel. Slide the pelvis forward/back or sideways within its support, and adjust torso lean, turn and side lean. Edits are keyed at the current moment. The back may leave its pad while the pelvis stays supported. Unrelated hip, knee and ankle controls remain available in Pose; their first edit releases optional automatic foot placement without changing the displayed leg pose. Leg-press feet retain their sled contacts.
+
+Reset seat zeroes the current pelvis offsets and all three torso angles. It preserves leg controls, optional foot-support state, grip selection, machine travel and other keyframes. Seating and pose edits stop at the reachable boundary. Separate checks cover floor, hands, required sled contacts and torso-pad clearance at keyframes and 17 points across the affected interval. Releasing feet at a scrubbed time captures that displayed moment. Restoring automatic feet validates the new stance before applying it. An already invalid automatic stance is rejected during release. For a low chest-support bench, choose Lie face down or raise the pad before freeing the legs.
+
+### Shoulder press
+
+The shoulder press has wide grips for elbows-out pressing and neutral grips for elbows-forward pressing. Both sets share the lever arc. Each arm has independent travel controls and can be dragged separately. The neutral grip uses a visible swivel to retain its orientation without forcing the wrist to follow the lever's full rotation. This swivel is an added design choice for the reference-inspired model, not a mechanism established by the supplied photo.
+
+### Leg press
+
+The leg-press plate tilts 20 degrees from vertical while following its 45-degree rails. The calibrated working stroke and sole contact keep the normal movement within hip, knee and ankle limits. Seat adjustments retain required sled contacts. This original model's revised plate and travel replace an earlier geometry that required excessive ankle bending.
+
+Plate-loaded row and shoulder press join the cable row and Smith machine. Their levers, grips and plates move together. Custom grip points follow the lever's rotation. Use this machine enables a supported starting pose; holding one or both handles separately keeps body placement and supports editable. Release returns to authored poses.
+
+Smith Contacts includes lower and upper rail limits, from 0.3 to 3.05 unscaled meters. Timeline travel moves the bar within that range. Existing scenes retain their original squat range.
+
+Stools and plyo boxes can be placed, rotated, scaled and used through any solid face with Body support. Bands have two independent anchors in Contacts. Each follows a hand, foot, pelvis, equipment or a point relative to the band item. Offsets and resting span are editable. Removing anchored equipment freezes that end in place; Undo restores the attachment. Bands stretch and sag visually without simulating forces or constraining the figure.
+
+## Editor behavior
+
+Rotation rings follow the joint's orientation and stop at movement limits without drifting into another rotation plane.
+
 The workshop has one editor. Select a joint, the figure or equipment to reveal its controls. Joints use rotation rings; the figure and equipment use movement arrows. Hands & feet selects an endpoint and moves it with arrows while the existing solver bends the limb. Camera mode looks around; Select never drags an item. Free drag is available under Drag options.
 
 Direction offers the view, front, side and floor planes, plus single-axis movement. Fine adjustment lives only in Position and moves by 1, 5 or 10 cm, or rotates by 1, 5 or 15 degrees. Only valid joint axes appear; grips, supports and anatomical limits remain enforced. Numeric controls remain available in the inspector. Recent edits lives under More and describes session changes; Undo and Redo restore them.
 
 Saving an unnamed exercise opens a name prompt with Cancel focused. Click or tab into the name field, then press Enter or Save exercise to finish the original save, including Save & add details. Cancel or Escape returns to editing without changing the name. The equipment picker initially focuses Close. Opening either dialog does not focus an input or select its text.
 
-The header shows the chosen name as a title, editable inline. Add equipment lives in the header. Selected item is the single scene selector; the figure is separate from equipment. View, Setups and Settings live under More tools. Paired body joints default to Both, and an explicit Left or Right choice persists when switching joints. Manual shoulder controls restrict backward and combined bending; elbows bend as hinges, with palm rotation at the wrist. These authoring limits preserve existing saved scenes and contact-solver ranges. Neutral and palm-turn controls use the same forearm axis as the preview, keeping the shoulder and elbow still when the palm turns.
+The header groups My exercises, the inline exercise name, save feedback and Save exercise. Undo and Redo start a separate tools row. Add equipment sits beside More at the end of that row, with an Add caption on phones. Selected item is the single scene selector; the figure is separate from equipment. Item settings, Position, Contacts, Pose, Timeline and View share the inspector tab grid. Item settings configures the selected figure or equipment; new equipment is added from the header. Setups, Settings and Tutorial live under More, alongside recent edits, examples, recovery and shortcuts. Paired body joints default to Both, and an explicit Left or Right choice persists when switching joints. Manual shoulder controls restrict backward and combined bending; elbows bend as hinges, with palm rotation at the wrist. These authoring limits preserve existing saved scenes and contact-solver ranges. Neutral and palm-turn controls use the same forearm axis as the preview, keeping the shoulder and elbow still when the palm turns.
 
 Capture start records the starting position and copies it to Return, including animated equipment. Capturing Start again updates Return while preserving Finish and intermediate poses. Capture pose records later positions. The pose selector revisits Start, Finish and Return; advanced copying and generation live under Advanced pose actions. Timing is directly available in Timeline. Capture and Save exercise have distinct labels. Save exercise stores the whole movement privately in the account and offers Add exercise details after success. Autosave waits while poses remain uncaptured. The optional tutorial explains the sequence; persistent step-by-step header guidance is removed.
 
-The header keeps actions and brief save feedback on one row, including the single Add equipment action. Secondary tools share the inspector tab grid. Recovery choices are always visible in a compact device-draft notice with accurate saved/blank alternatives. Mobile has Preview and Edit controls views with a shared reachable playback/capture footer. Editing failures stay visible and rejected numeric input remains available for correction.
+The header keeps save actions together and offers Add equipment once. Recovery choices are always visible in a compact device-draft notice with accurate saved/blank alternatives. Mobile has Preview and Edit controls views with a shared reachable playback/capture footer. Editing failures stay visible and rejected numeric input remains available for correction.
 
 Hide controls enlarges the preview by hiding the inspector. Show controls stays visible in the toolbar and restores the panel. Full screen remains a separate browser action.
 
 Escape cancels the current drag, grip-point selection or numeric draft before clearing a selection. Actual popup menus close first. With no active edit, Escape clears selected joints, body or equipment and returns to camera control without moving or releasing anything. Escape in text/select fields returns focus to the workshop; the next Escape clears selection. Numeric cancellation discards the uncommitted draft instead of saving it.
+
+Select equipment and press L to toggle its placement lock, or use Lock placement / Unlock placement below Selected item. Locks block dragging, placement handles, nudges and coordinates while preserving selection, contacts and machine travel. Locks survive selection changes for the current editor session and reset on reload or leaving the editor. Text fields retain normal typing.
 
 The editor owns one committed scene. A temporary external gesture preview drives frame consumers; completion records one Undo transaction, cancellation restores the base, and device recovery checkpoints live changes at most every 500ms plus completion/lifecycle flushes. The pose selector includes capture status and shares one control group with Capture start/Capture pose. Only playback controls and the active joint inspector subscribe to display ticks. Inactive inspector bodies mount on first use and preserve local forms; the View portal anchor is eagerly mounted. Typed editor modes derive camera, tool, joint and limb behavior.
 
@@ -55,7 +101,7 @@ Hand and foot posing advisories appear as compact amber indicators inside the ca
 
 Free cable movement creates a low pulley, or replaces a selected row setup while preserving authored poses, the selected attachment and other equipment. Free body releases the row's seated contacts while keeping the assembly and grip; hips, knees, torso, feet and body placement remain editable for deadlifts and other movements. In Move with mouse, dragging an attachment or its round grab button moves the held hands without moving the tower. Arrow keys also move the handle; Escape cancels and Undo restores the whole gesture. Pose hands and feet exposes individual limb buttons instead. Cable rows and free towers share all seven attachment choices, including the wide-grip lat bar and two-arm angled bar; seated rows retain seat and foot support when changing attachments. New towers face the figure. Position shortcuts place a held tower in front, behind or beside the figure; turn buttons and precise coordinates remain independent of the hand attachment. Adding a cable row places it without engaging seated contacts; Use this machine in Advanced Contacts explicitly enables them. Examples still create complete linked movements. Edit start and Edit finish select the corresponding saved pose before editing; Match return to start closes the loop. Exact Start/Finish preview moments also select their matching pose.
 
-Saved keyframes describe body poses and independently animated equipment. Placement stays static until animation is enabled. Held weights accept arm-driven joint edits and weight-driven dragging where active contacts allow them. Releasing a weight restores unconstrained manual posing. Seating, machine support, elbow locks, foot contacts, cuffs and frontal-plane constraints survive validated saves. Classifications remain distinct from approximate motion solving.
+Saved keyframes describe body poses and independently animated equipment. The first Start capture seeds an untouched repetition. Once another frame is authored or duplicated, captures preserve every other frame, including the return. Use Copy pose or Match loop end to start to replace another pose explicitly. Placement stays static until animation is enabled. Held weights accept arm-driven joint edits and weight-driven dragging where active contacts allow them. Releasing a weight restores unconstrained manual posing. Seating, machine support, elbow locks, foot contacts, cuffs and frontal-plane constraints survive validated saves. Classifications remain distinct from approximate motion solving.
 
 The shared playback clock updates labels and sliders at a lower frequency. Canvas frames solve the figure before equipment/contact consumers. Camera-only frames reuse poses. Viewers share immutable prepared anatomy geometry while keeping skeletons, highlights and materials separate. Closing the final viewer releases geometry GPU buffers.
 

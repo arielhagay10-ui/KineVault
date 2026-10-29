@@ -5,7 +5,7 @@ export const workshopTutorialSteps = [
     "Select any item to show its movement controls. Right-drag to look around without moving it.",
   ] },
   { id: "pose", title: "Build the movement", panel: "pose", target: "pose", tips: [
-    "Arrange the first position, then choose Capture start below the preview. Edit finish and choose Capture pose. You can return to either pose anytime.",
+    "Choose a body joint below, or select it directly in the scene. Arrange the first position, then choose Capture start below the preview. Edit finish and choose Capture pose. You can return to either pose anytime.",
     "Moving the figure edits a draft pose. Capture pose records it; Save exercise stores the exercise in your account.",
     "Use rotation rings for joints, or Hands & feet for movement arrows. Choose a direction to constrain dragging; Fine adjustment makes small steps.",
   ] },

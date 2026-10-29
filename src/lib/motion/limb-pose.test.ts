@@ -78,7 +78,8 @@ describe("direct hand and foot posing", () => {
     scene.studio!.objects = [];
     expect(limbPoseBlock(createQuickScene("pec-deck"), "left-hand")).toMatch(/machine/i);
     scene.studio!.seating = { benchId: "bench", facing: "front" };
-    expect(limbPoseBlock(scene, "left-foot")).toMatch(/Stand up/);
+    expect(limbPoseBlock(scene, "left-foot")).toBeUndefined();
+    expect(limbPoseBlock(createQuickScene("leg-press"), "left-foot")).toMatch(/sled/i);
     expect(limbPoseBlock(scene, "left-hand")).toBeUndefined();
     scene.motionStyle = "squat";
     expect(limbPoseBlock(scene, "right-foot")).toMatch(/Free posing/);

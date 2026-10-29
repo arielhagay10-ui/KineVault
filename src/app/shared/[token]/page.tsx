@@ -7,6 +7,7 @@ import { SharedMotion } from "@/components/character/shared-motion";
 import { decodeSharedScene } from "@/lib/motion/load-scene";
 import { createClient } from "@/lib/supabase/server";
 import { reviewPatchSchema, reviewFieldLabels, formatReviewValue } from "@/lib/moderation/schema";
+import { PageHeader } from "@/components/ui/page-layout";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { robots: { index: false, follow: false } };
@@ -43,12 +44,8 @@ export default async function SharedExercisePage({ params }: { params: Promise<{
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-4xl px-6 pb-20 pt-8">
-        <div className="pt-12">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Shared by link</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">{exercise.name}</h1>
-          {exercise.description && <p className="mt-5 text-lg leading-8 text-muted-foreground">{exercise.description}</p>}
-          <p className="mt-5 text-sm text-muted-foreground">This is its owner’s private draft. Classifications can change as they refine it.</p>
-        </div>
+        <div className="pt-10"><PageHeader title={exercise.name} description={exercise.description ?? undefined} /></div>
+        <p className="mb-6 text-sm text-muted-foreground">Shared by link. This is its owner’s private draft. Classifications can change as they refine it.</p>
         {scene && <SharedMotion scene={scene} />}
         <div className="mt-10 grid gap-5 md:grid-cols-2">
           <InfoCard title="Movement">
@@ -79,10 +76,10 @@ export default async function SharedExercisePage({ params }: { params: Promise<{
 }
 
 function InfoCard({ title, children }: { title: string; children: ReactNode }) {
-  return <section className="rounded-2xl border border-border bg-card p-6"><h2 className="text-xl font-semibold">{title}</h2><div className="mt-5 space-y-4">{children}</div></section>;
+  return <section className="min-w-0 rounded-xl border border-border bg-card p-6"><h2 className="text-xl font-semibold">{title}</h2><div className="mt-5 space-y-4">{children}</div></section>;
 }
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
-  return <div><p className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p><p className="mt-1 text-sm leading-6 text-primary">{value}</p></div>;
+  return <div className="min-w-0"><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-1 break-words text-sm leading-6 text-foreground">{value}</p></div>;
 }

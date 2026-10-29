@@ -1,10 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   distDir: process.env.KINEVAULT_DIST_DIR || ".next",
   agentRules: false,
   devIndicators: false,
   output: "standalone",
+  experimental: {
+    optimizePackageImports: ["radix-ui"],
+  },
   async headers() {
     return [{
       source: "/:path*",
@@ -20,6 +24,12 @@ const nextConfig: NextConfig = {
         { key: "Referrer-Policy", value: "no-referrer" },
         { key: "X-Robots-Tag", value: "noindex, nofollow" },
       ],
+    })), ...[
+      "/sign-in", "/sign-up", "/reset-password/:path*", "/admin/:path*", "/dashboard/:path*",
+      "/my-exercises/:path*", "/submissions/:path*", "/notifications/:path*",
+    ].map(source => ({
+      source,
+      headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
     })), {
       source: "/models/z-anatomy/model.meshopt.32c5dfc3.glb",
       headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],

@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,7 +23,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
   "include": [
@@ -28,7 +34,20 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".local-artifacts/balanced-dumbbell/next/types/**/*.ts",
+    ".local-artifacts/balanced-dumbbell/next/dev/types/**/*.ts",
+    ".local-artifacts/grip-audit-ready/next/types/**/*.ts",
+    ".local-artifacts/grip-audit-ready/next/dev/types/**/*.ts",
+    ".local-artifacts/stretch-stability/next/types/**/*.ts",
+    ".local-artifacts/stretch-stability/next/dev/types/**/*.ts",
+    ".local-artifacts/stretch-stability-final/next/types/**/*.ts",
+    ".local-artifacts/stretch-stability-final/next/dev/types/**/*.ts",
+    ".local-artifacts/recline-support-next/types/**/*.ts",
+    ".local-artifacts/recline-support-next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "tools"]
+  "exclude": [
+    "node_modules",
+    "tools"
+  ]
 }

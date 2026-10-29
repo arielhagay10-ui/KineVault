@@ -5,9 +5,8 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Mesh, Object3D, Plane, Raycaster, Vector2, Vector3 } from "three";
 import type { TransformControls as TransformControlsImpl } from "three-stdlib";
-import { readJointAngles, readSceneTransform } from "@/lib/motion/studio";
-import { clampJointControlAngles } from "@/lib/motion/workshop";
-import { captureStudioTransform, restoreStudioTransform } from "@/lib/motion/studio-transform-gesture";
+import { readSceneTransform } from "@/lib/motion/studio";
+import { captureStudioTransform, constrainStudioJointRotation, restoreStudioTransform } from "@/lib/motion/studio-transform-gesture";
 import { studioConstrainDelta, studioRotationAxes, studioSnapTarget, studioTranslationAxes } from "@/lib/motion/workshop-mouse";
 import type { StudioEditor } from "./studio-controls";
 
@@ -88,7 +87,9 @@ export function StudioTransformHandles({ object, mode, editor, onCommit, onChang
   }, []);
   const joint = mode === "rotate" && editor.selection?.kind === "joint" ? editor.selection.slug : null;
   const axes = joint ? studioRotationAxes(joint, editor.frontalPlane) : mode === "translate" ? studioTranslationAxes(editor.dragPlane) : { x: true, y: mode !== "scale", z: mode !== "scale" };
-  return <TransformControls ref={controls} object={object} mode={mode} space={mode === "rotate" ? "local" : "world"} size={.85}
+  // Keep a horizontal shoulder ring even when the arm is raised or bent.
+  const worldShoulder = joint?.endsWith("shoulder") && !editor.frontalPlane;
+  return <TransformControls ref={controls} object={object} mode={mode} space={mode === "rotate" && !worldShoulder ? "local" : "world"} size={.85}
     showX={axes.x} showY={axes.y} showZ={axes.z}
     translationSnap={null} rotationSnap={editor.snap ? Math.PI / 12 : null} scaleSnap={editor.snap ? .1 : null}
     onMouseDown={() => {
@@ -109,9 +110,8 @@ export function StudioTransformHandles({ object, mode, editor, onCommit, onChang
       if (mode === "rotate") item.quaternion.copy(initial.rotation.clone().slerp(item.quaternion, initial.sensitivity));
       if (mode === "scale") item.scale.sub(initial.scale).multiplyScalar(initial.sensitivity).add(initial.scale).setScalar(item.scale.x);
       if (joint) {
-        const angles = clampJointControlAngles(joint, readJointAngles(joint, item));
-        if (editor.frontalPlane && joint.endsWith("shoulder")) { angles.x = 0; angles.y = 0; }
-        item.rotation.set(angles.x * (joint.endsWith("elbow") || joint.endsWith("knee") || joint.endsWith("ankle") ? -1 : 1) * Math.PI / 180, angles.y * Math.PI / 180, angles.z * (joint === "torso" ? 1 : -1) * Math.PI / 180);
+        constrainStudioJointRotation(joint, item, initial.rotation);
+        if (editor.frontalPlane && joint.endsWith("shoulder")) { item.rotation.x = 0; item.rotation.y = 0; }
       }
       initial.moved ||= item.position.distanceTo(initial.position) > .0001 || item.quaternion.angleTo(initial.rotation) > .0001 || item.scale.distanceTo(initial.scale) > .0001;
       // The scene owner publishes these previews externally and records once on release.

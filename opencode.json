@@ -7,6 +7,22 @@
         "mcp"
       ],
       "enabled": true
+    },
+    "kinevault-workshop": {
+      "type": "local",
+      "command": [
+        "node",
+        "tools/workshop-mcp/dist/server.js"
+      ],
+      "environment": {
+        "KV_WORKSHOP_URL": "http://127.0.0.1:3000"
+      },
+      "enabled": true
+    },
+    "supabase-local": {
+      "type": "remote",
+      "url": "http://127.0.0.1:54321/mcp",
+      "enabled": true
     }
   }
 }

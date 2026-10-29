@@ -1,29 +1,20 @@
 import { expect } from "@playwright/test";
 import { test } from "../e2e/published-catalog.helpers";
-import { expectModalFocus } from "./accessibility.helpers";
 
-test("navigation dialog contains keyboard focus and returns it after Escape", async ({ page }) => {
+test("account options keep focus usable through resize and Escape", async ({ page }) => {
   await page.goto("/exercises");
-  const trigger = page.getByRole("button", { name: "Site menu", exact: true });
+  const trigger = page.getByRole("button", { name: "Appearance", exact: true });
   await trigger.focus();
   await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog", { name: "Site navigation", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Account options", exact: true });
   await expect(dialog).toBeVisible();
-  await expect(dialog).toHaveJSProperty("open", true);
+  await expect(dialog).toHaveJSProperty("popover", "auto");
   const viewport = page.viewportSize()!;
   await page.setViewportSize({ ...viewport, width: viewport.width - 1 });
   await dialog.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  await trigger.focus();
-  await expect(trigger).not.toBeFocused();
-  await expectModalFocus(page, "Site navigation");
-  for (let index = 0; index < 15; index++) {
-    await page.keyboard.press("Tab");
-    await expectModalFocus(page, "Site navigation");
-  }
-  for (let index = 0; index < 15; index++) {
-    await page.keyboard.press("Shift+Tab");
-    await expectModalFocus(page, "Site navigation");
-  }
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("combobox", { name: "Appearance", exact: true }).focus();
+  await expect(dialog.getByRole("combobox", { name: "Appearance", exact: true })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
@@ -34,14 +25,15 @@ test("navigation dialog contains keyboard focus and returns it after Escape", as
 test("touch navigation and combined catalog filters open the matching exercise", async ({ page, hasTouch, publishedCableRaise }) => {
   test.skip(!hasTouch, "Requires an emulated touch project; real-device checks remain manual.");
   await page.goto("/exercises");
-  const trigger = page.getByRole("button", { name: "Site menu", exact: true });
+  const trigger = page.getByRole("button", { name: "Appearance", exact: true });
   await trigger.tap();
-  const dialog = page.getByRole("dialog", { name: "Site navigation", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Account options", exact: true });
   await expect(dialog).toBeVisible();
-  await page.getByRole("button", { name: "Close menu", exact: true }).tap();
+  await page.getByRole("button", { name: "Close account options", exact: true }).tap();
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   await page.getByRole("button", { name: "Show filters" }).tap();
+  await page.locator("summary").filter({ hasText: /^Joint actions$/ }).tap();
   await page.getByRole("checkbox", { name: "Shoulder Abduction", exact: true }).tap();
   await page.locator("summary").filter({ hasText: /^Equipment$/ }).tap();
   await page.locator('input[name="equipment"][value="cable"]').tap();

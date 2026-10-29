@@ -1,0 +1,3 @@
+interface:
+  display_name: "KineVault Workshop Performance"
+  short_description: "Profile workshop playback and rendering"

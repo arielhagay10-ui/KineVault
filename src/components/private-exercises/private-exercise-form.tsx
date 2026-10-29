@@ -12,6 +12,7 @@ import type { WorkshopScene } from "@/lib/motion/workshop";
 import { suggestSceneDetails } from "@/lib/private-exercises/details";
 import { AdvancedPrivateFields } from "./advanced-fields";
 import { SelectedPrivateOptions } from "./selected-options";
+import { MuscleSuggestions } from "./muscle-suggestions";
 import { useMetadataGuard } from "./use-metadata-guard";
 import { FormError, focusInvalidField, submitPreservingValues, useFormErrorFocus } from "@/components/ui/form-feedback";
 import { readMetadataRecovery, matchesSavedMetadata, type MetadataRecovery } from "@/lib/private-exercises/metadata-recovery";
@@ -46,6 +47,10 @@ export function PrivateExerciseForm(props: FormProps) {
     });
     return () => cancelAnimationFrame(frame);
   }, [recoveryKey, draftId, savedMetadata]);
+  useEffect(() => {
+    // The loaded form changes the height above the sharing anchor.
+    if (loaded && window.location.hash === "#sharing") document.getElementById("sharing")?.scrollIntoView();
+  }, [loaded]);
   if (!loaded) return <p role="status" className="text-sm text-muted-foreground">Loading exercise details…</p>;
   if (recovery) return <section className="rounded-2xl border border-border bg-card p-6">
     <h2 className="text-xl font-semibold">Restore unsaved exercise details?</h2>
@@ -66,6 +71,8 @@ function PrivateExerciseFields({ initial, options, metadata, scene, recoveryKey,
   const [anatomy, setAnatomy] = useState({ primary: initial.primaryMuscles, secondary: initial.secondaryMuscles,
     stabilizer: initial.stabilizerMuscles, joints: initial.joints, actions: initial.jointActions });
   const [bodyPosition, setBodyPosition] = useState(initial.bodyPositionSlug ?? "");
+  const [resistanceSource, setResistanceSource] = useState(metadata?.resistance_source ?? "");
+  const [grip, setGrip] = useState(metadata?.grip ?? "");
   const suggestion = scene ? suggestSceneDetails(scene, options.equipment, options.bodyPositions) : null;
   const suggestedEquipment = suggestion?.equipment.filter(slug => !equipment.includes(slug)) ?? [];
   const suggestedPosition = suggestion?.bodyPosition && suggestion.bodyPosition !== bodyPosition ? suggestion.bodyPosition : null;
@@ -127,6 +134,18 @@ function PrivateExerciseFields({ initial, options, metadata, scene, recoveryKey,
           <p className="mt-2 text-sm leading-6 text-muted-foreground">Keep Unknown when the setup makes the profile uncertain.</p>
         </div>
       </div>
+      <div className="mt-5 grid gap-5 sm:grid-cols-2">
+        <label className="block text-base font-semibold">Resistance source
+          <select name="resistance_source" value={resistanceSource} onChange={event => setResistanceSource(event.target.value)} className={input}>
+            <option value="">Unknown / choose later</option>{options.resistanceSources.map(item => <option key={item.slug} value={item.slug}>{item.name}</option>)}
+          </select>
+        </label>
+        <label className="block text-base font-semibold">Grip
+          <select name="grip" value={grip} onChange={event => setGrip(event.target.value)} className={input}>
+            <option value="">Unknown / choose later</option>{options.grips.map(item => <option key={item.slug} value={item.slug}>{item.name}</option>)}
+          </select>
+        </label>
+      </div>
     </details>
 
     <details className="rounded-2xl border border-border bg-card p-6">
@@ -140,12 +159,23 @@ function PrivateExerciseFields({ initial, options, metadata, scene, recoveryKey,
         </span>
       </summary>
       <p className="mt-2 text-sm text-muted-foreground">Choose only what you can classify confidently. A muscle can have one role. Unselected anatomy stays unknown.</p>
-      <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <SelectedPrivateOptions title="Primary muscles" name="primaryMuscle" options={options.muscles} selected={anatomy.primary} onChange={primary => setAnatomy({ ...anatomy, primary })} />
-        <SelectedPrivateOptions title="Secondary muscles" name="secondaryMuscle" options={options.muscles} selected={anatomy.secondary} onChange={secondary => setAnatomy({ ...anatomy, secondary })} />
-        <SelectedPrivateOptions title="Stabilizers" name="stabilizerMuscle" options={options.muscles} selected={anatomy.stabilizer} onChange={stabilizer => setAnatomy({ ...anatomy, stabilizer })} />
-        <SelectedPrivateOptions title="Joints" name="joint" options={options.joints} selected={anatomy.joints} onChange={joints => setAnatomy({ ...anatomy, joints })} roles={metadata?.joints} rolePrefix="jointRole" />
-        <SelectedPrivateOptions title="Joint actions" name="jointAction" options={options.jointActions} selected={anatomy.actions} onChange={actions => setAnatomy({ ...anatomy, actions })} roles={metadata?.joint_actions} rolePrefix="actionRole" />
+      <div className="mt-5">
+        <SelectedPrivateOptions title="Joint actions" name="jointAction" options={options.jointActions} selected={anatomy.actions} onChange={actions => setAnatomy({ ...anatomy, actions })} roles={metadata?.joint_actions} rolePrefix="actionRole" editLabel="Choose joint actions" />
+      </div>
+      <MuscleSuggestions key={JSON.stringify([anatomy.actions, resistanceSource, grip, bodyPosition])}
+        actions={anatomy.actions} actionOptions={options.jointActions} muscles={options.muscles}
+        selectedMuscles={[...anatomy.primary, ...anatomy.secondary, ...anatomy.stabilizer]}
+        resistanceSource={resistanceSource} grip={grip} bodyPosition={bodyPosition}
+        onAdd={(slug, role) => {
+          if ([...anatomy.primary, ...anatomy.secondary, ...anatomy.stabilizer].includes(slug) || anatomy[role].length >= 20) return false;
+          setAnatomy(current => ({ ...current, [role]: [...current[role], slug] }));
+          return true;
+        }} />
+      <div className="mt-6 grid gap-5 border-t border-border pt-6 md:grid-cols-2">
+        <SelectedPrivateOptions title="Primary muscles" name="primaryMuscle" options={options.muscles} selected={anatomy.primary} onChange={primary => setAnatomy({ ...anatomy, primary })} editLabel="Edit primary muscles" />
+        <SelectedPrivateOptions title="Secondary muscles" name="secondaryMuscle" options={options.muscles} selected={anatomy.secondary} onChange={secondary => setAnatomy({ ...anatomy, secondary })} editLabel="Edit secondary muscles" />
+        <SelectedPrivateOptions title="Stabilizers" name="stabilizerMuscle" options={options.muscles} selected={anatomy.stabilizer} onChange={stabilizer => setAnatomy({ ...anatomy, stabilizer })} editLabel="Edit stabilizers" />
+        <SelectedPrivateOptions title="Joints" name="joint" options={options.joints} selected={anatomy.joints} onChange={joints => setAnatomy({ ...anatomy, joints })} roles={metadata?.joints} rolePrefix="jointRole" editLabel="Edit joints" />
       </div>
     </details>
     <AdvancedPrivateFields initial={metadata} options={options} />

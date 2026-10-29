@@ -4,7 +4,7 @@ import type { WorkshopScene } from "./workshop";
 import { normalizeLegacyStudioLayout } from "./equipment-capabilities";
 
 export const draftRecoveryKey = (ownerId: string, privateId: string | null) => `kinevault.workshop.draft.${ownerId}.${privateId ?? "new"}`;
-const recoverySchema = z.object({ scene: workshopSceneSchema, name: z.string().max(200), privateId: z.string().nullable(), confirmed: z.boolean().optional(), sessionId: z.string().optional(), updatedAt: z.number().finite() });
+const recoverySchema = z.object({ scene: workshopSceneSchema, name: z.string().max(200), privateId: z.string().nullable(), confirmed: z.boolean().optional(), firstPoseInitialized: z.boolean().optional(), sessionId: z.string().optional(), updatedAt: z.number().finite() });
 export type DraftRecovery = Omit<z.infer<typeof recoverySchema>, "scene"> & { scene: WorkshopScene };
 export function parseDraftRecovery(value: string | null): DraftRecovery | null {
   try {

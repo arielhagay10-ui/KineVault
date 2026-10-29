@@ -7,6 +7,7 @@ import { submitPreservingValues } from "@/components/ui/form-feedback";
 import { assignRole, saveTaxonomy, toggleLibraryAsset, type AdminActionState } from "@/app/admin/manage-actions";
 import { Constants } from "@/lib/database.types";
 import { describedTaxonomies, parentTaxonomies, type TaxonomyName, type TaxonomyRecord } from "@/lib/moderation/taxonomies";
+import { primaryActionClass, secondaryActionClass } from "@/components/ui/page-layout";
 
 type Choice = { id: string; name: string };
 
@@ -17,7 +18,7 @@ function useAdminFormReset(state: AdminActionState, enabled = true) {
   }, [state, enabled]);
   return form;
 }
-const inputClass = "mt-2 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm";
+const inputClass = "mt-2 min-h-11 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-sm";
 
 export function TaxonomyForm({ table, record, parents, joints, categories }: {
   table: TaxonomyName; record: TaxonomyRecord | null; parents: Choice[]; joints: Choice[]; categories: Choice[];
@@ -34,10 +35,10 @@ export function TaxonomyForm({ table, record, parents, joints, categories }: {
     {parentTaxonomies.includes(table) && <TaxonomySelect name="parentId" label="Parent" choices={parents.filter((item) => item.id !== record?.id)} value={record?.parent_id ?? ""} />}
     {table === "joint_actions" && <TaxonomySelect name="jointId" label="Anatomical joint" choices={joints} value={record?.joint_id ?? ""} required />}
     {table === "equipment" && <TaxonomySelect name="categoryId" label="Equipment category" choices={categories} value={record?.category_id ?? ""} required />}
-    <button name="operation" value="save" disabled={pending} className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">{pending ? "Saving…" : record ? "Save classification" : "Add classification"}</button>
+    <button name="operation" value="save" disabled={pending} className={primaryActionClass}>{pending ? "Saving…" : record ? "Save classification" : "Add classification"}</button>
     {record && <div className="border-t border-border pt-4">
-      <label className="flex items-center gap-2 text-xs text-muted-foreground"><input name="confirmDelete" type="checkbox" value="1" />Delete this unused classification</label>
-      <button name="operation" value="delete" formNoValidate disabled={pending} className="mt-3 text-sm font-semibold text-red-700 dark:text-red-300">Delete classification</button>
+      <label className="flex min-h-11 items-center gap-2 text-sm text-muted-foreground"><input name="confirmDelete" type="checkbox" value="1" />Delete this unused classification</label>
+      <button name="operation" value="delete" formNoValidate disabled={pending} className="mt-3 min-h-11 text-sm font-semibold text-red-700 underline-offset-4 hover:underline dark:text-red-300">Delete classification</button>
     </div>}
     <ActionFeedback state={state} />
   </form>;
@@ -53,7 +54,7 @@ export function AssetAvailabilityForm({ table, id, active }: { table: "rigs" | "
   const [state, action, pending] = useActionState(toggleLibraryAsset, { error: null });
   return <form action={action}>
     <input type="hidden" name="table" value={table} /><input type="hidden" name="id" value={id} /><input type="hidden" name="active" value={active ? "0" : "1"} />
-    <button disabled={pending} className="rounded-lg border border-border px-3 py-2 text-xs font-semibold disabled:opacity-50">{pending ? "Saving…" : active ? "Retire" : "Enable"}</button><ActionFeedback state={state} />
+    <button disabled={pending} className={secondaryActionClass}>{pending ? "Saving…" : active ? "Retire" : "Enable"}</button><ActionFeedback state={state} />
   </form>;
 }
 
@@ -66,7 +67,7 @@ export function RoleForm({ userId }: { userId: string }) {
       {Constants.public.Enums.app_role.map((role) => <option key={role} value={role}>{role}</option>)}
     </select></label>
     <label className="block text-sm font-semibold">Reason<Textarea name="comment" required minLength={5} maxLength={1000} rows={2} className={inputClass} /></label>
-    <button disabled={pending} className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">{pending ? "Saving…" : "Assign role"}</button><ActionFeedback state={state} />
+    <button disabled={pending} className={primaryActionClass}>{pending ? "Saving…" : "Assign role"}</button><ActionFeedback state={state} />
   </form>;
 }
 

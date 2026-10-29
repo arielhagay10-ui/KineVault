@@ -1,0 +1,17 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(10);
+select set_config('test.plate_row', '{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"objects":[{"id":"00000000-0000-4000-8000-000000000001","name":"Row","slug":"row-machine","x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"left","pulleyHeight":1.5,"machineUse":true,"rowGrip":"wide","rowSeatHeight":0.7,"rowFootSupport":true,"machinePositionLeft":0.9,"machinePositionRight":0.1}]}', true);
+select ok(private.valid_studio_layout(current_setting('test.plate_row')::jsonb), 'seated unilateral row saves');
+select ok(private.valid_studio_layout(jsonb_set(current_setting('test.plate_row')::jsonb,'{objects,0,attachment}','"both"')), 'bilateral row saves');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.plate_row')::jsonb,'{objects,0,rowSeatHeight}','0.9')), 'seat height range enforced');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.plate_row')::jsonb,'{objects,0,rowGrip}','"invalid"')), 'grip enum enforced');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.plate_row')::jsonb,'{objects,0,machinePositionLeft}','1.01')), 'lever range enforced');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.plate_row')::jsonb,'{objects,0,rowFootSupport}','"true"')), 'foot support boolean enforced');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.plate_row')::jsonb,'{objects,0,slug}','"shoulder-press-machine"')), 'row controls restricted to row machine');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.plate_row')::jsonb,'{objects,0,unknown}','0')), 'unknown keys still rejected');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.plate_row')::jsonb,'{objects,0,attachment}','"invalid"')), 'invalid attachment rejected');
+select ok(private.valid_studio_layout(null), 'legacy null layout remains valid');
+select * from finish();
+rollback;

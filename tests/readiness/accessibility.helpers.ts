@@ -17,9 +17,9 @@ export async function auditAccessibility(page: Page, testInfo: TestInfo, name: s
 }
 
 export async function setAppearance(page: Page, appearance: "light" | "dark") {
-  await page.getByRole("button", { name: "Site menu", exact: true }).click();
+  await page.getByRole("button", { name: /^(Appearance|Account)$/ }).click();
   await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(appearance);
-  await page.getByRole("button", { name: "Close menu", exact: true }).click();
+  await page.getByRole("button", { name: "Close account options", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", appearance);
 }
 

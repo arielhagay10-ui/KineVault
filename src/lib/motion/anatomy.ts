@@ -1,6 +1,7 @@
 import { Bone, Box3, type BufferGeometry, Float32BufferAttribute, Group, Line3, Matrix4, Mesh, MeshStandardMaterial, Quaternion, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from "three";
 import type { JointSlug, RigPose } from "./workshop";
 import { createAnatomyBatches, prepareAnatomyBatch } from "./anatomy-batches";
+import { savedMusclePatterns } from "./saved-muscle-highlights";
 
 export const anatomyModelUrl = "/models/z-anatomy/model.meshopt.32c5dfc3.glb";
 export const anatomyEconomyModelUrl = "/models/z-anatomy/model.economy.meshopt.e140790f.glb";
@@ -56,6 +57,7 @@ export function createAnatomyRig(source: Group) {
     bone: new MeshStandardMaterial({ color: "#ddd8cb", roughness: 0.8 }),
     tissue: new MeshStandardMaterial({ color: "#8e9994", roughness: 0.8 }),
     selected: new MeshStandardMaterial({ color: "#c33d36", roughness: 0.8 }),
+    secondary: new MeshStandardMaterial({ color: "#e99a94", roughness: 0.8 }),
   };
   const root = new Group();
   const bones = {} as Record<JointSlug | "pelvis", Bone>;
@@ -381,12 +383,18 @@ export function correctAuthoredArmPath(rig: AnatomyRig, style: string | undefine
 
 export function highlightAnatomyRig(rig: AnatomyRig, target: string, isolate: boolean) {
   const group = muscleGroups.find(item => target === `group:${item.id}`);
+  const savedPatterns = savedMusclePatterns(target, "primary");
+  const secondaryPatterns = savedMusclePatterns(target, "secondary");
   let count = 0;
   for (const mesh of rig.meshes) {
-    const selected = mesh.userData.system === "muscles"
-      && (target === `mesh:${mesh.name}` || Boolean(group?.pattern.test(mesh.name.toLowerCase())));
+    const name = mesh.name.toLowerCase();
+    const primary = target === `mesh:${mesh.name}` || Boolean(group?.pattern.test(name))
+      || savedPatterns.some(pattern => pattern.test(name));
+    const secondary = !primary && secondaryPatterns.some(pattern => pattern.test(name));
+    const selected = mesh.userData.system === "muscles" && (primary || secondary);
     mesh.visible = !isolate || target === "none" || selected;
-    mesh.material = selected ? rig.materials.selected : mesh.userData.system === "skeleton" ? rig.materials.bone : rig.materials.tissue;
+    mesh.material = selected ? secondary ? rig.materials.secondary : rig.materials.selected
+      : mesh.userData.system === "skeleton" ? rig.materials.bone : rig.materials.tissue;
     if (selected) count++;
   }
   rig.batches.update();

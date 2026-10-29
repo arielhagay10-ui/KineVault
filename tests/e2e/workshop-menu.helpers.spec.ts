@@ -21,14 +21,14 @@ test("waits for the mobile editor before revealing its tools", async ({ page }) 
       document.querySelector("main")!.innerHTML = `<section role="region" aria-label="Workshop editor">
         <button onclick="document.querySelector('[data-tools]').hidden = false">Edit controls</button>
         <details data-workshop-menu><summary>More</summary></details>
-        <div data-tools hidden><button role="tab" aria-selected="false" onclick="this.setAttribute('aria-selected', 'true')">Equipment</button></div>
+        <div data-tools hidden><button role="tab" aria-selected="false" onclick="this.setAttribute('aria-selected', 'true')">Item settings</button></div>
       </section>`;
     }, 100);
   });
 
-  await openWorkshopTool(page, "Equipment");
+  await openWorkshopTool(page, "Item settings");
 
-  await expect(page.getByRole("tab", { name: "Equipment" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Item settings" })).toHaveAttribute("aria-selected", "true");
 });
 
 test("waits for an existing control panel to become visible before opening it", async ({ page }) => {
@@ -46,7 +46,7 @@ test("waits for an existing control panel to become visible before opening it", 
 test("language selection waits for the editor to accept keyboard input", async ({ page }) => {
   await page.setContent(`<section data-workshop="studio" lang="en"><details data-workshop-menu><summary>More</summary>
     <select aria-label="Workshop language" onchange="this.closest('[data-workshop]').lang=this.value"><option value="en">English</option><option value="he">עברית</option></select>
-  </details><div inert><aside data-workshop-controls-scroll><button role="tab">Equipment</button></aside></div></section>`);
+  </details><div inert><aside data-workshop-controls-scroll><button role="tab">Item settings</button></aside></div></section>`);
   await page.locator("[data-workshop-menu] > summary").click();
   await page.evaluate(() => {
     document.querySelector("details")!.addEventListener("toggle", event => {
@@ -57,6 +57,6 @@ test("language selection waits for the editor to accept keyboard input", async (
   await setWorkshopLanguage(page, "he");
 
   expect(await page.locator("[data-workshop-controls-scroll]").evaluate(element => element.closest("[inert]") === null)).toBe(true);
-  await page.getByRole("tab", { name: "Equipment" }).focus();
-  await expect(page.getByRole("tab", { name: "Equipment" })).toBeFocused();
+  await page.getByRole("tab", { name: "Item settings" }).focus();
+  await expect(page.getByRole("tab", { name: "Item settings" })).toBeFocused();
 });

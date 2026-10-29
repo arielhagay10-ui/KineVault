@@ -21,7 +21,7 @@ export function WorkshopGripEditor({ object, side, picking, disabled, onEdit, on
     </button>)}</div>
     <button type="button" aria-pressed={picking} onClick={onPick} className={`${buttonClass} w-full`}>{picking ? t("Cancel point selection") : t("Choose point on equipment")}</button>
     {picking && <p role="status" className="text-sm font-medium text-primary">{t("Click the equipment or its attachment in the preview to place this grip.")}</p>}
-    <p className="text-xs text-muted-foreground">{t("Fine adjustment · centimeters from the automatic grip, along the item's own X, Y and Z axes.")}</p>
+    <p className="text-xs text-muted-foreground">{t(object.slug === "row-machine" || object.slug === "shoulder-press-machine" ? "Fine adjustment follows the moving handle's X, Y and Z axes." : "Fine adjustment · centimeters from the automatic grip, along the item's own X, Y and Z axes.")}</p>
     <div className="space-y-3">{(["x", "y", "z"] as const).map(axis => <WorkshopNumberField key={`${object.id}-${side}-${axis}`} label={t("Grip {axis} centimeters", { axis: axis.toUpperCase() })}
       value={Number((point[axis] * 100).toFixed(3))} min={-200} max={200} step={.5} onChange={value => onChange(side, { ...point, [axis]: value / 100 })} />)}</div>
     <button type="button" disabled={!object.gripOffsets?.[side]} onClick={() => onChange(side, null)} className={buttonClass}>{t("Reset {side} grip to automatic", { side })}</button>

@@ -1,10 +1,13 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { execFile, execFileSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
+import { Group } from "three";
+import ffmpegStatic from "ffmpeg-static";
 import { addWorkshopEquipment } from "../../src/lib/motion/workshop-freedom";
 import { blankWorkshopScene, identityTransform, type StudioObject } from "../../src/lib/motion/workshop";
 import { createQuickScene } from "../../src/lib/motion/quick-create";
@@ -12,11 +15,13 @@ import { createStudioObject } from "../../src/lib/motion/studio";
 import { automaticWeightTransform } from "../../src/lib/motion/automatic-weight-grip";
 import { editHeldWeightPose } from "../../src/lib/motion/held-weight-pose";
 import { carryHeldWeightsWithBody } from "../../src/lib/motion/held-weight-body";
+import { createAnatomyRig } from "../../src/lib/motion/anatomy";
+import { createSupportSetup } from "../../src/lib/motion/support-setups";
 import { changingElbowPulloverScene, nearLimitPulloverScene, sharedDumbbellScene } from "../helpers/shared-dumbbell";
 
 const run = promisify(execFile);
 
-for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-hand-barbell", "custom-barbell", "custom-rope", "custom-machine", "lat-pulldown", "leg-press", "pec-deck", "automatic-dumbbells", "resting-dumbbells", "joint-driven-dumbbells", "carried-dumbbells", "lying-front-raise-dumbbells", "joint-driven-barbell", "shared-goblet-dumbbells", "shared-pullover-dumbbells", "shared-near-limit-dumbbells", "shared-varying-dumbbells", "shared-left-arm-dumbbells"] as const) test(`a saved ${variant} produces playable private media`, async ({ page }) => {
+for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-hand-barbell", "custom-barbell", "custom-rope", "custom-machine", "lat-pulldown", "leg-press", "pec-deck", "automatic-dumbbells", "resting-dumbbells", "joint-driven-dumbbells", "carried-dumbbells", "lying-front-raise-dumbbells", "joint-driven-barbell", "shared-goblet-dumbbells", "shared-pullover-dumbbells", "shared-near-limit-dumbbells", "shared-varying-dumbbells", "shared-left-arm-dumbbells", "supported-row", "supported-floor", "supported-chest"] as const) test(`a saved ${variant} produces playable private media`, async ({ page, baseURL }) => {
   test.setTimeout(600_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
@@ -35,8 +40,27 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
       "left-elbow": { x: timeMs === 250 ? 90 : 30, y: 0, z: 0 }, "right-elbow": { x: timeMs === 250 ? 90 : 30, y: 0, z: 0 },
     } }));
     Object.assign(scene.studio!.objects[0], { attachment: "both", cableAttachment: "lat-bar", pulleyHeight: 2.8 });
+    const supportedVariant = variant === "supported-row" || variant === "supported-floor" || variant === "supported-chest";
     const machineVariant = variant === "lat-pulldown" || variant === "leg-press" || variant === "pec-deck";
-    if (variant.startsWith("shared-")) {
+    if (variant === "supported-chest") {
+      const bench = { ...createStudioObject("bench", randomUUID(), 0), ...identityTransform, benchAngle: 60 };
+      scene.studio = { body: { ...identityTransform }, objects: [bench], supports: [
+        { region: "chest", objectId: bench.id, surface: "pad", point: { x: 0, y: .8, z: .054 }, normal: { x: 0, y: 0, z: 1 }, turn: 0 },
+      ] };
+      scene.keyframes = scene.keyframes.map(frame => ({ ...frame, poses: { ...frame.poses, torso: { x: frame.timeMs === 250 ? 25 : -25, y: 0, z: 0 } } }));
+    } else if (supportedVariant) {
+      scene.studio!.objects = variant === "supported-row" ? [createStudioObject("bench", randomUUID(), 0)] : [];
+      const rig = createAnatomyRig(new Group());
+      try { Object.assign(scene, createSupportSetup(scene, variant === "supported-row" ? "bench-hand-knee" : "floor-sitting", rig)); }
+      finally { rig.dispose(); }
+      scene.keyframes = scene.keyframes.map(frame => ({ ...frame, poses: { ...frame.poses, "right-elbow": { x: frame.timeMs === 250 ? 90 : 30, y: 0, z: 0 } } }));
+      if (variant === "supported-row") {
+        scene.cameraAngle = "side";
+        const weight: StudioObject = { ...createStudioObject("dumbbell", randomUUID(), 1), attachment: "right", poseDriver: "arm" };
+        scene.studio!.objects.push(weight);
+        Object.assign(weight, automaticWeightTransform(scene.studio!.body, weight, "right", scene, 0));
+      }
+    } else if (variant.startsWith("shared-")) {
       Object.assign(scene, variant === "shared-near-limit-dumbbells" ? nearLimitPulloverScene().scene
         : variant === "shared-varying-dumbbells" || variant === "shared-left-arm-dumbbells" ? changingElbowPulloverScene(variant === "shared-left-arm-dumbbells" ? "left" : undefined).scene
         : sharedDumbbellScene(variant === "shared-goblet-dumbbells" ? "goblet" : "pullover", true).scene);
@@ -109,19 +133,68 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
     }
     const created = await owner.rpc("save_workshop_draft", { p_scene: scene, p_name: "Wide cable render fixture" });
     if (created.error) throw created.error;
-    const metadata = await owner.rpc("save_private_exercise", { p_private_id: created.data, p_name: "Workshop render fixture", p_family_slug: variant === "lat-pulldown" ? "lat-pulldown" : variant === "leg-press" ? "squat" : variant === "pec-deck" ? "chest-fly" : "curl",
+    if (!supportedVariant) {
+      const metadata = await owner.rpc("save_private_exercise", { p_private_id: created.data, p_name: "Workshop render fixture", p_family_slug: variant === "lat-pulldown" ? "lat-pulldown" : variant === "leg-press" ? "squat" : variant === "pec-deck" ? "chest-fly" : "curl",
       p_primary_muscle_slugs: [variant === "lat-pulldown" ? "latissimus-dorsi" : variant === "leg-press" ? "quadriceps" : variant === "pec-deck" ? "pectoralis-major" : "biceps-brachii"], p_joint_action_slugs: [variant === "lat-pulldown" ? "shoulder-adduction" : variant === "leg-press" ? "knee-extension" : variant === "pec-deck" ? "shoulder-horizontal-adduction" : "elbow-flexion"], p_equipment_slugs: [variant === "leg-press" || variant === "pec-deck" ? variant : variant.endsWith("dumbbells") ? "dumbbell" : variant.endsWith("barbell") ? "barbell" : "cable"] });
-    if (metadata.error) throw metadata.error;
-    const submission = await owner.rpc("submit_private_exercise", { p_private_id: created.data, p_duplicate_disposition: "new" });
-    if (submission.error) throw submission.error;
-    const record = await owner.from("exercise_submissions").select("original_content_id").eq("id", submission.data).single();
-    if (record.error) throw record.error;
-    const contentId = record.data.original_content_id;
+      if (metadata.error) throw metadata.error;
+    }
+    let contentId: string;
+    if (supportedVariant) {
+      const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single();
+      if (record.error) throw record.error;
+      contentId = record.data.content_id;
+    } else {
+      const submission = await owner.rpc("submit_private_exercise", { p_private_id: created.data, p_duplicate_disposition: "new" });
+      if (submission.error) throw submission.error;
+      const record = await owner.from("exercise_submissions").select("original_content_id").eq("id", submission.data).single();
+      if (record.error) throw record.error;
+      contentId = record.data.original_content_id;
+    }
     expect(contentId).toMatch(/^[0-9a-f-]{36}$/);
-    const savedScene = await owner.from("exercise_scenes").select("id").eq("content_id", contentId).single();
+    const savedScene = await owner.from("exercise_scenes").select("id,studio_layout").eq("content_id", contentId).single();
     if (savedScene.error) throw savedScene.error;
+    if (supportedVariant) expect(savedScene.data.studio_layout).toMatchObject({ supports: scene.studio!.supports });
     renderSceneId = savedScene.data.id;
     expect(renderSceneId).toMatch(/^[0-9a-f-]{36}$/);
+    if (supportedVariant) {
+      const jobId = randomUUID(), folder = ".local-artifacts/supports/media", directory = resolve(`${folder}/${variant}-capture`);
+      mkdirSync(directory, { recursive: true });
+      // Private drafts have no submission, so use the worker's shared capture pipeline without claiming queue jobs.
+      execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
+        `insert into public.render_jobs(id,scene_id,requested_by,status,claim_id,attempt_count,started_at) values ('${jobId}','${renderSceneId}','${account.data.user.id}','running','${randomUUID()}',1,now());`], { stdio: "pipe" });
+      const capture = await run(process.execPath, ["--env-file=.env.local", "--input-type=module", "-e", `
+        import { captureMotion } from './scripts/lib/capture-motion.mjs';
+        const [directory, jobId, duration, origin] = process.argv.slice(1);
+        await captureMotion({ scene: { durationMs: Number(duration) }, directory,
+          pageUrl: new URL('/internal/render/' + jobId, origin).href, token: process.env.RENDER_WORKER_TOKEN,
+          onMetrics: metrics => console.log(JSON.stringify(metrics)) });
+      `, directory, jobId, String(scene.durationMs), baseURL!], { timeout: 540_000 });
+      for (const [source, target] of [["demo.mp4", `${variant}.mp4`], ["demo.webm", `${variant}.webm`], ["poster.webp", `${variant}-poster.webp`]]) {
+        writeFileSync(`${folder}/${target}`, readFileSync(`${directory}/${source}`));
+      }
+      const decoded = execFileSync(ffmpegStatic!, ["-hide_banner", "-loglevel", "error", "-i", `${folder}/${variant}.mp4`, "-f", "framemd5", "-"], { encoding: "utf8" });
+      const frameHashes = decoded.split("\n").filter(line => line && !line.startsWith("#")).map(line => line.split(",").at(-1)!.trim());
+      expect(new Set(frameHashes).size, "Rendered movement must contain changing video frames").toBeGreaterThan(2);
+      writeFileSync(`${folder}/${variant}-media.json`, JSON.stringify({ sceneId: renderSceneId, jobId, supports: scene.studio!.supports,
+        captureMetrics: JSON.parse(capture.stdout.trim().split("\n").at(-1)!), pipeline: "private saved scene, shared captureMotion and FFmpeg; worker upload/completion excluded" }, null, 2));
+      const mediaUrl = new URL(`/__support-media/${variant}.mp4`, baseURL).href;
+      await page.route(mediaUrl, route => route.fulfill({ contentType: "video/mp4", body: readFileSync(`${folder}/${variant}.mp4`) }));
+      await page.setContent('<video controls muted aria-label="Rendered supported movement"></video>');
+      const video = page.locator("video");
+      await video.evaluate((element: HTMLVideoElement, source) => { element.src = source; }, mediaUrl);
+      await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThanOrEqual(2);
+      await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.videoWidth)).toBeGreaterThan(0);
+      await video.evaluate((element: HTMLVideoElement) => element.play());
+      await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.ended), { timeout: 15_000 }).toBe(true);
+      for (let sample = 0; sample <= 16; sample++) {
+        // Decode samples directly because paused Chrome video screenshots can retain a stale composited frame.
+        execFileSync(ffmpegStatic!, ["-hide_banner", "-loglevel", "error", "-y", "-ss", String(scene.durationMs / 1000 * sample / 16),
+          "-i", `${folder}/${variant}.mp4`, "-frames:v", "1", `${folder}/${variant}-${sample}.png`], { stdio: "pipe" });
+      }
+      const sampleHashes = Array.from({ length: 17 }, (_, sample) => createHash("sha256").update(readFileSync(`${folder}/${variant}-${sample}.png`)).digest("hex"));
+      expect(new Set(sampleHashes).size, "Decoded samples must show changing rendered poses").toBeGreaterThan(2);
+      return;
+    }
     const queued: { id: string; status: string } = JSON.parse(execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-At", "-c",
       `select json_build_object('id',id,'status',status) from public.render_jobs where scene_id = '${renderSceneId}';`], { encoding: "utf8" }));
     expect(queued.status).toBe("queued");
@@ -174,7 +247,8 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
   } finally {
     try {
     if (renderSceneId) execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
-      `update public.render_jobs set status = 'failed', error_code = 'render_failed' where scene_id = '${renderSceneId}' and status = 'queued';`], { stdio: "pipe" });
+      variant.startsWith("supported-") ? `delete from public.render_jobs where scene_id = '${renderSceneId}';`
+        : `update public.render_jobs set status = 'failed', error_code = 'render_failed' where scene_id = '${renderSceneId}' and status = 'queued';`], { stdio: "pipe" });
     if (paths.length) {
       const removed = await service.storage.from("exercise-private").remove(paths);
       if (removed.error) throw removed.error;

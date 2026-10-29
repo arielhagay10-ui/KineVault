@@ -17,6 +17,8 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth: {
   resend: mocks.resend, resetPasswordForEmail: mocks.reset, updateUser: mocks.update,
 } }) }));
 
+import { AuthApiError, AuthRetryableFetchError } from "@supabase/supabase-js";
+import { getPendingEmail } from "@/lib/auth-pending-email";
 import * as actions from "./actions";
 
 const initial = { error: null, notice: null };
@@ -47,8 +49,7 @@ describe("authentication actions", () => {
 
   it("opens the check-email screen for pending registration without putting the email in its URL", async () => {
     await expect(actions.signUp(initial, form(credentials))).rejects.toThrow("redirect:/check-email");
-    const saved = [...mocks.cookies.values()].map(value => JSON.parse(value));
-    expect(saved).toContainEqual(expect.objectContaining({ email: credentials.email, next: credentials.next, kind: "signup" }));
+    expect(await getPendingEmail()).toMatchObject({ email: credentials.email, next: credentials.next, kind: "signup" });
   });
 
   it("offers confirmation recovery when login is blocked by an unconfirmed email", async () => {
@@ -61,6 +62,25 @@ describe("authentication actions", () => {
     const result = await actions.signIn(initial, form(credentials));
     expect(result.error).toMatch(/email|password|sign-in/i);
     expect(result.error).not.toContain("No such account");
+  });
+
+  it.each([
+    new AuthRetryableFetchError("sensitive outage details", 503),
+    new AuthRetryableFetchError("sensitive network details", 0),
+    new AuthApiError("sensitive server details", 500, "unexpected_failure"),
+  ])("offers retry rather than blaming credentials during an auth outage: %s", async error => {
+    mocks.signIn.mockResolvedValue({ error });
+    const result = await actions.signIn(initial, form(credentials));
+    expect(result.error).toMatch(/try again in a moment/i);
+    expect(result.error).not.toMatch(/incorrect|sensitive/i);
+    expect(mocks.cookies.size).toBe(0);
+  });
+
+  it("honors HTTP rate limits even without a provider error code", async () => {
+    mocks.signIn.mockResolvedValue({ error: new AuthApiError("rate limited", 429, undefined) });
+    const result = await actions.signIn(initial, form(credentials));
+    expect(result.retryAt).toBeGreaterThan(Date.now());
+    expect(result.error).not.toContain("incorrect");
   });
 
   it("does not claim a reset email was sent when the provider is unavailable", async () => {

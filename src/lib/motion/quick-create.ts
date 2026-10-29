@@ -13,16 +13,26 @@ export function workshopDemonstrationCaption(object: Pick<StudioObject, "slug" |
     case "lat-pulldown-machine": return "Pull the bar down toward the upper chest; keep the seat contact.";
     case "smith-machine": return "Move the bar along its guides; keep both feet planted.";
     case "leg-press": return "Push the platform away, then return while keeping the back supported.";
+    case "row-machine": return "Pull the levers toward the torso with the chest supported.";
+    case "t-bar-row-machine": return "Keep the chest on the pad and feet planted; pull the shared T-bar toward the ribs.";
+    case "chest-press-machine": return "Press forward and inward; keep the back supported and return with control.";
+    case "shoulder-press-machine": return "Press the handles overhead; keep the back supported.";
     default: return "Move through the chosen travel and inspect the intended contacts.";
   }
 }
 const aliases: Record<string, StudioObject["slug"]> = { "dumbbell-pair": "dumbbell", "single-cable": "cable-machine" };
 const synonyms: Record<string, string[]> = {
+  "chest-press-machine": ["chest press", "converging chest press", "seated chest press", "machine bench press"],
   "cable-machine": ["single cable", "pulley", "functional trainer", "cable station"],
   "cable-row-machine": ["seated row", "seated rowing", "rowing machine", "low row"],
   "pec-deck": ["chest fly", "chest machine", "butterfly", "reverse fly", "rear delt fly"],
   "lat-pulldown-machine": ["lat pull down", "pulldown", "back machine"],
   "smith-machine": ["guided bar", "smith rack"], "leg-press": ["sled", "leg machine"],
+  "row-machine": ["plate loaded row", "chest supported row", "lever row"],
+  "t-bar-row-machine": ["t bar row", "tbar row", "chest supported t bar row", "incline row"],
+  "shoulder-press-machine": ["shoulder press", "overhead press", "military press"],
+  stool: ["utility seat", "backless seat"], "plyo-box": ["jump box", "plyometric box", "step"],
+  "resistance-band": ["elastic band", "resistance bands", "loop band", "power band"],
   bench: ["seat", "incline seat", "flat bench", "incline bench", "weight bench"],
   "squat-rack": ["power rack", "power cage", "squat stand"],
   barbell: ["bar", "free weight bar"], dumbbell: ["hand weight", "dumbbell pair", "free weights"], kettlebell: ["kettle bell", "bell weight"],
@@ -71,7 +81,7 @@ export function searchWorkshopEquipment(options: EquipmentOption[], query: strin
 
 export function equipmentGroup(slug: string): "Machines" | "Weights" | "Supports" {
   const canonical = aliases[slug] ?? slug;
-  return ["barbell", "dumbbell", "kettlebell"].includes(canonical) ? "Weights" : ["bench", "squat-rack"].includes(canonical) ? "Supports" : "Machines";
+  return ["barbell", "dumbbell", "kettlebell", "resistance-band"].includes(canonical) ? "Weights" : ["bench", "squat-rack", "stool", "plyo-box"].includes(canonical) ? "Supports" : "Machines";
 }
 
 export function createQuickScene(slug: string): WorkshopScene {
@@ -114,7 +124,10 @@ export function generateMachineRepetition(scene: WorkshopScene, objectId: string
     const halfProgress = timeMs <= midpoint ? timeMs / midpoint : (scene.durationMs - timeMs) / (scene.durationMs - midpoint);
     const blend = (1 - Math.cos(Math.PI * halfProgress)) / 2;
     const height = heights ? heights.start + (heights.finish - heights.start) * blend : sampleStudioObject(object, timeMs).machineHandleHeight;
-    return { ...transformAt(object, timeMs), timeMs, machinePosition: start + (finish - start) * blend, ...(height !== undefined ? { machineHandleHeight: height } : {}) };
+    const machinePosition = start + (finish - start) * blend;
+    return { ...transformAt(object, timeMs), timeMs, machinePosition,
+      ...(object.slug === "chest-press-machine" ? { machinePositionLeft: machinePosition, machinePositionRight: machinePosition } : {}),
+      ...(height !== undefined ? { machineHandleHeight: height } : {}) };
   });
   return { ...scene, studio: { ...scene.studio!, objects: scene.studio!.objects.map(item => item.id === objectId ? { ...item, machinePosition: start, ...(heights ? { machineHandleHeight: heights.start } : {}), frames } : item) } };
 }

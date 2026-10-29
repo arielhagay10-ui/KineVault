@@ -28,7 +28,7 @@ test("workshop controls remain named and operable in narrow reflow", async ({ pa
   await page.goto(`/my-exercises/${workshop.draftId}/workshop`);
   await expect(page.getByRole("region", { name: "Workshop editor", exact: true })).toBeVisible();
   await expect(page.getByRole("group", { name: "Editor mode", exact: true })).toHaveCount(0);
-  await openWorkshopTool(page, "Equipment");
+  await openWorkshopTool(page, "Item settings");
   await expect(page.getByRole("combobox", { name: "Selected item", exact: true })).toBeVisible();
   const controls = [page.getByRole("button", { name: "Play", exact: true }),
     page.getByRole("combobox", { name: "Preview speed", exact: true }),

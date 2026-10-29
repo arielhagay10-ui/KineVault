@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LibraryNavigation } from "@/components/ui/workspace-navigation";
 import { notFound, redirect } from "next/navigation";
 import { DeletePrivateButton } from "@/components/private-exercises/delete-private-button";
 import { PrivateExerciseForm } from "@/components/private-exercises/private-exercise-form";
@@ -9,6 +10,7 @@ import type { PrivateExerciseInput } from "@/lib/private-exercises/schema";
 import { createClient } from "@/lib/supabase/server";
 import { loadWorkshopScene } from "@/lib/motion/load-scene";
 import { DuplicatePrivateButton } from "@/components/private-exercises/duplicate-private-button";
+import { PageHeader, primaryActionClass, secondaryActionClass } from "@/components/ui/page-layout";
 
 export const dynamic = "force-dynamic";
 
@@ -48,23 +50,17 @@ export default async function EditPrivateExercisePage({ params, searchParams }: 
   const sceneSaved = query.sceneSaved === "1";
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-      <div className="mx-auto max-w-5xl">
-        <Link href="/my-exercises" className="text-sm font-medium text-primary hover:underline">My exercises</Link>
-        <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Private draft</p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-[-0.055em]">Edit exercise</h1>
-          </div>
-          <DeletePrivateButton privateId={record.id} />
-        </div>
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto max-w-5xl px-6 pb-20 pt-8">
+        <LibraryNavigation />
+        <PageHeader title="Edit exercise" description="Private draft" back={{ href: "/my-exercises", label: "My exercises" }} actions={<DeletePrivateButton privateId={record.id} />} />
         {saved && <p role="status" className="my-6 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-primary">Saved privately.</p>}
         {sceneSaved && <p role="status" className="my-6 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-primary">Movement saved privately. Anatomy and instructions are optional.</p>}
         {record.catalog_candidate_id && <p className="mt-4 rounded-xl border bg-muted p-4 text-sm">Preparing an original catalog candidate. Save its classifications, create a clear motion, then submit for review. Approval preserves the candidate’s identity.</p>}
         {!record.catalog_candidate_id && sourceExercise && <p className="mt-4 text-sm text-muted-foreground">Copied from <Link href={`/exercises/${sourceExercise.slug}`} className="font-semibold text-primary underline">the public exercise</Link>. Your edits are independent.</p>}
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link href={`/my-exercises/${record.id}/workshop`} className="inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary">Open motion workshop</Link>
-          <Link href={`/my-exercises/${record.id}/submit`} className="inline-flex rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-primary hover:bg-muted">{record.catalog_candidate_id ? "Submit for review" : "Publish exercise"}</Link>
+          <Link href={`/my-exercises/${record.id}/workshop`} className={primaryActionClass}>Open motion workshop</Link>
+          <Link href={`/my-exercises/${record.id}/submit`} className={secondaryActionClass}>{record.catalog_candidate_id ? "Submit for review" : "Publish exercise"}</Link>
           <DuplicatePrivateButton privateId={record.id} />
         </div>
         <div className="mt-8"><PrivateExerciseForm key={JSON.stringify(metadata)} ownerId={identity.userId} initial={initial} options={options} metadata={metadata} scene={scene} /></div>

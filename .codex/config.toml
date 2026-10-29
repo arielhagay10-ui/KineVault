@@ -1,0 +1,10 @@
+# Local Supabase CLI MCP. Available only while this repository's local stack runs.
+[mcp_servers.supabase-local]
+url = "http://127.0.0.1:54321/mcp"
+
+[mcp_servers.kinevault-workshop]
+command = "node"
+args = ["tools/workshop-mcp/dist/server.js"]
+
+[mcp_servers.kinevault-workshop.env]
+KV_WORKSHOP_URL = "http://127.0.0.1:3000"

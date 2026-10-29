@@ -68,10 +68,7 @@ export async function openWorkshopTool(page: Page, name: string) {
   if (await edit.isVisible()) await edit.click();
   const menu = page.locator("[data-workshop-menu]");
   if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator(":scope > summary").click();
-  if (["View", "Setups", "Settings"].includes(name)) {
-    const more = page.getByRole("group", { name: "Workshop tools", exact: true }).locator("details");
-    if (!await more.evaluate(element => (element as HTMLDetailsElement).open)) await more.locator(":scope > summary").click();
-  }
+  if (["Setups", "Settings"].includes(name)) await openWorkshopMenu(page);
   const tab = page.getByRole("tab", { name, exact: true, includeHidden: true });
   await tab.click();
   await expect(tab).toHaveAttribute("aria-selected", "true");
@@ -100,7 +97,7 @@ export function cableAttachmentButton(page: Page, attachment: CableAttachment) {
 }
 
 export async function selectWorkshopObject(page: Page, name: string) {
-  await openWorkshopTool(page, "Equipment");
+  await openWorkshopTool(page, "Item settings");
   const select = page.getByRole("combobox", { name: "Selected item", exact: true });
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const option = select.locator("option").filter({ hasText: new RegExp(`^${escaped}(?: · |$)`) });

@@ -12,9 +12,12 @@ export type AuthState = { error: string | null; notice: string | null; field?: s
 const signInCredentials = z.object({ email: authEmailSchema, password: z.string().min(1).max(128) });
 const newCredentials = z.object({ email: authEmailSchema, password: z.string().min(10).max(128) });
 
-function providerError(error: { code?: string } | null | undefined, fallback: string): AuthState {
-  if (error?.code === "over_email_send_rate_limit" || error?.code === "over_request_rate_limit") {
+function providerError(error: { code?: string; status?: number; name?: string } | null | undefined, fallback: string): AuthState {
+  if (error?.status === 429 || error?.code === "over_email_send_rate_limit" || error?.code === "over_request_rate_limit") {
     return { error: "Too many attempts. Wait a minute before trying again.", notice: null, retryAt: Date.now() + resendDelayMs };
+  }
+  if (error?.name === "AuthRetryableFetchError" || (error?.status ?? 0) >= 500 || error?.code === "request_timeout") {
+    return { error: "Authentication is temporarily unavailable. Try again in a moment.", notice: null };
   }
   if (error?.code === "weak_password") return { error: "Choose a longer password that you have not used elsewhere.", notice: null, field: "password" };
   return { error: fallback, notice: null };

@@ -8,10 +8,12 @@ export type PoseLimb = typeof poseLimbs[number];
 export const limbNames: Record<PoseLimb, string> = { "left-hand": "Left hand", "right-hand": "Right hand", "left-foot": "Left foot", "right-foot": "Right foot" };
 
 export function limbPoseBlock(scene: WorkshopScene, limb: PoseLimb): string | undefined {
-  if (scene.studio?.objects.some(object => object.machineUse)) return "Leave the machine to pose hands and feet freely. Move its handles to keep contact.";
-  if (scene.motionStyle && scene.motionStyle !== "free") return "Choose Free posing in Movement setup to move hands and feet freely.";
-  if (limb.endsWith("foot") && scene.studio?.seating) return "Stand up to move feet freely. Seating keeps feet supported.";
+  const machine = scene.studio?.objects.find(object => object.machineUse);
   const side = limb.startsWith("left") ? "left" : "right";
+  if (machine?.slug === "t-bar-row-machine" && limb.endsWith("hand") && (machine.attachment === side || machine.attachment === "both" || machine.attachment === "none" && machine.rowGrip === undefined)) return "Move the T-bar lever or release this hand before posing it freely.";
+  if (machine && (limb.endsWith("foot") ? ["leg-press", "smith-machine"].includes(machine.slug) || machine.slug === "t-bar-row-machine" && machine.rowFootSupport !== false : !["row-machine", "t-bar-row-machine", "shoulder-press-machine", "chest-press-machine"].includes(machine.slug))) return "Move the machine's handles or sled to keep this contact, or release it first.";
+  if (scene.motionStyle && scene.motionStyle !== "free") return "Choose Free posing in Movement setup to move hands and feet freely.";
+  if (limb.endsWith("foot") && scene.studio?.seating && ["supine", "prone"].includes(scene.studio.seating.facing)) return "Change bench position to move feet freely.";
   if (scene.equipment && (limb.endsWith("hand") || scene.equipment.slug === "single-cable")) return "Use editable equipment or remove the attached equipment before posing this limb.";
   const held = scene.studio?.objects.find(object => !["cable-machine", "cable-row-machine"].includes(object.slug) && studioAttachmentSlots(object).some(slot => slot.startsWith(side) && (limb.endsWith("hand") ? !slot.endsWith("ankle") : slot.endsWith("ankle"))));
   if (held && limb.endsWith("hand") && ["dumbbell", "barbell", "kettlebell"].includes(held.slug)) {
@@ -19,7 +21,7 @@ export function limbPoseBlock(scene: WorkshopScene, limb: PoseLimb): string | un
     if (held.attachment === "both") return "Both hands share this weight. Move the weight to pose both arms together.";
     if (held.slug === "dumbbell") return;
   }
-  if (held) return "Move the attached equipment to pose this limb, or release it first.";
+  if (held && !["row-machine", "shoulder-press-machine", "chest-press-machine"].includes(held.slug)) return "Move the attached equipment to pose this limb, or release it first.";
 }
 
 /** Bounded damped least squares on saved angles. Bone translations never change.

@@ -6,7 +6,7 @@ export function isWorkshopPlacementLocked(object: StudioObject) {
 }
 
 export function needsPlacementAdvisory(object: StudioObject, supportIds: string[] = []) {
-  return !object.machineUse && object.attachment === "none" && !supportIds.includes(object.id);
+  return object.slug !== "resistance-band" && !object.machineUse && object.attachment === "none" && !supportIds.includes(object.id);
 }
 
 /** Bounding boxes can overlap through empty space. This asks for inspection,

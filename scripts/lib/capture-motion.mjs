@@ -58,7 +58,7 @@ export async function captureMotion({ scene, pageUrl, token, directory, signal: 
         }, Math.round(index * scene.durationMs / (frameCount - 1)));
         await page.locator("#render-frame").screenshot({
           path: join(directory, `frame-${String(index).padStart(4, "0")}.png`),
-          style: "[data-site-menu] { visibility: hidden !important; }",
+          style: "[data-site-navigation] { visibility: hidden !important; }",
         });
       }
     });

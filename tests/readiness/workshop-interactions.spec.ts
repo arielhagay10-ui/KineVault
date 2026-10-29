@@ -7,8 +7,8 @@ import { test } from "./workshop.fixture";
 
 test("More menu prevents focus behind its overlay and restores editor access on Escape", async ({ page, workshop }, testInfo) => {
   expect(workshop.draftId).toBeTruthy();
-  await openWorkshopTool(page, "Equipment");
-  const equipment = page.getByRole("tab", { name: "Equipment", exact: true, includeHidden: true });
+  await openWorkshopTool(page, "Item settings");
+  const equipment = page.getByRole("tab", { name: "Item settings", exact: true, includeHidden: true });
   await openWorkshopMenu(page);
   await page.screenshot({ path: testInfo.outputPath("more-menu.png") });
   await equipment.focus();
@@ -21,7 +21,7 @@ test("More menu prevents focus behind its overlay and restores editor access on 
 
 test("equipment dialog traps focus, dismisses search with Escape and restores its trigger", async ({ page, workshop }) => {
   expect(workshop.draftId).toBeTruthy();
-  await openWorkshopTool(page, "Equipment");
+  await openWorkshopTool(page, "Item settings");
   const trigger = page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Choose equipment", exact: true });
@@ -89,7 +89,7 @@ test("canvas selection preserves placement and stays available through named con
   await expandWorkshopControls(page, "Precise placement");
   await expect(page.getByRole("textbox", { name: "Position X meters", exact: true })).toHaveValue("1.4");
   await expect(page.getByRole("textbox", { name: "Position Y meters", exact: true })).toHaveValue("1.1");
-  await openWorkshopTool(page, "Equipment");
+  await openWorkshopTool(page, "Item settings");
   const objects = page.getByRole("combobox", { name: "Selected item", exact: true });
   await objects.focus();
   await page.keyboard.press("Home");

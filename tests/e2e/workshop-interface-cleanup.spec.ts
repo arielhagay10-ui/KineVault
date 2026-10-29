@@ -1,14 +1,63 @@
 import { mkdirSync } from "node:fs";
 import { expect } from "@playwright/test";
 import { test } from "../readiness/workshop.fixture";
-import { dismissWorkshopTutorial, openWorkshopMenu, openWorkshopTool } from "./workshop-menu.helpers";
+import { dismissWorkshopTutorial, openWorkshopMenu, openWorkshopTool, setWorkshopLanguage } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
+
+for (const width of [320, 390, 1383]) {
+  test(`Add equipment stays beside More at ${width}px`, async ({ page, workshop }) => {
+    await page.setViewportSize({ width, height: 871 });
+    await expect(page.getByRole("textbox", { name: "Exercise name", exact: true })).toHaveValue("Browser readiness fixture");
+    await expect(page).toHaveURL(new RegExp(`/my-exercises/${workshop.draftId}/workshop$`));
+    const add = page.getByRole("button", { name: "Add equipment", exact: true });
+    const more = page.locator("[data-workshop-menu] > summary");
+    const addBox = (await add.boundingBox())!;
+    const moreBox = (await more.boundingBox())!;
+    expect(Math.abs(addBox.y - moreBox.y)).toBeLessThan(4);
+    expect(moreBox.x - addBox.x - addBox.width).toBeGreaterThanOrEqual(0);
+    expect(moreBox.x - addBox.x - addBox.width).toBeLessThanOrEqual(12);
+    await openWorkshopTool(page, "Item settings");
+    await expect(page.getByRole("tab", { name: "Item settings", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "Equipment", exact: true })).toHaveCount(0);
+    await add.click();
+    await expect(page.getByRole("dialog", { name: "Choose equipment", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(add).toBeFocused();
+    mkdirSync(".local-artifacts/workshop-toolbar", { recursive: true });
+    await page.screenshot({ path: `.local-artifacts/workshop-toolbar/${width}-en.png` });
+    await setWorkshopLanguage(page, "he");
+    await expect(page.getByRole("tab", { name: "הגדרות פריט", exact: true })).toBeVisible();
+    const rtlAdd = (await page.getByRole("button", { name: "הוספת ציוד", exact: true }).boundingBox())!;
+    const rtlMore = (await more.boundingBox())!;
+    expect(Math.abs(rtlAdd.y - rtlMore.y)).toBeLessThan(4);
+    expect(rtlAdd.x - rtlMore.x - rtlMore.width).toBeGreaterThanOrEqual(0);
+    expect(rtlAdd.x - rtlMore.x - rtlMore.width).toBeLessThanOrEqual(12);
+    await page.screenshot({ path: `.local-artifacts/workshop-toolbar/${width}-he.png` });
+  });
+}
 
 test("recovery actions, equipment entry and capture state stay visible without extra chrome", async ({ page, workshop }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1651, height: 871 });
-  await openWorkshopTool(page, "Equipment");
+  await openWorkshopTool(page, "Item settings");
+  const view = page.getByRole("tab", { name: "View", exact: true });
+  await view.focus();
+  await view.press("Home");
+  await expect(page.getByRole("tab", { name: "Item settings", exact: true })).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(view).toBeFocused();
+  await expect(view).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Item settings", exact: true })).toBeFocused();
+  await openWorkshopMenu(page);
+  await page.getByRole("tab", { name: "Setups", exact: true }).focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("tab", { name: "Settings", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-workshop-panel="settings"]')).toBeFocused();
+  await expect(page.locator("[data-workshop-menu]")).not.toHaveAttribute("open");
+  await openWorkshopTool(page, "Item settings");
   const equipment = page.locator('[data-workshop-panel="equipment"]');
   await expect(equipment.getByRole("button", { name: /Add equipment/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Add equipment", exact: true }).click();
@@ -23,7 +72,7 @@ test("recovery actions, equipment entry and capture state stay visible without e
   await expect(page.getByText("Fine adjustment", { exact: true })).not.toBeVisible();
   await openWorkshopTool(page, "Position");
   await expect(page.getByText("Fine adjustment", { exact: true })).toBeVisible();
-  for (const tab of ["Equipment", "Contacts", "Pose", "Timeline"]) {
+  for (const tab of ["Item settings", "Contacts", "Pose", "Timeline"]) {
     await openWorkshopTool(page, tab);
     await expect(page.getByText("Fine adjustment", { exact: true })).not.toBeVisible();
   }
@@ -43,7 +92,7 @@ test("recovery actions, equipment entry and capture state stay visible without e
   await page.screenshot({ path: `${folder}/mobile-recovery.png` });
   await recovery.getByRole("button", { name: "Continue with saved exercise", exact: true }).click();
   await expect(recovery).toHaveCount(0);
-  await openWorkshopTool(page, "Equipment");
+  await openWorkshopTool(page, "Item settings");
   await expect(page.getByRole("button", { name: "Add equipment", exact: true })).toBeVisible();
   await page.screenshot({ path: `${folder}/mobile-equipment.png` });
   await page.setViewportSize({ width: 1651, height: 871 });

@@ -1,7 +1,7 @@
 # KineVault design guide
 
 Design reference for a companion app that should feel like part of KineVault.
-Based on the working source on **5 October 2026**. Measurements assume a
+Based on the working source on **22 October 2026**. Measurements assume a
 16px root font size; preserve scalable text in implementation.
 
 **Current** means implemented in this repository. **Companion guidance** means
@@ -112,7 +112,7 @@ Current behavior:
 - Apply the theme to the root. Web uses the `.dark` class and matching `color-scheme`.
 - Persist the explicit preference; the web cookie is `kv-theme`, valid for one year.
 - System mode follows OS changes. Bootstrap appearance before first paint.
-- Page topbars are removed. A floating Site menu in the upper-right corner provides navigation and Appearance, using the primary background and foreground for contrast.
+- A persistent header exposes Explore, Library and Create. Appearance and account actions open in a native popover. The workshop and internal render routes omit this header; theme synchronization stays mounted across those routes.
 - Scrollbars overlay content, with transparent tracks and slate-blue handles.
 
 **Companion guidance:** a native app can place Appearance in settings. Keep the
@@ -124,19 +124,18 @@ The surrounding controls follow the app theme.
 
 ## 4. Typography
 
-Current font: **Comfortaa**, loaded through `next/font/google`, Latin subset.
-Headings and body share the same sans-serif family. There is no separate display font.
+Current font: the platform system sans-serif for headings, body and controls.
+The **Comfortaa** wordmark uses `next/font/google`, Latin subset. Monospaced values use the platform monospace family.
 
-**Companion guidance:** bundle Comfortaa when supported. Fallback to
-`ui-sans-serif, system-ui, sans-serif`. Native platform fonts are a fallback when
-Comfortaa cannot be used; match weight, scale, and spacing as closely as possible.
+**Companion guidance:** use the native platform font for reading and controls, and bundle Comfortaa for the wordmark when supported. Preserve the type hierarchy and spacing.
 
 | Role | Size / line height | Weight | Tracking |
 | --- | --- | --- | --- |
 | Wordmark | 20px / 28px | 700 | `-0.05em` |
-| Home hero | 41px / 1.1; 54px / 1.09 at `sm` | 600 | `-0.05em` |
-| Explore/library title | 31px / 1.16; 38px / 1.15 at `sm` | 600 | `-0.035em` |
-| Detail/taxonomy title | 36px / 40px; 48px / 48px at `sm` | 600 | `-0.055em` |
+| Home hero | 32px / 1.25; 48px / 1.16 at `sm` | 600 | `-0.025em` |
+| Explore/library title | 32px / 1.25 | 600 | `-0.025em` |
+| Detail title | 28px / 1.25; 32px / 1.25 at `sm` | 600 | Default |
+| Taxonomy title | 32px / 1.25 | 600 | `-0.025em` |
 | Auth title | 30px / 36px | 600 | `-0.05em` |
 | Workshop title | 24px / 32px | 600 | Default |
 | Panel title | 20px / 28px | 600 | Default |
@@ -239,10 +238,10 @@ Maximum width includes container padding. Use centered containers and
 
 ### Navigation
 
-- Pages use the floating Site menu for navigation, account actions and appearance.
-- The dashboard explains Explore, Create and Share with direct actions.
+- The header shows Explore, Library and Create. On phones, labeled links occupy a second row beneath the wordmark and account controls.
+- Library pages share Saved, My exercises, Submissions and Updates tabs. Saved exercises lead the dashboard; guidance appears in empty states.
 - Detail pages offer a back link with a 16px left-arrow icon.
-- Admin destinations appear in the Site menu for authorized reviewers.
+- Authorized reviewers enter the review workspace from Account. Local review navigation separates moderation from admin-only Taxonomies, Assets and Roles.
 - Sticky behavior is used for filters and the workshop preview.
 - The full-screen workshop keeps its editing toolbar and an exit link.
 
@@ -253,7 +252,7 @@ color, muted inactive text, card surface, and a 1px divider. Respect safe areas.
 
 ## 7. Brand and icons
 
-The wordmark is KineVault. Navigation lives in the floating Site menu.
+The wordmark is KineVault. Primary navigation remains visible in the header.
 
 Icon family: **Font Awesome Free Solid**, rendered locally through
 `src/components/ui/icons.tsx`. Use 14–18px icons in controls and 20–22px in panels.
@@ -364,45 +363,43 @@ Separate destructive actions spatially and state their consequence before confir
 
 ### Home
 
-Header → two-column hero at `lg` → explanatory copy left, motion study right.
-Column proportions are **0.83 : 1.17**. Intro uses a sentence-case primary label,
-a compact two-line desktop heading, muted paragraph, two flat feature groups,
-and a filled Explore reviewed exercises CTA. Hero top padding is 28px mobile,
-40px from `sm`; its bottom padding is 56px.
-Stack the hero on smaller screens. Demonstration remains the main visual asset.
+Header → search-led introduction → browse links → real public exercise preview.
+The hero pairs flexible copy with a 240px supporting mascot at `lg`. On phones,
+the small mascot appears below the main tasks. Search submits to Explore; topic
+links apply real filters and browse links reveal their matching filter group.
+Use 32px mobile and 64px desktop top padding with 48–56px section spacing.
 
 ### Explore
 
 ```text
-Appearance strip
-Brand header                         My library
-Eyebrow / title / short explanation
-┌── 285px filters ──┐  ┌── result count / active count ───┐
-│ Search            │  │ Exercise cards                  │
-│ Anatomy           │  │ 1 / 2 / 3 columns by viewport   │
-│ Movement          │  │                                 │
-│ Equipment         │  │ Next page                       │
-│ Biomechanics      │  └─────────────────────────────────┘
-│ Other / sort      │
-│ Apply filters     │
-└───────────────────┘
+Persistent navigation
+Title / short explanation
+Search and submit                         Sort
+Selected filters
+┌── 240px filters ──┐  ┌── result count ─────────────────┐
+│ Muscles            │  │ Exercise cards                 │
+│ Equipment          │  │ 1 / 2 / 3 columns by viewport  │
+│ Joint actions      │  │ Next page                      │
+│ Joints / families  │  └────────────────────────────────┘
+│ Advanced / Apply   │
+└────────────────────┘
 ```
 
-- Content starts 28px below its header, 32px from `sm`; intro has 28px bottom separation.
-- Desktop grid: `285px minmax(0,1fr)`, 32px gap; filter panel sticks 24px from top.
+- Content starts 32px below the header, 40px at `lg`; intro has 32px bottom separation.
+- Results use document scrolling. Desktop has a sticky 240px filter column with a 32px gap. Search and sort sit above the results; on phones sort and the filter trigger share a row.
 - Filter panel: 12px radius, 20px padding, group dividers, sentence-case group headings.
 - Disclosure sections have 6px vertical padding and 44px summaries; selected
-  groups open by default. Joint actions start open; option lists max-height is 192px.
+  groups open by default. Browse links open their target group; option lists max-height is 192px.
 - Filter panel is a flex column: options scroll above a separate, non-overlapping
-  Apply filters footer. Desktop maximum height is `max(20rem, 100dvh - 300px)`;
+  Apply filters footer. Desktop maximum height is `100dvh - 48px`;
   the mobile option area has a 52dvh maximum. Checked rows use accent fill and
   foreground labels, alongside the checked input.
-- Sort choices: Alphabetical, Newest, Most favorited. End with full-width Apply filters.
+- Sort choices: Recommended, Alphabetical, Newest, Most favorited. Search and Apply filters submit one GET form with all selected filters; neither retains a stale pagination cursor.
 - Every selected value must match, including values inside the same group.
 - Filters are applied explicitly; query parameters preserve and share the search.
 - Show the actual current-page count, not an unqueried total. Current page size is 24.
 - On mobile the sidebar becomes an **inline collapsible panel**, initially hidden,
-  with full-width “Show filters” / “Hide filters” and active count. It is not a modal drawer.
+  with “Show filters” / “Hide filters” beside Sort and an active count. It is not a modal drawer.
 - Clear all and Reset search return to unfiltered Explore; pagination preserves applied filters.
 
 ### Exercise detail
@@ -557,7 +554,9 @@ alternatives for precision. Keep selected object and joint names visible.
 
 Current sensitivity defaults to 35%, is adjustable, and persists in the browser.
 Undo/redo are available; incompatible controls disable during dragging or saving.
-Held equipment explains why arm posing is paused and offers a release action.
+Held weights support arm-driven posing: editing an arm carries its weight, while
+dragging a weight drives the arm. Explain active contact constraints and offer a
+release action when manual controls cannot preserve them.
 Grip choices use plain language: Palm up, Neutral, Palm down.
 
 Animation is optional. Show start/end/intermediate keyframes and readable seconds;
@@ -628,8 +627,9 @@ reduced-motion support, and responsive layouts.
 - Wrap long names and tags. Let secondary descriptions truncate only where intentional.
 - Keep page-wide horizontal scrolling absent; scope necessary table scrolling locally.
 - Respect text scaling, keyboard visibility, device safe areas, and reduced motion.
-- Current language is English and LTR; no RTL design is established. If localizing,
-  use logical spacing and mirror directional navigation icons appropriately.
+- Public pages use English and LTR. The workshop supports English and Hebrew,
+  including RTL layout. Use logical spacing, preserve localized labels and
+  keyboard behavior, and mirror directional navigation icons where appropriate.
 - Dates and numbers should be readable and localized; do not expose database enum syntax.
 
 ## 17. Copy and information rules
@@ -652,7 +652,7 @@ reduced-motion support, and responsive layouts.
 For a matching app, implement in this order:
 
 1. Copy the semantic palette into light/dark theme objects and add System preference.
-2. Install/bundle Comfortaa and the Font Awesome Free icon family for the chosen platform.
+2. Use the platform text font; bundle Comfortaa for the wordmark and Font Awesome Free icons.
 3. Define spacing and the overridden radius scale from this guide.
 4. Build primitives: text, panel, button, field, tag, divider, disclosure, feedback.
 5. Build exercise cards and a 4:3 demonstration component.
@@ -672,7 +672,7 @@ const geometry = {
   mediaAspectRatio: 4 / 3,
   contentMaxWidth: 1280,
   accountMaxWidth: 1024,
-  filterWidth: 285,
+  filterWidth: 240,
   workshopControlsWidth: 280,
 };
 ```
@@ -684,7 +684,7 @@ Do not depend on Next.js, Supabase, or Tailwind to reproduce the visual design.
 ### Quick visual acceptance checklist
 
 - [ ] Slate blue primary actions; correct light and dark foreground pairings.
-- [ ] Comfortaa or a deliberately matched fallback; restrained uppercase labels.
+- [ ] System text font, Comfortaa wordmark, restrained uppercase labels.
 - [ ] Correct 14px field / 18px panel radius, rather than default Tailwind radii.
 - [ ] Flat bordered panels with selective shadows and consistent spacing.
 - [ ] Large, contained demonstrations; figure and equipment remain in frame.

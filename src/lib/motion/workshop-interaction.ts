@@ -2,7 +2,7 @@ import type { StudioEditor, StudioSelection } from "@/components/character/studi
 import type { PoseLimb } from "./limb-pose";
 
 export function workshopEditorForInteraction(editor: StudioEditor | undefined, enabled: boolean): StudioEditor | undefined {
-  return editor ? { ...editor, interactionEnabled: enabled } : undefined;
+  return editor ? { ...editor, interactionEnabled: enabled && editor.interactionEnabled !== false } : undefined;
 }
 
 export function canBeginStudioDrag(editor: StudioEditor | undefined, selection: StudioSelection, button: number) {

@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      npm-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+  - package-ecosystem: npm
+    directory: "/tools/workshop-mcp"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      workshop-mcp-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5

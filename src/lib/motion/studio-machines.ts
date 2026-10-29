@@ -4,11 +4,19 @@ import { reachStudioGrip, studioGripOffset } from "./studio-grip";
 import { cableLocalGrip, studioCableFrame } from "./studio-cable";
 import { rowCarriagePoint, rowHandleHeight } from "./studio-row";
 import { gripOffset } from "./grip-edit";
+import { supportElbowTarget } from "./support-contacts";
+import { plateRow, plateRowFootPoint, plateRowLever, reachPlateRowGrip, rowLeverPosition, rowUsesHand } from "./plate-row";
+import { reachShoulderPressGrip, shoulderPressGripPoint, shoulderPressLever } from "./shoulder-press";
+import { reachHingedMachineGrip } from "./machine-grip";
+import { tBarRow, tBarRowFootPoint, tBarRowLever, reachTBarRowGrip } from "./t-bar-row";
+import { legPress, legPressCarriagePoint, legPressFootPoint } from "./leg-press";
 export { rowHandleHeight, rowPulleyPoint } from "./studio-row";
-import { sampleStudioObject, studioAssetNames, studioPointToWorld } from "./studio";
-import { identityTransform, sampleWorkshopPose, type StudioObject, type WorkshopScene } from "./workshop";
+import { machineMotionAt, sampleStudioObject, studioAssetNames, studioPointToWorld } from "./studio";
+import { identityTransform, jointLimits, sampleWorkshopPose, type RigPose, type StudioObject, type WorkshopScene } from "./workshop";
 
-export const machineSlugs = ["lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck"] as const;
+import { chestPressLever, chestPressGripPoint, reachChestPressGrip } from "./chest-press";
+
+export const machineSlugs = ["lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck", "row-machine", "t-bar-row-machine", "shoulder-press-machine", "chest-press-machine"] as const;
 export type MachineSlug = typeof machineSlugs[number];
 export const isStudioMachine = (slug: string): slug is MachineSlug => machineSlugs.some(machine => machine === slug);
 export type MachineGripChoices = Pick<StudioObject, "machinePalm" | "machineElbowPath">;
@@ -18,7 +26,7 @@ export type MachineReachReport = {
   warnings: { side: "left" | "right"; kind: "reach" | "wrist" | "elbow-path"; message: string; repair: string }[];
 };
 export function machineGripChoices(object: StudioObject): Required<MachineGripChoices> {
-  return { machinePalm: object.machinePalm ?? (object.machineMode === "reverse" ? "outward" : "inward"), machineElbowPath: object.machineElbowPath ?? (object.slug === "cable-row-machine" ? "beside-body" : "shoulder-height") };
+  return { machinePalm: object.machinePalm ?? (object.machineMode === "reverse" ? "outward" : "inward"), machineElbowPath: object.machineElbowPath ?? (object.slug === "cable-row-machine" || object.slug === "row-machine" && object.rowGrip !== "wide" ? "beside-body" : "shoulder-height") };
 }
 export function setMachineGripChoices(scene: WorkshopScene, id: string, choices: MachineGripChoices): WorkshopScene {
   const studio = scene.studio;
@@ -36,17 +44,37 @@ export function rowFootPoint(side: "left" | "right") {
 }
 
 // Machine coordinates are independent of the frame placement. Only the carriage moves.
+export function machineLever(object: StudioObject, side: "left" | "right") {
+  if (object.slug === "chest-press-machine") return chestPressLever(object, side);
+  if (object.slug === "shoulder-press-machine") return shoulderPressLever(object, side);
+  if (object.slug === "t-bar-row-machine") return tBarRowLever(object, side);
+  if (object.slug === "row-machine") return plateRowLever(object, side);
+  const sign = side === "left" ? 1 : -1;
+  return {
+    pivot: new Vector3(sign * .6, 1.65, -.5),
+    grip: new Vector3(-sign * .14, -.2, .85),
+    angle: -(object.machinePosition ?? .5) * 65 * Math.PI / 180,
+  };
+}
+
 export function machineCarriagePoint(object: StudioObject) {
   const travel = object.machinePosition ?? 0.5;
   if (object.slug === "lat-pulldown-machine") return new Vector3(0, object.machineGrip === "pronated" ? 2.53 - travel * 0.93 : 2.58 - travel * 0.98, 0.22);
-  if (object.slug === "smith-machine") return new Vector3(0, 1.53 + travel * 0.65, -0.12);
+  if (object.slug === "smith-machine") return new Vector3(0, (object.machineRange?.min ?? 1.53) + travel * ((object.machineRange?.max ?? 2.18) - (object.machineRange?.min ?? 1.53)), -0.12);
+  if (object.slug === "row-machine" || object.slug === "t-bar-row-machine" || object.slug === "shoulder-press-machine" || object.slug === "chest-press-machine") return machineHandlePoint(object, "left").setX(0);
   if (object.slug === "cable-row-machine") return rowCarriagePoint(object);
   if (object.slug === "pec-deck") return machineHandlePoint(object, "left");
-  return new Vector3(0, 1.1 + travel * 0.4, 0.24 + travel * 0.4);
+  return legPressCarriagePoint(object);
 }
 
 export function machineHandlePoint(object: StudioObject, side: "left" | "right"): Vector3 {
   const sign = side === "left" ? 1 : -1;
+  if (object.slug === "chest-press-machine") return chestPressGripPoint({ ...object, gripOffsets: undefined }, side);
+  if (object.slug === "shoulder-press-machine") return shoulderPressGripPoint({ ...object, gripOffsets: undefined }, side);
+  if (object.slug === "row-machine" || object.slug === "t-bar-row-machine") {
+    const lever = machineLever(object, side);
+    return lever.grip.applyAxisAngle(new Vector3(1, 0, 0), lever.angle).add(lever.pivot);
+  }
   if (object.slug === "pec-deck") {
     const reverse = object.machineMode === "reverse";
     const travel = object.machinePosition ?? 0.5;
@@ -63,23 +91,31 @@ export function machineHandlePoint(object: StudioObject, side: "left" | "right")
 export const machineTravelLabels: Record<MachineSlug, string> = {
   "lat-pulldown-machine": "Pulldown travel", "smith-machine": "Bar height", "leg-press": "Sled extension",
   "cable-row-machine": "Row pull", "pec-deck": "Arm closure",
+  "row-machine": "Lever pull", "shoulder-press-machine": "Press travel",
+  "t-bar-row-machine": "T-bar pull", "chest-press-machine": "Chest press travel",
 };
 export const machineContactDescriptions: Record<MachineSlug, string> = {
+  "chest-press-machine": "Press forward and inward on independent arms. Choose a grip on the open handles, keep the back supported, and return with control.",
   "lat-pulldown-machine": "The seat supports the figure and both hands follow the pulldown bar.",
   "smith-machine": "Squat with planted feet. The bar stays on its guide rails.",
   "leg-press": "The back stays supported and both feet follow the sled.",
   "cable-row-machine": "Sit with feet on the footplates. Both hands follow the row handle toward the torso.",
   "pec-deck": "The seat and back pad support the figure. Both hands follow the arms as they close in front of the chest.",
+  "row-machine": "Pull the levers toward the chest pad, or release the figure to author your own setup.",
+  "t-bar-row-machine": "Rest the chest on the inclined pad, plant both feet on the platforms, and row the shared lever toward the ribs.",
+  "shoulder-press-machine": "Press the levers overhead, or release the figure to use your own pose and supports.",
 };
 
-export function setMachinePosition(object: StudioObject, position: number, timeMs: number): StudioObject {
+export function setMachinePosition(object: StudioObject, position: number, timeMs: number, side?: "left" | "right"): StudioObject {
   const machinePosition = Math.max(0, Math.min(1, position));
-  if (!object.frames?.length) return { ...object, machinePosition };
+  const changes = ["row-machine", "shoulder-press-machine", "chest-press-machine"].includes(object.slug) ? side ? { [side === "left" ? "machinePositionLeft" : "machinePositionRight"]: machinePosition }
+    : { machinePosition, machinePositionLeft: machinePosition, machinePositionRight: machinePosition } : { machinePosition };
+  if (!object.frames?.length) return { ...object, ...changes };
   const sampled = sampleStudioObject(object, timeMs);
   const transform = { ...identityTransform };
   for (const key of Object.keys(transform) as (keyof typeof transform)[]) transform[key] = sampled[key];
   const frames = object.frames.filter(frame => frame.timeMs !== timeMs);
-  return { ...object, frames: [...frames, { ...transform, timeMs, machinePosition, ...(sampled.machineHandleHeight !== undefined ? { machineHandleHeight: sampled.machineHandleHeight } : {}) }].sort((a, b) => a.timeMs - b.timeMs) };
+  return { ...object, frames: [...frames, { ...transform, timeMs, ...machineMotionAt(sampled), ...changes }].sort((a, b) => a.timeMs - b.timeMs) };
 }
 
 export function setMachineHandleHeight(object: StudioObject, height: number, timeMs: number): StudioObject {
@@ -88,7 +124,7 @@ export function setMachineHandleHeight(object: StudioObject, height: number, tim
   if (!object.frames?.length) return { ...object, machineHandleHeight };
   const sampled = sampleStudioObject(object, timeMs), transform = { ...identityTransform };
   for (const key of Object.keys(transform) as (keyof typeof transform)[]) transform[key] = sampled[key];
-  return { ...object, frames: [...object.frames.filter(frame => frame.timeMs !== timeMs), { ...transform, timeMs, machinePosition: sampled.machinePosition, machineHandleHeight }].sort((a, b) => a.timeMs - b.timeMs) };
+  return { ...object, frames: [...object.frames.filter(frame => frame.timeMs !== timeMs), { ...transform, timeMs, ...machineMotionAt(sampled), machineHandleHeight }].sort((a, b) => a.timeMs - b.timeMs) };
 }
 
 export function setPecDeckMode(scene: WorkshopScene, id: string, machineMode: "regular" | "reverse"): WorkshopScene {
@@ -100,37 +136,105 @@ export function setPecDeckMode(scene: WorkshopScene, id: string, machineMode: "r
 }
 
 export function machineGripPoint(object: StudioObject, side: "left" | "right"): Vector3 {
-  return machineHandlePoint(object, side).add(gripOffset(object, side));
+  if (object.slug === "chest-press-machine") return chestPressGripPoint(object, side);
+  if (object.slug === "shoulder-press-machine") return shoulderPressGripPoint(object, side);
+  const offset = gripOffset(object, side);
+  if (object.slug === "row-machine" || object.slug === "t-bar-row-machine") offset.applyAxisAngle(new Vector3(1, 0, 0), machineLever(object, side).angle);
+  return machineHandlePoint(object, side).add(offset);
 }
 
-function plantMachineFoot(rig: AnatomyRig, side: "left" | "right", target: Vector3, facing: Quaternion, footRotation: Quaternion) {
+function plantMachineFoot(rig: AnatomyRig, side: "left" | "right", target: Vector3, facing: Quaternion, footRotation: Quaternion, constraints = { ankle: true, kneeTurn: false }) {
   const hip = rig.bones[`${side}-hip`], knee = rig.bones[`${side}-knee`], foot = rig.footBones[side];
   const scale = rig.root.getWorldScale(new Vector3()).x;
   const upper = knee.position.length() * scale, lower = foot.position.length() * scale;
-  const origin = hip.getWorldPosition(new Vector3()), direction = target.clone().sub(origin);
-  const distance = Math.max(Math.abs(upper - lower) + 1e-6, Math.min(direction.length(), upper + lower - 1e-6));
-  direction.normalize();
-  const sagittalUpper = Math.hypot(knee.position.y, knee.position.z) * scale;
-  const restAngle = Math.atan2(knee.position.z, -knee.position.y);
-  knee.rotation.set(Math.acos(Math.max(-1, Math.min(1, (distance ** 2 - upper ** 2 - lower ** 2) / (2 * sagittalUpper * lower)))) - restAngle, 0, 0);
-  const reach = knee.position.clone().add(foot.position.clone().applyQuaternion(knee.quaternion)).normalize();
-  const hipWorld = new Quaternion().setFromUnitVectors(reach, direction);
-  const hinge = new Vector3(1, 0, 0).applyQuaternion(hipWorld);
-  hinge.addScaledVector(direction, -hinge.dot(direction)).normalize();
-  const normal = new Vector3(1, 0, 0).applyQuaternion(facing);
-  normal.addScaledVector(direction, -normal.dot(direction)).normalize();
-  hipWorld.premultiply(new Quaternion().setFromAxisAngle(direction, Math.atan2(direction.dot(hinge.clone().cross(normal)), hinge.dot(normal))));
-  hip.quaternion.copy(hip.parent!.getWorldQuaternion(new Quaternion()).invert()).multiply(hipWorld);
-  rig.root.updateWorldMatrix(true, true);
-  foot.quaternion.copy(knee.getWorldQuaternion(new Quaternion()).invert()).multiply(footRotation);
+  const origin = hip.getWorldPosition(new Vector3());
+  const limits = jointLimits[`${side}-ankle`], radians = Math.PI / 180;
+  const solve = (point: Vector3, poleTurn = 0) => {
+    const direction = point.clone().sub(origin);
+    const distance = Math.max(Math.abs(upper - lower) + 1e-6, Math.min(direction.length(), upper + lower - 1e-6));
+    direction.normalize();
+    const sagittalUpper = Math.hypot(knee.position.y, knee.position.z) * scale;
+    const restAngle = Math.atan2(knee.position.z, -knee.position.y);
+    knee.rotation.set(Math.acos(Math.max(-1, Math.min(1, (distance ** 2 - upper ** 2 - lower ** 2) / (2 * sagittalUpper * lower)))) - restAngle, 0, 0);
+    const reach = knee.position.clone().add(foot.position.clone().applyQuaternion(knee.quaternion)).normalize();
+    const hipWorld = new Quaternion().setFromUnitVectors(reach, direction);
+    const hinge = new Vector3(1, 0, 0).applyQuaternion(hipWorld);
+    hinge.addScaledVector(direction, -hinge.dot(direction)).normalize();
+    const normal = new Vector3(1, 0, 0).applyQuaternion(facing);
+    normal.addScaledVector(direction, -normal.dot(direction)).normalize();
+    hipWorld.premultiply(new Quaternion().setFromAxisAngle(direction, Math.atan2(direction.dot(hinge.clone().cross(normal)), hinge.dot(normal))));
+    if (poleTurn) hipWorld.premultiply(new Quaternion().setFromAxisAngle(direction, poleTurn));
+    hip.quaternion.copy(hip.parent!.getWorldQuaternion(new Quaternion()).invert()).multiply(hipWorld);
+    rig.root.updateWorldMatrix(true, true);
+    foot.quaternion.copy(knee.getWorldQuaternion(new Quaternion()).invert()).multiply(footRotation);
+    rig.root.updateWorldMatrix(true, true);
+  };
+  const violation = () => {
+    let error = 0;
+    for (const [bone, range, hinge] of [[foot, limits, true], [hip, jointLimits[`${side}-hip`], false]] as const) for (const axis of ["x", "y", "z"] as const) {
+      const angle = bone.rotation[axis] / radians * (axis === "z" || hinge && axis === "x" ? -1 : 1), [min, max] = range[axis];
+      error += Math.max(min - angle, angle - max, 0) ** 2;
+    }
+    const localKnee = knee.getWorldPosition(new Vector3()).sub(rig.bones.pelvis.getWorldPosition(new Vector3())).applyQuaternion(facing.clone().invert());
+    if (localKnee.x * (side === "left" ? 1 : -1) < .05 * scale) error += 100_000;
+    return error;
+  };
+  solve(target);
+  if (!constraints.ankle) return;
+  let best = target.clone(), bestTurn = 0, error = violation();
+  for (let step = 1; constraints.kneeTurn && error > 1e-8 && step <= 12; step++) for (const sign of [1, -1]) {
+    const turn = sign * step * 5 * radians;
+    solve(target, turn);
+    const candidate = violation();
+    if (candidate < error) { error = candidate; bestTurn = turn; }
+    if (error <= 1e-8) break;
+  }
+  // Automatic support may choose a nearby point on the same plate/floor plane.
+  const along = new Vector3(0, 0, 1).applyQuaternion(footRotation);
+  for (let step = 1; error > 1e-8 && step <= 12; step++) {
+    for (const sign of [1, -1]) {
+      const point = target.clone().addScaledVector(along, sign * step * .01 * scale);
+      solve(point, bestTurn);
+      const candidate = violation();
+      if (candidate < error) { error = candidate; best = point; }
+      if (error <= 1e-8) break;
+    }
+  }
+  solve(best, bestTurn);
+  foot.rotation.set(
+    Math.max(-limits.x[1] * radians, Math.min(-limits.x[0] * radians, foot.rotation.x)),
+    Math.max(limits.y[0] * radians, Math.min(limits.y[1] * radians, foot.rotation.y)),
+    Math.max(-limits.z[1] * radians, Math.min(-limits.z[0] * radians, foot.rotation.z)),
+  );
   rig.root.updateWorldMatrix(true, true);
 }
 
+export function applyFreeMachineGrips(rig: AnatomyRig, scene: WorkshopScene, timeMs: number, pose = sampleWorkshopPose(scene.keyframes, timeMs)) {
+  for (const raw of scene.studio?.objects ?? []) {
+    if (!isStudioMachine(raw.slug) || raw.machineUse || raw.attachment === "none" || raw.slug === "cable-row-machine") continue;
+    const object = sampleStudioObject(raw, timeMs);
+    const facing = new Quaternion().setFromEuler(new Euler(object.rotationX * Math.PI / 180, object.rotationY * Math.PI / 180, object.rotationZ * Math.PI / 180));
+    for (const side of ["left", "right"] as const) {
+      if (object.attachment === side || object.attachment === "both") {
+        if (object.slug === "row-machine") reachPlateRowGrip(rig, object, side, facing, pose);
+        else if (object.slug === "t-bar-row-machine") reachTBarRowGrip(rig, object, side, facing);
+        else if (object.slug === "chest-press-machine") reachChestPressGrip(rig, object, side, facing, pose);
+        else if (object.slug === "shoulder-press-machine") reachShoulderPressGrip(rig, object, side, facing, pose);
+        else {
+          const target = studioPointToWorld(machineGripPoint(object, side), object), elbow = supportElbowTarget(rig, scene.studio, side, timeMs);
+          reachStudioGrip(rig, side, target, facing, pose[`${side}-wrist`], elbow);
+          if (!elbow) reachHingedMachineGrip(rig, side, pose, target, new Vector3(1, 0, 0).applyQuaternion(facing));
+        }
+      }
+    }
+  }
+}
+
 export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs: number): MachineReachReport | undefined {
+  applyFreeMachineGrips(rig, scene, timeMs);
   const raw = scene.studio?.objects.find(object => object.machineUse && isStudioMachine(object.slug));
   if (!raw) return;
-  // Machine supports determine torso alignment, including old authored poses.
-  rig.bones.torso.quaternion.identity();
+  if (raw.slug === "smith-machine" || raw.slug === "t-bar-row-machine") rig.bones.torso.quaternion.identity();
   const object = sampleStudioObject(raw, timeMs), carriage = machineCarriagePoint(object);
   const radians = Math.PI / 180;
   const facing = new Quaternion().setFromEuler(new Euler(object.rotationX * radians, object.rotationY * radians, object.rotationZ * radians));
@@ -138,6 +242,7 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
   const bodyFacing = facing.clone();
   if (reverse) bodyFacing.multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI));
   const rootRotation = bodyFacing.clone();
+  if (object.slug === "t-bar-row-machine") rootRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), tBarRow.padAngle));
   if (object.slug === "leg-press") rootRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 4));
   const parentRotation = rig.root.parent?.getWorldQuaternion(new Quaternion()) ?? new Quaternion();
   rig.root.quaternion.copy(parentRotation.invert().multiply(rootRotation));
@@ -145,21 +250,55 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
   const parentScale = rig.root.parent?.getWorldScale(new Vector3()).x ?? 1;
   rig.root.scale.setScalar(0.85 * object.scale / parentScale);
   const pelvisPoint = object.slug === "smith-machine" ? { x: 0, y: carriage.y - 0.75, z: 0.05 }
+    : object.slug === "row-machine" ? { x: 0, y: (object.rowSeatHeight ?? plateRow.seat.standard) + .17, z: plateRow.seat.z }
     : object.slug === "leg-press" ? { x: 0, y: 0.72, z: -0.51 } : { x: 0, y: 0.82, z: reverse ? reversePecDeckSeatZ : 0 };
+  if (object.slug !== "smith-machine") {
+    pelvisPoint.x += Math.max(-.1, Math.min(.1, object.seatOffsetX ?? 0));
+    pelvisPoint.z += Math.max(-.12, Math.min(.12, object.seatOffsetZ ?? 0));
+  }
   const pelvis = studioPointToWorld(pelvisPoint, object);
   const scale = rig.root.getWorldScale(new Vector3()).x;
   const origin = pelvis.sub(rig.bones.pelvis.position.clone().multiplyScalar(scale).applyQuaternion(rootRotation));
   rig.root.position.copy(rig.root.parent ? rig.root.parent.worldToLocal(origin) : origin);
   rig.root.updateWorldMatrix(true, true);
+  if (object.slug === "t-bar-row-machine") {
+    const normal = new Vector3(0, 0, -1).applyAxisAngle(new Vector3(1, 0, 0), tBarRow.padAngle);
+    const chest = rig.bones.torso.localToWorld(new Vector3(0, .62, .315));
+    const target = studioPointToWorld(tBarRow.pad.clone().addScaledVector(normal, tBarRow.padThickness / 2), object);
+    const worldOrigin = rig.root.getWorldPosition(new Vector3()).add(target.sub(chest));
+    rig.root.position.copy(rig.root.parent ? rig.root.parent.worldToLocal(worldOrigin) : worldOrigin);
+    rig.root.updateWorldMatrix(true, true);
+  }
   for (const side of ["left", "right"] as const) {
     const sign = side === "left" ? 1 : -1;
-    const footPoint = object.slug === "leg-press" ? { x: sign * 0.17, y: carriage.y - 0.085, z: carriage.z - 0.085 }
+    const footPoint = object.slug === "leg-press" ? legPressFootPoint(object, side)
       : object.slug === "cable-row-machine" ? rowFootPoint(side)
+      : object.slug === "row-machine" ? plateRowFootPoint(side)
+      : object.slug === "t-bar-row-machine" ? tBarRowFootPoint(side)
       : { x: sign * (reverse ? -0.24 : 0.17), y: 0.119, z: object.slug === "smith-machine" ? 0.22 : reverse ? reversePecDeckSeatZ - 0.6 : 0.6 };
     const footRotation = bodyFacing.clone();
     if (object.slug === "cable-row-machine") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), rowFootplate.angle));
-    if (object.slug === "leg-press") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -3 * Math.PI / 4));
-    plantMachineFoot(rig, side, studioPointToWorld(footPoint, object), bodyFacing, footRotation);
+    if (object.slug === "row-machine") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), plateRow.foot.angle));
+    if (object.slug === "t-bar-row-machine") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), tBarRow.foot.angle));
+    if (object.slug === "leg-press") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), legPress.footDegrees * Math.PI / 180));
+    const pose = sampleWorkshopPose(scene.keyframes, timeMs);
+    const authoredLeg = object.slug !== "leg-press" && (object.seatFootSupport === false || ["row-machine", "t-bar-row-machine"].includes(object.slug) && object.rowFootSupport === false);
+    if (!authoredLeg) plantMachineFoot(rig, side, studioPointToWorld(footPoint, object), bodyFacing, footRotation, { ankle: object.slug !== "smith-machine", kneeTurn: object.slug === "leg-press" });
+    if (object.slug === "t-bar-row-machine") { if (rowUsesHand(object, side)) reachTBarRowGrip(rig, object, side, facing); continue; }
+    if (object.slug === "row-machine") {
+      if (rowUsesHand(object, side)) {
+        reachPlateRowGrip(rig, object, side, facing, pose);
+      }
+      continue;
+    }
+    if (object.slug === "chest-press-machine") {
+      if (object.attachment === "none" || object.attachment === "both" || object.attachment === side) reachChestPressGrip(rig, object, side, facing, pose);
+      continue;
+    }
+    if (object.slug === "shoulder-press-machine") {
+      if (object.attachment === "none" || object.attachment === "both" || object.attachment === side) reachShoulderPressGrip(rig, object, side, facing, pose);
+      continue;
+    }
     if (object.slug === "cable-row-machine" && object.cableAttachment) continue;
     const grip = machineGripPoint(object, side);
     if (object.slug === "lat-pulldown-machine" && object.machineGrip === "pronated") reachFrontalPulldownGrip(rig, side, studioPointToWorld(grip, object), facing);
@@ -188,10 +327,12 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
     }
   }
   rig.root.updateWorldMatrix(true, true); rig.skeleton.update();
-  if (object.slug !== "cable-row-machine" && object.slug !== "pec-deck") return;
+  if (object.slug === "smith-machine") return;
   const report: MachineReachReport = { objectId: object.id, timeMs, hands: [], warnings: [] };
   const inverseFacing = bodyFacing.clone().invert();
   for (const side of ["left", "right"] as const) {
+    if (["row-machine", "t-bar-row-machine"].includes(object.slug) && !rowUsesHand(object, side)) continue;
+    if (["shoulder-press-machine", "chest-press-machine"].includes(object.slug) && object.attachment !== "none" && object.attachment !== "both" && object.attachment !== side) continue;
     if (cableFrame && ![side, "both"].includes(object.attachment)) continue;
     if (cableFrame?.kind === "cuff") continue;
     const hand = rig.handBones[side], elbow = rig.bones[`${side}-elbow`], shoulder = rig.bones[`${side}-shoulder`];
@@ -199,7 +340,7 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
     const cableGrip = cableFrame?.kind === "rope" && ropeGrip ? gripOffset(object, side).multiplyScalar(cableFrame.scale).applyQuaternion(ropeGrip.rotation).add(ropeGrip.point)
       : cableFrame ? cableLocalGrip(cableFrame.kind, side, object).point.multiplyScalar(cableFrame.scale).applyQuaternion(cableFrame.rotation).add(cableFrame.center) : undefined;
     const contactError = cableGrip ? hand.localToWorld(studioGripOffset(side)).distanceTo(cableGrip)
-      : hand.localToWorld(new Vector3(side === "left" ? 0.03 : -0.03, -0.11, 0.12)).distanceTo(studioPointToWorld(machineGripPoint(object, side), object));
+      : hand.localToWorld(["row-machine", "t-bar-row-machine", "shoulder-press-machine", "chest-press-machine"].includes(object.slug) ? studioGripOffset(side) : new Vector3(side === "left" ? 0.03 : -0.03, -0.11, 0.12)).distanceTo(studioPointToWorld(machineGripPoint(object, side), object));
     const wristBendDegrees = new Vector3(0, -1, 0).applyQuaternion(hand.getWorldQuaternion(new Quaternion()))
       .angleTo(hand.getWorldPosition(new Vector3()).sub(elbow.getWorldPosition(new Vector3()))) * 180 / Math.PI;
     const relativeElbow = elbow.getWorldPosition(new Vector3()).sub(shoulder.getWorldPosition(new Vector3())).applyQuaternion(inverseFacing);
@@ -207,25 +348,33 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
     report.hands.push({ side, contactError, wristBendDegrees, elbowPathDeviation });
     if (contactError > 0.005 * object.scale) report.warnings.push({ side, kind: "reach", message: `${side === "left" ? "Left" : "Right"} hand cannot reach the handle.`, repair: "Shorten the start or finish range until the hand touches the handle." });
     if (wristBendDegrees > 45) report.warnings.push({ side, kind: "wrist", message: `${side === "left" ? "Left" : "Right"} wrist bends ${Math.round(wristBendDegrees)}° to keep hold.`, repair: "Shorten the range, change the palm choice, or try the other elbow path." });
-    if (!cableFrame && elbowPathDeviation > 0.025 * object.scale) report.warnings.push({ side, kind: "elbow-path", message: `${side === "left" ? "Left" : "Right"} elbow leaves the chosen path to reach the handle.`, repair: "Shorten the range or try the other elbow path." });
+    if (!cableFrame && ["cable-row-machine", "pec-deck"].includes(object.slug) && elbowPathDeviation > 0.025 * object.scale) report.warnings.push({ side, kind: "elbow-path", message: `${side === "left" ? "Left" : "Right"} elbow leaves the chosen path to reach the handle.`, repair: "Shorten the range or try the other elbow path." });
   }
   return report;
 }
 
 // The palm's rotation must not choose the elbow's plane. Rows hinge beside the
 // torso; fly elbows travel at shoulder height while the hand follows the arm.
-function reachSeatedMachineGrip(rig: AnatomyRig, side: "left" | "right", target: Vector3, facing: Quaternion, object: StudioObject) {
-  const sign = side === "left" ? 1 : -1, row = object.slug === "cable-row-machine";
+function reachSeatedMachineGrip(rig: AnatomyRig, side: "left" | "right", target: Vector3, facing: Quaternion, object: StudioObject, pose?: RigPose) {
+  const sign = side === "left" ? 1 : -1, row = object.slug === "cable-row-machine" || object.slug === "row-machine";
   const reverse = object.machineMode === "reverse", travel = object.machinePosition ?? 0.5;
   const choices = machineGripChoices(object), beside = choices.machineElbowPath === "beside-body";
   const angle = row ? 0 : (reverse ? -9 + 89 * travel : 80 - 89 * travel) * Math.PI / 180;
-  const handWorld = facing.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), sign * angle))
+  const handWorld = object.slug === "row-machine" ? object.rowGrip === "wide" ? facing.clone()
+    .multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2 + rowLeverPosition(object, side) * .4))
+    .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), Math.PI))
+    : facing.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), machineLever(object, side).angle))
+      .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), sign * Math.PI / 2))
+      .multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2))
+    : facing.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), sign * angle))
     .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), sign * (reverse ? -1 : 1) * Math.PI / 2))
     .multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2));
   if (choices.machinePalm !== (reverse ? "outward" : "inward")) handWorld.multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI));
+  const wristPose = pose?.[`${side}-wrist`];
+  if (object.slug === "row-machine" && wristPose) handWorld.multiply(new Quaternion().setFromEuler(new Euler(wristPose.y * Math.PI / 180, wristPose.x * Math.PI / 180, -wristPose.z * Math.PI / 180)));
   const shoulder = rig.bones[`${side}-shoulder`], elbow = rig.bones[`${side}-elbow`], hand = rig.handBones[side];
   const origin = shoulder.getWorldPosition(new Vector3()), scale = rig.root.getWorldScale(new Vector3()).x;
-  const wrist = target.clone().sub(new Vector3(sign * 0.03, -0.11, 0.12).multiplyScalar(scale).applyQuaternion(handWorld));
+  const wrist = target.clone().sub((object.slug === "row-machine" ? studioGripOffset(side) : new Vector3(sign * 0.03, -0.11, 0.12)).multiplyScalar(scale).applyQuaternion(handWorld));
   const local = wrist.clone().sub(origin).applyQuaternion(facing.clone().invert());
   const upper = elbow.position.length() * scale, lower = hand.position.length() * scale;
   const perpendicular = beside ? local.x : local.y;
@@ -253,6 +402,41 @@ function reachSeatedMachineGrip(rig: AnatomyRig, side: "left" | "right", target:
     else bend.multiplyScalar(planeNormal.dot(fullDirection) * forward > 0 ? -1 : 1);
     bend.normalize();
     elbowTarget = origin.clone().addScaledVector(fullDirection, forward).addScaledVector(bend, Math.sqrt(Math.max(0, upper ** 2 - forward ** 2)));
+  }
+  const authored = pose?.[`${side}-shoulder`];
+  if (object.slug === "row-machine" && authored && Object.values(authored).some(value => Math.abs(value) > 1)) {
+    const direction = wrist.clone().sub(origin), distance = direction.length();
+    if (distance > 1e-6 && distance < upper + lower && distance > Math.abs(upper - lower)) {
+      direction.normalize();
+      const along = (upper ** 2 - lower ** 2 + distance ** 2) / (2 * distance), center = origin.clone().addScaledVector(direction, along);
+      const pole = elbow.getWorldPosition(new Vector3()).sub(center);
+      pole.addScaledVector(direction, -pole.dot(direction));
+      if (pole.lengthSq() > 1e-10) {
+        const radius = Math.sqrt(Math.max(0, upper ** 2 - along ** 2));
+        const reference = elbowTarget.clone().sub(center).normalize();
+        pole.normalize();
+        const angle = Math.max(-Math.PI / 2, Math.min(Math.PI / 2,
+          Math.atan2(direction.dot(reference.clone().cross(pole)), reference.dot(pole))));
+        const pointAt = (fraction: number) => center.clone().addScaledVector(reference.clone().applyAxisAngle(direction, angle * fraction), radius);
+        const inverseFacing = facing.clone().invert();
+        const safe = (fraction: number) => {
+          const local = pointAt(fraction).sub(origin).applyQuaternion(inverseFacing);
+          return sign * local.x >= -1e-8 && local.y <= .08 * scale;
+        };
+        // Stop on the same elbow branch before the upper arm enters the torso.
+        let low = 0, high = 1;
+        for (let step = 1; step <= 16; step++) {
+          const fraction = step / 16;
+          if (!safe(fraction)) { high = fraction; break; }
+          low = fraction;
+        }
+        if (low < 1) for (let step = 0; step < 16; step++) {
+          const middle = (low + high) / 2;
+          if (safe(middle)) low = middle; else high = middle;
+        }
+        elbowTarget = pointAt(low);
+      }
+    }
   }
   poseMachineArm(rig, side, elbowTarget, wrist, handWorld);
 }
@@ -320,7 +504,7 @@ export function machineDemoScene(slug: MachineSlug, id: string, machineGrip: "su
   });
   return { motionStyle: "free", durationMs, cameraAngle: machineGrip === "pronated" && slug === "lat-pulldown-machine" ? "front" : "three_quarter", equipment: null, annotations: [],
     keyframes: frames.map(frame => ({ timeMs: frame.timeMs, poses: { torso: { x: 0, y: 0, z: 0 } } })),
-    studio: { body: { ...identityTransform }, frontalPlane: slug === "lat-pulldown-machine" && machineGrip === "pronated" ? true : undefined, objects: [{ ...transform, id, slug, name: studioAssetNames[slug], attachment: "none", pulleyHeight: 2.6, machineUse: true, machineGrip: slug === "lat-pulldown-machine" ? machineGrip : undefined, machineMode: slug === "pec-deck" ? machineMode : undefined, machinePosition: frames[0].machinePosition, frames }],
-      presentation: { highlight: slug === "pec-deck" ? machineMode === "reverse" ? "group:reardelts" : "group:chest" : slug === "lat-pulldown-machine" || slug === "cable-row-machine" ? "group:lats" : "group:quadriceps", isolate: false, view: slug === "leg-press" ? "side" : slug === "lat-pulldown-machine" && machineGrip === "pronated" ? "front" : "three_quarter" } } };
+    studio: { body: { ...identityTransform }, frontalPlane: slug === "lat-pulldown-machine" && machineGrip === "pronated" ? true : undefined, objects: [{ ...transform, id, slug, name: studioAssetNames[slug], attachment: slug === "row-machine" ? "both" : "none", ...(slug === "row-machine" ? { rowGrip: "neutral" as const } : {}), pulleyHeight: 2.6, machineUse: true, machineGrip: slug === "lat-pulldown-machine" ? machineGrip : undefined, machineMode: slug === "pec-deck" ? machineMode : undefined, machinePosition: frames[0].machinePosition, frames }],
+      presentation: { highlight: slug === "chest-press-machine" ? "group:chest" : slug === "pec-deck" ? machineMode === "reverse" ? "group:reardelts" : "group:chest" : ["lat-pulldown-machine", "cable-row-machine", "t-bar-row-machine"].includes(slug) ? "group:lats" : "group:quadriceps", isolate: false, view: slug === "leg-press" ? "side" : slug === "lat-pulldown-machine" && machineGrip === "pronated" ? "front" : "three_quarter" } } };
 }
 

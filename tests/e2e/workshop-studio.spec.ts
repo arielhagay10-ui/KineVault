@@ -30,7 +30,7 @@ for (const facing of ["front", "supine"] as const) test(`bench-supported ${facin
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await dismissWorkshopTutorial(page);
     await page.getByRole("textbox", { name: "Exercise name", exact: true }).fill(`Bench placement ${facing}`);
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
     await openWorkshopTool(page, "Position");
     await expect(page.getByRole("button", { name: "Select bench", exact: true })).toBeVisible();
@@ -43,7 +43,7 @@ for (const facing of ["front", "supine"] as const) test(`bench-supported ${facin
     await openWorkshopTool(page, "Position");
     await page.getByLabel("Position X meters", { exact: true }).fill("1.25");
     await page.getByLabel("Position X meters", { exact: true }).press("Enter");
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
     await openWorkshopTool(page, "Position");
     await page.getByRole("button", { name: "Leave bench", exact: true }).click();
@@ -55,7 +55,7 @@ for (const facing of ["front", "supine"] as const) test(`bench-supported ${facin
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.reload();
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
     await openWorkshopTool(page, "Position");
     await expect(page.getByLabel("Position X meters", { exact: true })).toHaveValue("0.4");
@@ -263,7 +263,7 @@ test("seating and cuffs make a chest-supported Keenan flaps rep that survives sa
     await page.getByRole("button", { name: "Leave bench", exact: true }).click();
     await expect(page.getByRole("button", { name: "Leave bench", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Chest supported", exact: true }).click();
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await page.getByRole("button", { name: "Remove item", exact: true }).click();
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
@@ -325,7 +325,7 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
     await selectWorkshopObject(page, "Kettlebell");
     await expect(page.getByRole("button", { name: "Hold with both hands", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "Release", exact: true }).click();
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await page.getByRole("button", { name: "Remove item", exact: true }).click();
     await page.getByRole("button", { name: "Add equipment", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Cable machine", exact: true }).click();

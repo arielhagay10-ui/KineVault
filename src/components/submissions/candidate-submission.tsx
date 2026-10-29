@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { SubmissionForm } from "@/components/submissions/submission-form";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/page-layout";
+import { LibraryNavigation } from "@/components/ui/workspace-navigation";
 
 export async function CandidateSubmission({ id, contentId, name, familyId }: {
   id: string; contentId: string; name: string; familyId: string | null;
@@ -38,15 +40,12 @@ export async function CandidateSubmission({ id, contentId, name, familyId }: {
     !checks[2].ready && "joint_actions",
   ].filter((value): value is string => Boolean(value));
 
-  return <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-    <div className="mx-auto max-w-4xl">
-      <Link href={`/my-exercises/${id}/edit`} className="text-sm font-medium text-primary hover:underline">Private exercise</Link>
-      <div className="mt-8">
-
-        <h1 className="mt-2 text-4xl font-semibold tracking-[-0.055em]">Submit {name}</h1>
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">Review your classifications and motion before sending an immutable copy to the moderation queue.</p>
-      </div>
-      <section className="my-8 rounded-2xl border border-border bg-card p-6">
+  return <main className="min-h-screen bg-background text-foreground">
+    <div className="mx-auto max-w-5xl px-6 pb-20 pt-8">
+      <LibraryNavigation />
+      <PageHeader title={`Submit ${name}`} back={{ href: `/my-exercises/${id}/edit`, label: "Private exercise" }}
+        description="Review your classifications and motion before sending an immutable copy to the moderation queue." />
+      <section className="mb-8 rounded-xl border border-border bg-card p-6">
         <h2 className="text-xl font-semibold">Ready for review</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">{checks.map((item) => <Link key={item.label} href={item.href}
           className="flex items-center justify-between rounded-xl bg-background px-4 py-3 text-sm font-medium hover:bg-muted">

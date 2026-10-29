@@ -15,6 +15,7 @@ it("locks only engaged machines with authored motion and excludes deliberate con
   expect(needsPlacementAdvisory(weight)).toBe(true);
   const bench = createStudioObject("bench", "bench", 0);
   expect(needsPlacementAdvisory(bench, [bench.id])).toBe(false);
+  expect(needsPlacementAdvisory(createStudioObject("resistance-band", "band", 0))).toBe(false);
 });
 
 it("uses rendered geometry bounds across rotations/scales and reports repair after moving away", () => {

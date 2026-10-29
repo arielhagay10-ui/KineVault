@@ -15,6 +15,7 @@ const shortcuts = [
   ["Play / pause", "Space"],
   ["Previous / next pose", "[ / ]"],
   ["Select / Camera", "E / C"],
+  ["Lock / unlock selected item", "L"],
   ["Show shortcuts", "?"],
   ["Clear selection / Close menus", "Escape"],
 ];

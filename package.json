@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 127.0.0.1",
+    "dev": "next dev --hostname 127.0.0.1 --port 3002",
     "build": "next build",
     "start": "node scripts/start-production.mjs",
     "docker:up": "powershell -ExecutionPolicy Bypass -File scripts/start-local-docker.ps1",

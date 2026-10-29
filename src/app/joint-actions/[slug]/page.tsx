@@ -6,6 +6,7 @@ import { FilterSection } from "@/components/catalog/filter-section";
 import { Button } from "@/components/ui/button";
 import { parseExploreParams, type RawSearchParams } from "@/lib/search/params";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader, PageState, secondaryActionClass } from "@/components/ui/page-layout";
 
 export const dynamic = "force-dynamic";
 
@@ -59,17 +60,12 @@ export default async function JointActionPage({ params, searchParams }: Props) {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-7xl px-6 pb-20 pt-8 lg:px-10">
-        <div className="max-w-3xl pb-10 pt-12">
-
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">{action.joints?.name} {action.name}</h1>
-          <p className="mt-4 text-lg leading-8 text-muted-foreground">
-            {action.description ?? `A movement at the ${action.joints?.name.toLowerCase() ?? "joint"} classified as ${action.name.toLowerCase()}. Exercise classifications depend on the performed technique and are reviewed individually.`}
-          </p>
-        </div>
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-10 lg:pt-10">
+        <PageHeader title={`${action.joints?.name} ${action.name}`}
+          description={action.description ?? `A movement at the ${action.joints?.name.toLowerCase() ?? "joint"} classified as ${action.name.toLowerCase()}. Exercise classifications depend on the performed technique and are reviewed individually.`} />
         <div className="grid gap-8 lg:grid-cols-[285px_minmax(0,1fr)]">
           <aside>
-            <form action={`/joint-actions/${slug}`} method="get" className="rounded-2xl border border-border bg-card p-5 lg:sticky lg:top-6">
+            <form action={`/joint-actions/${slug}`} method="get" className="rounded-xl border border-border bg-card p-5 lg:sticky lg:top-6">
               <h2 className="mb-4 font-semibold">Narrow this action</h2>
               <FilterSection title="Equipment" name="equipment" options={equipmentResult.data ?? []} selected={filters.equipment} />
               <FilterSection title="Muscles" name="muscle" options={musclesResult.data ?? []} selected={filters.muscles} />
@@ -80,13 +76,13 @@ export default async function JointActionPage({ params, searchParams }: Props) {
             </form>
           </aside>
           <section aria-label="Exercises with this joint action">
-            <div className="mb-5 flex items-center justify-between gap-4">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
               <h2 className="text-xl font-semibold">Exercises</h2>
-              <Link href={fullExploreUrl} className="inline-flex items-center gap-2 text-sm font-semibold text-primary">Full Explore <ArrowRight size={16} /></Link>
+              <Link href={fullExploreUrl} className={secondaryActionClass}>Full Explore <ArrowRight size={16} /></Link>
             </div>
-            {error ? <p className="text-sm text-red-700 dark:text-red-300">Exercises could not be loaded.</p>
+            {error ? <PageState error title="Exercises could not be loaded" description="Try the full exercise catalog to continue browsing."><Link href={fullExploreUrl} className={secondaryActionClass}>Full Explore</Link></PageState>
               : rows?.length ? <ExerciseCards rows={rows.slice(0, 24)} />
-                : <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center text-muted-foreground">No exercises match these filters yet.</div>}
+                : <PageState title="No exercises match these filters yet" description="Change a filter or browse the full catalog."><Link href={`/joint-actions/${slug}`} className={secondaryActionClass}>Clear filters</Link><Link href={fullExploreUrl} className={secondaryActionClass}>Full Explore</Link></PageState>}
             {(rows?.length ?? 0) > 24 && <Link href={fullExploreUrl} className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary">View more <ArrowRight size={16} /></Link>}
           </section>
         </div>

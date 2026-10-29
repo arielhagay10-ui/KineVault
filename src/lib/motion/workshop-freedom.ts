@@ -30,7 +30,7 @@ export function addWorkshopEquipment(scene: WorkshopScene, slug: StudioObject["s
   return { ...scene, equipment: engage ? null : scene.equipment, studio: { ...studio,
     seating: engage ? undefined : studio.seating,
     objects: [...studio.objects.map(item => engage ? { ...changeGripAttachment(item, "none"), machineUse: item.machineUse === undefined ? undefined : false, elbowLocks: undefined } : item),
-      { ...next, machineUse: isStudioMachine(slug) ? engage : undefined }],
+      { ...next, ...(slug === "row-machine" ? { rowGrip: "neutral" as const, attachment: "both" as const, machinePosition: 0 } : {}), machineUse: isStudioMachine(slug) ? engage : undefined }],
   } };
 }
 

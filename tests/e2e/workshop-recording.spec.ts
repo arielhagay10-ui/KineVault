@@ -129,7 +129,7 @@ test("held dumbbells follow bench positions and first/finish poses are recorded 
     await page.getByRole("button", { name: "Capture start", exact: true }).click();
     await page.getByLabel("Editing pose", { exact: true }).selectOption("2");
     await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
-    await expect(jointField(page, "x")).toHaveValue("55");
+    await expect(jointField(page, "x")).toHaveValue("0");
     await expect(page.locator('[data-pose-save-state]')).toHaveAttribute("data-pose-save-state", "saved");
     await jointField(page, "x").fill("65"); await jointField(page, "x").press("Enter");
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();

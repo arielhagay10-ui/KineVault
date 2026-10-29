@@ -31,6 +31,14 @@ test("callback failures show recovery without reflecting provider error text", a
   await expect(page.locator('input[name="next"]')).toHaveValue("/exercises");
 });
 
+test("auth callbacks discard destinations that normalize into another authentication flow", async ({ page }) => {
+  for (const next of ["/%23/../sign-in", "/%3f/../auth/callback", "/%23/../reset-password"]) {
+    await page.goto(`/auth/callback?error=access_denied&next=${encodeURIComponent(next)}`);
+    await expect(page.locator('input[name="next"]')).toHaveValue("/dashboard");
+    await expect(page.locator("#form-error")).toContainText("Google sign-in was canceled");
+  }
+});
+
 test("opening an email link does not consume its token and failed confirmation offers a new link", async ({ page }) => {
   const response = await page.goto(`/auth/confirm?token_hash=${"a".repeat(64)}&type=email&next=%2Fexercises`);
   expect(response?.headers()["referrer-policy"]).toBe("no-referrer");

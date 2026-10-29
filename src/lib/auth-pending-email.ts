@@ -22,7 +22,8 @@ export async function getPendingEmail(): Promise<(PendingEmail & { remainingSeco
   const value = (await cookies()).get(cookieName)?.value;
   if (!value || value.length > 4096) return null;
   try {
-    const parsed = pendingSchema.safeParse(JSON.parse(value));
+    const json = value.startsWith("{") ? value : Buffer.from(value, "base64url").toString("utf8");
+    const parsed = pendingSchema.safeParse(JSON.parse(json));
     const now = Date.now();
     if (!parsed.success || parsed.data.expiresAt <= now || parsed.data.retryAt > now + resendDelayMs) return null;
     return { ...parsed.data, next: safeNextPath(parsed.data.next), remainingSeconds: Math.max(0, Math.ceil((parsed.data.retryAt - now) / 1000)) };
@@ -35,7 +36,9 @@ export async function rememberPendingEmail(input: Pick<PendingEmail, "email" | "
   const previous = await getPendingEmail();
   const retryAt = sent ? Date.now() + resendDelayMs : previous?.retryAt ?? 0;
   const pending = pendingSchema.parse({ ...input, next: safeNextPath(input.next), retryAt, expiresAt: Date.now() + 3600_000 });
-  (await cookies()).set(cookieName, JSON.stringify(pending), {
+  // Base64url avoids percent-encoding JSON and query punctuation past cookie limits.
+  const value = Buffer.from(JSON.stringify(pending)).toString("base64url");
+  (await cookies()).set(cookieName, value, {
     httpOnly: true, sameSite: "lax", secure: getAuthSettings().siteUrl.startsWith("https:"), path: "/", maxAge: 3600,
   });
   return pending;

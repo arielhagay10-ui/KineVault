@@ -1,0 +1,3 @@
+interface:
+  display_name: "KineVault Bundle Audit"
+  short_description: "Audit route bundles with project constraints"

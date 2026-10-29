@@ -32,7 +32,7 @@ describe("lying on an adjustable bench", () => {
         const normal = new Vector3(0, Math.cos(benchAngle * Math.PI / 180), Math.sin(benchAngle * Math.PI / 180)).applyQuaternion(rotation);
         let pelvis: Vector3 | undefined;
         for (let frame = 0; frame <= 16; frame++) {
-          const pose = { "left-elbow": { x: 20 + 80 * Math.sin(frame / 16 * Math.PI), y: 0, z: 0 } };
+          const pose = { torso: { x: -30 + frame * 3, y: 10, z: 5 }, "left-elbow": { x: 20 + 80 * Math.sin(frame / 16 * Math.PI), y: 0, z: 0 } };
           poseAnatomyRig(rig, pose);
           applyStudioSeating(rig, { body: { ...identityTransform, scale: 1.2 }, objects: [bench], seating: { benchId, facing: facing as BenchFacing } }, frame * 200, pose);
           const torso = rig.bones.torso.getWorldQuaternion(new Quaternion());

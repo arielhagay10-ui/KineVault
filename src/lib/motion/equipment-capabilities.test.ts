@@ -33,8 +33,13 @@ describe("equipment contact schema", () => {
 });
 
 describe("equipment grip capabilities", () => {
-  it.each(["bench", "squat-rack", "lat-pulldown-machine", "smith-machine", "leg-press", "pec-deck"] as const)("does not attach hands to %s", slug => {
+  it.each(["bench", "squat-rack", "stool", "plyo-box", "resistance-band"] as const)("does not attach hands to %s", slug => {
     expect(equipmentGripHands(object(slug))).toEqual([]);
+  });
+
+  it.each(["lat-pulldown-machine", "smith-machine", "leg-press", "pec-deck", "row-machine", "shoulder-press-machine"] as const)("allows independent hands on %s without a body preset", slug => {
+    expect(equipmentGripHands(object(slug))).toEqual(["left", "right", "both"]);
+    expect(workshopSceneSchema.safeParse(scene(object(slug, { attachment: "left", machineUse: false }))).success).toBe(true);
   });
 
   it("allows both hands on a shared free weight", () => {

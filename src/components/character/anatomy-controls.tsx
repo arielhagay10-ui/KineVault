@@ -3,12 +3,14 @@
 import { useId, useState } from "react";
 import { muscleGroups, type MuscleOption } from "@/lib/motion/anatomy";
 import { searchAnatomy } from "@/lib/motion/workshop-anatomy-search";
+import { savedMuscleHighlightLabel } from "@/lib/motion/saved-muscle-highlights";
 import { useWorkshopLanguage } from "./workshop-language";
 
-export function AnatomyControls({ muscles, target, isolate, count, onTargetChange, onIsolateChange, unavailable = false }: {
+export function AnatomyControls({ muscles, target, isolate, count, onTargetChange, onIsolateChange, unavailable = false, savedHighlight }: {
   muscles: MuscleOption[]; target: string; isolate: boolean; count: number;
   onTargetChange: (target: string) => void; onIsolateChange: (isolate: boolean) => void;
   unavailable?: boolean;
+  savedHighlight?: string;
 }) {
   const id = useId();
   const { language, t } = useWorkshopLanguage();
@@ -20,8 +22,8 @@ export function AnatomyControls({ muscles, target, isolate, count, onTargetChang
   const individual = muscles.filter(item => results.individual.includes(item) || localizedGroups.some(group => group.pattern.test(item.id.toLowerCase())));
   const selected = muscles.find(item => item.id === target);
   const selectedGroup = muscleGroups.find(item => `group:${item.id}` === target);
-  const selectedVisible = groups.some(item => `group:${item.id}` === target) || individual.some(item => item.id === target);
-  const label = selected?.label ?? selectedGroup?.label ?? (target === "none" ? undefined : target);
+  const selectedVisible = target === savedHighlight || groups.some(item => `group:${item.id}` === target) || individual.some(item => item.id === target);
+  const label = savedMuscleHighlightLabel(target) ?? selected?.label ?? selectedGroup?.label ?? (target === "none" ? undefined : target);
   const fieldClass = "mt-1 min-h-11 w-full min-w-0 rounded-lg border border-border bg-card px-3 py-2 text-base font-normal";
   return <div role="group" className="mt-4 space-y-2" aria-label={t("Muscle exploration")}>
     <div className="flex flex-wrap items-end gap-3">
@@ -32,6 +34,7 @@ export function AnatomyControls({ muscles, target, isolate, count, onTargetChang
       <div className="min-w-0 flex-1 basis-64 text-base font-semibold"><label htmlFor={`${id}-highlight`}>{t("Highlight")}</label>
         <select id={`${id}-highlight`} value={target} onChange={event => onTargetChange(event.target.value)} disabled={unavailable || !muscles.length} className={fieldClass}>
           <option value="none">{t("None")}</option>
+          {savedHighlight && savedHighlight !== "none" && <option value={savedHighlight}>{t("Saved working muscles")}</option>}
           {!selectedVisible && label && <option value={target}>{t("{label} (selected)", { label: t(label) })}</option>}
           {!!groups.length && <optgroup label={t("Muscle groups (both sides)")}>{groups.map(item => <option key={item.id} value={`group:${item.id}`}>{t(item.label)}</option>)}</optgroup>}
           {!!individual.length && <optgroup label={t("Individual muscles and structures")}>{individual.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup>}

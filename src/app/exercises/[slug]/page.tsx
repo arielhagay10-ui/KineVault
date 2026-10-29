@@ -13,6 +13,7 @@ import { resolveRenderReplacements } from "@/lib/media/render-replacements";
 import { PublicationBadge } from "@/components/catalog/publication-badge";
 import { ExerciseReport } from "@/components/catalog/exercise-report";
 import { ExerciseViewTracker } from "@/components/catalog/exercise-view-tracker";
+import { primaryActionClass, secondaryActionClass } from "@/components/ui/page-layout";
 
 export const dynamic = "force-dynamic";
 
@@ -95,61 +96,51 @@ export default async function ExercisePage({ params }: Props) {
   return (
     <main className="min-h-screen bg-background text-foreground">
       {identity && <ExerciseViewTracker exerciseId={exercise.id} />}
-      <div className="mx-auto max-w-7xl px-6 pb-20 pt-10 lg:px-10">
-        <Link href="/exercises" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft size={16} /> Back to Explore</Link>
-        <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-          <div className="min-w-0 lg:col-start-2 lg:row-start-1">
-            <PublicationBadge verifiedAt={exercise.verified_at} />
-            <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">{content.name}</h1>
-            {content.short_description && <p className="mt-5 text-lg leading-8 text-muted-foreground">{content.short_description}</p>}
-            {family && <Link href={`/families/${family.slug}`} className="mt-4 inline-flex rounded-full bg-muted px-3 py-1.5 text-sm font-semibold text-primary">{family.name} family</Link>}
-            {(aliasesResult.data?.length ?? 0) > 0 && <p className="mt-4 text-sm text-muted-foreground">Also known as: {aliasesResult.data?.map((item) => item.alias).join(", ")}</p>}
-            <div className="mt-6 flex items-center gap-4">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-10 lg:pt-10">
+        <Link href="/exercises" className="inline-flex min-h-11 items-center gap-2 text-sm text-primary underline-offset-4 hover:underline"><ArrowLeft size={16} /> Back to Explore</Link>
+        <header className="mb-8 mt-6 min-w-0">
+          <PublicationBadge verifiedAt={exercise.verified_at} />
+          <h1 className="mt-3 break-words text-[1.75rem] font-semibold leading-tight sm:text-[2rem]">{content.name}</h1>
+          {family && <Link href={`/families/${family.slug}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline">{family.name} family</Link>}
+          {content.short_description && <p className="mt-3 max-w-prose text-base leading-7 text-muted-foreground">{content.short_description}</p>}
+          {(aliasesResult.data?.length ?? 0) > 0 && <p className="mt-4 text-sm text-muted-foreground">Also known as: {aliasesResult.data?.map((item) => item.alias).join(", ")}</p>}
+        </header>
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.88fr)_minmax(300px,1fr)] lg:gap-x-12">
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+            <MediaGallery groups={[...groups.values()]} annotations={scene?.annotations} />
+          </div>
+          <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+            <div className="space-y-3">
               {identity ? <form action={toggleFavorite}>
                 <input type="hidden" name="exerciseId" value={exercise.id} />
                 <input type="hidden" name="slug" value={exercise.slug} />
-                <button type="submit" aria-pressed={Boolean(savedFavorite)} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-primary hover:bg-muted">
+                <button type="submit" aria-pressed={Boolean(savedFavorite)} className={`${primaryActionClass} w-full`}>
                   <Heart size={17} fill={savedFavorite ? "currentColor" : "none"} /> {savedFavorite ? "Saved" : "Save favorite"}
                 </button>
               </form> : <Link href={`/sign-in?next=${encodeURIComponent(`/exercises/${exercise.slug}`)}`}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-primary hover:bg-muted">
+                className={`${primaryActionClass} w-full`}>
                 <Heart size={17} /> Sign in to save
               </Link>}
-              <span className="text-sm text-muted-foreground">{exercise.favorite_count} saved</span>
+              <p className="text-xs text-muted-foreground">{exercise.favorite_count} saved</p>
             </div>
             {identity && <form action={copyPublicExercise} className="mt-4">
               <input type="hidden" name="exerciseId" value={exercise.id} />
-              <button type="submit" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring">Copy to my exercises</button>
+              <button type="submit" className={`${secondaryActionClass} w-full`}>Copy to my exercises</button>
               <p className="mt-2 text-xs leading-5 text-muted-foreground">Make an independent private copy of this exercise. The motion is included when its creator allowed reuse.</p>
             </form>}
-            {identity ? <ExerciseReport exerciseId={exercise.id} /> : <Link href={`/sign-in?next=${encodeURIComponent(`/exercises/${exercise.slug}`)}`} className="mt-6 inline-flex min-h-11 items-center text-sm text-muted-foreground underline">Sign in to report</Link>}
-            {identity && identity.role !== "user" && <Link href={`/admin/exercises/${exercise.id}`} className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">Moderate exercise</Link>}
-          </div>
-          <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2">
-            <MediaGallery groups={[...groups.values()]} annotations={scene?.annotations} />
             {scene && <MotionInspector scene={scene} />}
-            {hasInstructions && <section className="mt-8 rounded-2xl border border-border bg-card p-6">
-              <h2 className="text-xl font-semibold">How to perform it</h2>
-              <InfoBlock title="Setup" value={content.setup_instructions} />
-              <InfoBlock title="Execution" value={content.execution_instructions} />
-              <InfoBlock title="Form cues" value={content.form_cues} />
-              <InfoBlock title="Common mistakes" value={content.common_mistakes} />
-              <InfoBlock title="Safety notes" value={content.safety_notes} />
-              <InfoBlock title="Range of motion" value={content.range_of_motion_notes} />
-            </section>}
-          </div>
-          <div className="min-w-0 lg:col-start-2 lg:row-start-2">
-            <section className="space-y-6 rounded-2xl border border-border bg-card p-6">
+            <section aria-label="Anatomy and equipment" className="mt-6 divide-y divide-border border-t border-border">
+              <h2 className="py-6 text-xl font-semibold">Anatomy and equipment</h2>
               <TagSection title="Primary muscles" items={(musclesResult.data ?? []).filter((item) => item.role === "primary" && item.muscles).map((item) => ({ name: item.muscles!.name, href: `/muscles/${item.muscles!.slug}` }))} />
               <TagSection title="Secondary muscles" items={(musclesResult.data ?? []).filter((item) => item.role === "secondary" && item.muscles).map((item) => ({ name: item.muscles!.name, href: `/muscles/${item.muscles!.slug}` }))} />
               <TagSection title="Stabilizers" items={(musclesResult.data ?? []).filter((item) => item.role === "stabilizer" && item.muscles).map((item) => ({ name: item.muscles!.name, href: `/muscles/${item.muscles!.slug}` }))} />
               <TagSection title="Joints" items={(jointsResult.data ?? []).filter((item) => item.joints).map((item) => ({ name: item.joints!.name, href: `/joints/${item.joints!.slug}` }))} />
-              <div>
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">Joint actions</h2>
-                <div className="flex flex-wrap gap-2">
+              <div className="py-5">
+                <h3 className="mb-2 text-xs text-muted-foreground">Joint actions</h3>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
                   {(actionsResult.data ?? []).map((item) => item.joint_actions && (
                     <Link key={item.joint_actions.slug} href={`/joint-actions/${item.joint_actions.slug}`}
-                      className="rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-primary hover:bg-muted">
+                      className="inline-flex min-h-11 items-center text-sm text-primary underline-offset-4 hover:underline">
                       {item.joint_actions.joints?.name} {item.joint_actions.name}
                     </Link>
                   ))}
@@ -160,8 +151,8 @@ export default async function ExercisePage({ params }: Props) {
               <TagSection title="Movement patterns" items={(patternsResult.data ?? []).filter((item) => item.movement_patterns).map((item) => ({ name: item.movement_patterns!.name }))} />
             </section>
 
-            <section className="mt-6 rounded-2xl border border-border bg-card p-6">
-              <h2 className="flex items-center gap-2 text-xl font-semibold"><Info size={19} /> Biomechanics</h2>
+            <details className="border-y border-border py-4">
+              <summary className="min-h-11 cursor-pointer text-sm font-medium text-primary"><span className="inline-flex items-center gap-2"><Info size={17} aria-hidden /> Biomechanics</span></summary>
               <dl className="mt-5 grid grid-cols-2 gap-5 text-sm">
                 <InfoField title="Resistance profile" value={label(biomech?.resistance_profile)} />
                 <InfoField title="Peak resistance" value={label(biomech?.peak_resistance_position)} />
@@ -178,13 +169,13 @@ export default async function ExercisePage({ params }: Props) {
                 <InfoField title="Laterality" value={label(content.laterality)} />
               </dl>
               {biomech?.reviewer_notes && <p className="mt-5 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">{biomech.reviewer_notes}</p>}
-            </section>
-            {(parentExercise || variations.length > 0) && <section className="mt-6 rounded-2xl border border-border bg-card p-6">
+            </details>
+            {(parentExercise || variations.length > 0) && <section className="mt-6 border-b border-border pb-6">
               <h2 className="text-xl font-semibold">Exercise family links</h2>
               {parentExercise && <div className="mt-4"><h3 className="mb-2 text-sm font-semibold text-muted-foreground">Parent movement</h3><Link className="text-primary underline" href={`/exercises/${parentExercise.slug}`}>{parentExercise.name}</Link></div>}
               {variations.length > 0 && <div className="mt-4"><h3 className="mb-2 text-sm font-semibold text-muted-foreground">Variations</h3><ul className="space-y-2">{variations.map((item) => <li key={item.slug}><Link className="text-primary underline" href={`/exercises/${item.slug}`}>{item.name}</Link></li>)}</ul></div>}
             </section>}
-            {relations.some((item) => item.relation_type !== "variation_of") && <section className="mt-6 rounded-2xl border bg-card p-6">
+            {relations.some((item) => item.relation_type !== "variation_of") && <section className="mt-6 border-b border-border pb-6">
               <h2 className="text-xl font-semibold">Related exercises</h2>
               <ul className="mt-4 space-y-3">{relations.filter((item) => item.relation_type !== "variation_of").map((relation) => {
                 const isSource = relation.source_exercise_id === exercise.id;
@@ -198,6 +189,19 @@ export default async function ExercisePage({ params }: Props) {
               })}</ul>
             </section>}
           </div>
+          {hasInstructions && <section className="min-w-0 border-t border-border pt-6 lg:col-start-1 lg:row-start-2">
+            <h2 className="text-xl font-semibold">How to perform it</h2>
+            <InfoBlock title="Setup" value={content.setup_instructions} />
+            <InfoBlock title="Execution" value={content.execution_instructions} />
+            <InfoBlock title="Form cues" value={content.form_cues} />
+            <InfoBlock title="Common mistakes" value={content.common_mistakes} />
+            <InfoBlock title="Safety notes" value={content.safety_notes} />
+            <InfoBlock title="Range of motion" value={content.range_of_motion_notes} />
+          </section>}
+        </div>
+        <div className="mt-8 border-t border-border pt-4">
+          {identity ? <ExerciseReport exerciseId={exercise.id} /> : <Link href={`/sign-in?next=${encodeURIComponent(`/exercises/${exercise.slug}`)}`} className="inline-flex min-h-11 items-center text-sm text-primary underline-offset-4 hover:underline">Sign in to report</Link>}
+          {identity && identity.role !== "user" && <Link href={`/admin/exercises/${exercise.id}`} className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">Moderate exercise</Link>}
         </div>
       </div>
     </main>
@@ -207,12 +211,12 @@ export default async function ExercisePage({ params }: Props) {
 function TagSection({ title, items }: { title: string; items: { name: string; href?: string }[] }) {
   if (items.length === 0) return null;
   return (
-    <div>
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">{title}</h2>
-      <div className="flex flex-wrap gap-2">
+    <div className="py-5">
+      <h3 className="mb-2 text-xs text-muted-foreground">{title}</h3>
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
         {items.map((item) => item.href
-          ? <Link key={item.href} href={item.href} className="rounded-full bg-muted px-3 py-1.5 text-sm text-primary hover:bg-muted">{item.name}</Link>
-          : <span key={item.name} className="rounded-full bg-muted px-3 py-1.5 text-sm text-primary">{item.name}</span>)}
+          ? <Link key={item.href} href={item.href} className="inline-flex min-h-11 items-center text-sm text-primary underline-offset-4 hover:underline">{item.name}</Link>
+          : <span key={item.name} className="inline-flex min-h-11 items-center text-sm">{item.name}</span>)}
       </div>
     </div>
   );
@@ -220,7 +224,7 @@ function TagSection({ title, items }: { title: string; items: { name: string; hr
 
 function InfoBlock({ title, value }: { title: string; value: string | null }) {
   if (!value?.trim()) return null;
-  return <div className="mt-6"><h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3><p className="mt-2 whitespace-pre-line leading-7 text-muted-foreground">{value}</p></div>;
+  return <div className="mt-6 border-t border-border pt-5"><h3 className="text-base font-semibold">{title}</h3><p className="mt-2 max-w-prose whitespace-pre-line leading-7 text-muted-foreground">{value}</p></div>;
 }
 
 function InfoField({ title, value }: { title: string; value: string | null | undefined }) {

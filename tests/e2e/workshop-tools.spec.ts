@@ -97,12 +97,12 @@ test("workshop tools are directly accessible without scrolling through unrelated
       await tab.click(); await expect(tab).toHaveAttribute("aria-selected", "true");
     };
     await expect(tools).toBeVisible({ timeout: 5000 });
-    await open("Equipment");
-    await tools.getByRole("tab", { name: "Equipment", exact: true }).press("ArrowRight");
+    await open("Item settings");
+    await tools.getByRole("tab", { name: "Item settings", exact: true }).press("ArrowRight");
     await expect(tools.getByRole("tab", { name: "Position", exact: true })).toBeFocused();
     await expect(tools.getByRole("tab", { name: "Position", exact: true })).toHaveAttribute("aria-selected", "true");
     await tools.getByRole("tab", { name: "Position", exact: true }).press("Home");
-    await expect(tools.getByRole("tab", { name: "Equipment", exact: true })).toBeFocused();
+    await expect(tools.getByRole("tab", { name: "Item settings", exact: true })).toBeFocused();
     await selectWorkshopObject(page, "Adjustable bench");
     await expect(page.getByRole("button", { name: "Lie face up", exact: true })).toBeInViewport();
     await page.getByRole("button", { name: "Lie face up", exact: true }).click();
@@ -111,7 +111,7 @@ test("workshop tools are directly accessible without scrolling through unrelated
     await expandWorkshopControls(page, "Precise placement");
     await expect(page.getByLabel("Position X meters", { exact: true })).toBeInViewport();
     await expect(page.getByRole("button", { name: "Lie face up", exact: true })).not.toBeVisible();
-    await open("Equipment"); await selectWorkshopObject(page, "Cable machine");
+    await open("Item settings"); await selectWorkshopObject(page, "Cable machine");
     await expect(page.getByRole("button", { name: "Hold with right hand", exact: true })).toBeInViewport();
     await page.getByRole("button", { name: "Hold with right hand", exact: true }).click();
     await open("Pose"); await selectWorkshopJoint(page, "Left elbow");

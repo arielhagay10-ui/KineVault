@@ -61,7 +61,7 @@ test("leave equipment from the mobile header, move independently, undo and save"
       await page.getByRole("button", { name: "Save exercise", exact: true }).click();
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
       await page.reload();
-      await openWorkshopTool(page, "Equipment");
+      await openWorkshopTool(page, "Item settings");
       await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
       await openWorkshopTool(page, "Position");
       await expandWorkshopControls(page, "Precise placement");

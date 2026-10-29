@@ -78,11 +78,11 @@ it("releases each viewer's batch buffers once without disposing another viewer's
   expect(secondPositions).not.toBe(firstPositions);
   expect(secondPositions.array).toBe(firstPositions.array);
   first.dispose(); first.dispose();
-  expect(firstDisposals).toBe(3);
+  expect(firstDisposals).toBe(first.batches.meshes.length);
   expect(secondDisposals).toBe(0);
   highlightAnatomyRig(second, "group:biceps", false);
   expect(visibleMeshes(second.root)).toHaveLength(3);
   second.dispose(); second.dispose();
-  expect(secondDisposals).toBe(3);
+  expect(secondDisposals).toBe(second.batches.meshes.length);
   // Two complete atlas rigs can exceed Vitest's five-second default on CI.
 }, 30_000);

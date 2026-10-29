@@ -36,9 +36,33 @@ test("real motion renders stay private until approval and play publicly afterwar
     annotations: [{ startMs: 0, endMs: 500, label: "Raise", note: "Move the upper arm away from the torso.", jointAction: "shoulder-abduction" }],
   } });
   if (sceneError) throw sceneError;
+  const { data: draft } = await owner.from("private_exercises").select("content_id").eq("id", privateId).single();
+  const { data: sourceScene } = await owner.from("exercise_scenes")
+    .select("id,duration_ms,default_camera_angle,motion_style,studio_layout")
+    .eq("content_id", draft!.content_id).single();
+  const { data: sourceFrames } = await owner.from("motion_keyframes")
+    .select("position_ms,motion_joint_poses(rotation_x,rotation_y,rotation_z,rotation_w,rig_joint_id)")
+    .eq("scene_id", sourceScene!.id).order("position_ms");
   const { data: submissionId, error: submitError } = await owner.rpc("submit_private_exercise", { p_private_id: privateId, p_duplicate_disposition: "new" });
   if (submitError) throw submitError;
   const { data: submission } = await owner.from("exercise_submissions").select("original_content_id").eq("id", submissionId).single();
+  const { data: frozenScene } = await owner.from("exercise_scenes")
+    .select("id,duration_ms,default_camera_angle,motion_style,studio_layout")
+    .eq("content_id", submission!.original_content_id).single();
+  expect(frozenScene!.id).not.toBe(sourceScene!.id);
+  expect(frozenScene).toMatchObject({
+    duration_ms: sourceScene!.duration_ms,
+    default_camera_angle: sourceScene!.default_camera_angle,
+    motion_style: sourceScene!.motion_style,
+    studio_layout: sourceScene!.studio_layout,
+  });
+  const { data: frozenFrames } = await owner.from("motion_keyframes")
+    .select("position_ms,motion_joint_poses(rotation_x,rotation_y,rotation_z,rotation_w,rig_joint_id)")
+    .eq("scene_id", frozenScene!.id).order("position_ms");
+  expect(frozenFrames?.map((frame) => frame.position_ms)).toEqual([0, 500]);
+  expect(frozenFrames?.[1].motion_joint_poses).toHaveLength(1);
+  expect(frozenFrames?.map((frame) => ({ position_ms: frame.position_ms, poses: frame.motion_joint_poses })))
+    .toEqual(sourceFrames?.map((frame) => ({ position_ms: frame.position_ms, poses: frame.motion_joint_poses })));
   // Prioritize only this fixture; existing development render jobs remain untouched.
   const renderFixture = async (contentId: string) => {
     const validatedId = z.uuid().parse(contentId);
@@ -51,8 +75,10 @@ test("real motion renders stay private until approval and play publicly afterwar
     if (media?.length === 3) break;
     await renderFixture(submission!.original_content_id);
   }
-  const { data: privateMedia } = await owner.from("exercise_media").select("storage_path").eq("content_id", submission!.original_content_id);
+  const { data: privateMedia } = await owner.from("exercise_media")
+    .select("storage_path,scene_id,license_name,source_credit").eq("content_id", submission!.original_content_id);
   expect(privateMedia).toHaveLength(3);
+  expect(privateMedia?.every((item) => item.scene_id === frozenScene!.id && item.license_name === "CC BY-SA 4.0" && /Z-Anatomy.*BodyParts3D/.test(item.source_credit ?? ""))).toBe(true);
   const { data: hidden } = await visitor.storage.from("exercise-private").createSignedUrl(privateMedia![0].storage_path, 60);
   expect(hidden).toBeNull();
 
@@ -90,7 +116,28 @@ test("real motion renders stay private until approval and play publicly afterwar
   const raw = await page.request.get(`${url}/storage/v1/object/public/exercise-public/submissions/${submissionId}/demo.mp4`);
   expect(raw.ok()).toBeFalsy();
 
-  const { data: published } = await owner.from("exercises").select("id").eq("slug", slug).single();
+  const { data: published } = await owner.from("exercises").select("id,current_content_id").eq("slug", slug).single();
+  const { data: publicScene } = await owner.from("exercise_scenes")
+    .select("id,duration_ms,default_camera_angle,motion_style,studio_layout,motion_source_submission_id")
+    .eq("content_id", published!.current_content_id).single();
+  expect(publicScene!.id).not.toBe(frozenScene!.id);
+  expect(publicScene).toMatchObject({
+    duration_ms: frozenScene!.duration_ms,
+    default_camera_angle: frozenScene!.default_camera_angle,
+    motion_style: frozenScene!.motion_style,
+    studio_layout: frozenScene!.studio_layout,
+    motion_source_submission_id: submissionId,
+  });
+  const { data: publicFrames } = await owner.from("motion_keyframes")
+    .select("position_ms,motion_joint_poses(rotation_x,rotation_y,rotation_z,rotation_w,rig_joint_id)")
+    .eq("scene_id", publicScene!.id).order("position_ms");
+  expect(publicFrames?.map((frame) => ({ position_ms: frame.position_ms, poses: frame.motion_joint_poses })))
+    .toEqual(frozenFrames?.map((frame) => ({ position_ms: frame.position_ms, poses: frame.motion_joint_poses })));
+  const { data: publicMedia } = await owner.from("exercise_media")
+    .select("kind,scene_id,storage_bucket,license_name,source_credit").eq("content_id", published!.current_content_id);
+  expect(publicMedia).toHaveLength(3);
+  expect(publicMedia?.every((item) => item.scene_id === publicScene!.id && item.storage_bucket === "exercise-public"
+    && item.license_name === "CC BY-SA 4.0" && /Z-Anatomy.*BodyParts3D/.test(item.source_credit ?? ""))).toBe(true);
   await page.goto(`/admin/exercises/${published!.id}/edit`);
   await page.getByLabel("Reviewer notes").fill("Reviewed geometry determines resistance; no automatic inference from animation.");
   await page.getByLabel("Reason for corrections").fill("Explain the external resistance uncertainty.");
@@ -125,6 +172,7 @@ test("real motion renders stay private until approval and play publicly afterwar
   const { error: approveError } = await owner.rpc("approve_submission", { p_submission_id: curlSubmission, p_slug: `excluded-curl-${suffix}` });
   if (approveError) throw approveError;
   await page.goto("/exercises");
+  await page.locator("summary").filter({ hasText: /^Joint actions$/ }).click();
   await page.getByRole("checkbox", { name: "Shoulder Abduction", exact: true }).check();
   await page.locator('details').filter({ has: page.locator('summary').filter({ hasText: /^Equipment$/ }) }).locator("summary").click();
   await page.locator('input[name="equipment"][value="cable"]').check();
@@ -136,6 +184,7 @@ test("real motion renders stay private until approval and play publicly afterwar
   await expect(results.getByRole("link", { name: new RegExp(`Excluded Dumbbell Curl ${suffix}`) })).toHaveCount(0);
   await results.getByRole("link", { name: new RegExp(`Original Cable Raise ${suffix}`) }).click();
   await expect(page.getByRole("link", { name: "Shoulder Abduction", exact: true })).toBeVisible();
+  await page.locator("summary").filter({ hasText: "Biomechanics" }).click();
   await expect(page.getByText("Reviewed geometry determines resistance; no automatic inference from animation.")).toBeVisible();
   await page.route("**/demo.webm*", (route) => route.abort());
   await page.reload();

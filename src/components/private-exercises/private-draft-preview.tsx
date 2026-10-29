@@ -9,7 +9,9 @@ const MotionCanvas = dynamic(() => import("@/components/character/motion-canvas"
   ssr: false, loading: () => <p role="status" className="p-4 text-sm">Loading preview. You can continue editing while it loads.</p>,
 });
 
-export function PrivateDraftPreview({ scene, name }: { scene: WorkshopScene; name: string }) {
+export function PrivateDraftPreview({ scene, name, muscleSlugs, secondaryMuscleSlugs }: {
+  scene: WorkshopScene; name: string; muscleSlugs: string[]; secondaryMuscleSlugs: string[];
+}) {
   const [open, setOpen] = useState(false);
   const { clock, timeMs, playing, setTimeMs, setPlaying } = useMotionPlayback(scene.durationMs);
   return <div className="mt-4">
@@ -19,7 +21,8 @@ export function PrivateDraftPreview({ scene, name }: { scene: WorkshopScene; nam
     </button>
     {open && <div className="mt-3 min-w-0 rounded-xl border border-border p-3">
       <p className="mb-2 break-words text-sm text-muted-foreground">{name}. Saved motion, {(scene.durationMs / 1000).toFixed(1)} seconds. Playback starts when you choose Play.</p>
-      <MotionCanvas scene={scene} timeMs={timeMs} playback={clock} className="h-64" />
+      <MotionCanvas scene={scene} timeMs={timeMs} playback={clock} muscleSlugs={muscleSlugs} secondaryMuscleSlugs={secondaryMuscleSlugs} className="h-64" />
+      {!!secondaryMuscleSlugs.length && <p className="mt-2 text-sm text-muted-foreground">Secondary muscles use a lighter coral highlight in Saved working muscles.</p>}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button type="button" onClick={() => setPlaying(!playing)} className="min-h-11 rounded-lg bg-primary px-4 text-base font-semibold text-primary-foreground">
           {playing ? "Pause" : "Play"}

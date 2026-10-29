@@ -14,7 +14,15 @@ export async function confirmEmail(_previous: AuthState, formData: FormData): Pr
   const supabase = await createClient();
   const result = await supabase.auth.verifyOtp(parsed.data).catch(() => null);
   if (!result) return { error: "We could not check this link. Try again in a moment.", notice: null };
-  if (result.error) return { error: "This link has expired or has already been used. Request a new email below.", notice: null };
+  if (result.error?.status === 429 || result.error?.code === "over_request_rate_limit") {
+    return { error: "Too many attempts. Wait a minute before trying this link again.", notice: null };
+  }
+  if (result.error) return {
+    error: result.error.code === "otp_expired"
+      ? "This link has expired or has already been used. Request a new email below."
+      : "We could not check this link. Try again in a moment.",
+    notice: null,
+  };
   await clearPendingEmail();
   revalidatePath("/", "layout");
   const next = safeNextPath(formData.get("next")?.toString());

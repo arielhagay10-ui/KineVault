@@ -6,9 +6,11 @@ import { barbellWristPose, solveBarbellGrip } from "./barbell-grip";
 import { carryHeldWeightsWithBody } from "./held-weight-body";
 import { sampleStudioObject, studioPointToWorld, updateStudioObjectTransform } from "./studio";
 import { constrainFrontalPose } from "./studio-constraints";
-import { weightGripPoint } from "./studio-grip";
+import { reachStudioGrip, weightGripPoint } from "./studio-grip";
 import { applyStudioSeating } from "./studio-seat";
+import { supportElbowTarget, supportPoseFromRig } from "./support-contacts";
 import { isSharedDumbbell, supportDumbbellPalm } from "./shared-dumbbell-grip";
+import { applyStudioMachine, isStudioMachine } from "./studio-machines";
 import { identityTransform, sampleWorkshopPose, type RigPose, type StudioObject, type WorkshopScene } from "./workshop";
 
 const sides = ["left", "right"] as const;
@@ -41,7 +43,9 @@ export function sampleHeldWeightPose(scene: WorkshopScene, timeMs: number): RigP
 function solveHeldWeightPose(scene: WorkshopScene, timeMs: number, acquire: () => { rig: ReturnType<typeof createAnatomyRig>; parent: Group }): RigPose {
   const pose = constrainFrontalPose(sampleWorkshopPose(scene.keyframes, timeMs), scene.studio?.frontalPlane);
   const weights = scene.studio?.objects.filter(item => canCarryWithArm(item) && !(item.poseDriver === "arm" && item.attachment !== "both")) ?? [];
-  if (!weights.length) return pose;
+  const machine = scene.studio?.objects.some(item => isStudioMachine(item.slug)
+    && (item.machineUse || item.slug !== "cable-row-machine" && item.attachment !== "none"));
+  if (!weights.length && !scene.studio?.supports?.length && !machine && !scene.studio?.seating) return pose;
   const { rig, parent } = acquire(), body = scene.studio!.body;
   parent.position.set(body.x, body.y, body.z);
   parent.rotation.set(body.rotationX * Math.PI / 180, body.rotationY * Math.PI / 180, body.rotationZ * Math.PI / 180);
@@ -49,7 +53,12 @@ function solveHeldWeightPose(scene: WorkshopScene, timeMs: number, acquire: () =
   poseAnatomyRig(rig, pose, true, forearmRotationForScene(scene));
   plantAnatomyFeet(rig, scene.motionStyle, pose); correctAuthoredArmPath(rig, scene.motionStyle, pose);
   applyStudioSeating(rig, scene.studio, timeMs, pose);
-  const result = { ...pose };
+  if (machine) { applyStudioMachine(rig, scene, timeMs); return { ...pose, ...supportPoseFromRig(rig) }; }
+  const result = scene.studio?.supports?.length ? { ...pose, ...supportPoseFromRig(rig) } : { ...pose };
+  if (scene.studio?.seating) {
+    const supported = supportPoseFromRig(rig);
+    for (const side of sides) for (const part of ["hip", "knee", "ankle"] as const) result[`${side}-${part}`] = supported[`${side}-${part}`];
+  }
   for (const weight of weights) {
     const item = sampleStudioObject(weight, timeMs);
     const armDriven = item.poseDriver !== undefined && item.poseDriver !== "weight";
@@ -59,7 +68,9 @@ function solveHeldWeightPose(scene: WorkshopScene, timeMs: number, acquire: () =
       if (armDriven && (item.slug === "barbell" || isSharedDumbbell(item))) result[`${side}-wrist`] = barbellWristPose(rig, side);
       if (armDriven && !isSharedDumbbell(item) && (item.attachment !== "both" || side === (item.poseDriver === "right-arm" ? "right" : "left"))) continue;
       const target = studioPointToWorld(weightGripPoint(item, side), item);
-      if (!armDriven && item.slug === "barbell") solveBarbellGrip(rig, side, pose, target, new Vector3(1, 0, 0).applyEuler(new Euler(
+      const elbow = supportElbowTarget(rig, scene.studio, side, timeMs);
+      if (!armDriven && elbow) reachStudioGrip(rig, side, target, rig.root.quaternion.clone().setFromEuler(new Euler(item.rotationX * Math.PI / 180, item.rotationY * Math.PI / 180, item.rotationZ * Math.PI / 180)), pose[`${side}-wrist`], elbow);
+      else if (!armDriven && item.slug === "barbell") solveBarbellGrip(rig, side, pose, target, new Vector3(1, 0, 0).applyEuler(new Euler(
         item.rotationX * Math.PI / 180, item.rotationY * Math.PI / 180, item.rotationZ * Math.PI / 180)), scene.studio?.frontalPlane);
       else if (!armDriven && !isSharedDumbbell(item)) solveDumbbellGrip(rig, { ...item, attachment: side }, pose, target, scene.studio?.frontalPlane);
       if (item.slug === "barbell" || isSharedDumbbell(item)) result[`${side}-wrist`] = barbellWristPose(rig, side);

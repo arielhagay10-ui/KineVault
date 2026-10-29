@@ -13,7 +13,7 @@ for (const appearance of ["light", "dark"] as const) {
     await openWorkshopMenu(page);
     await auditAccessibility(page, testInfo, `${appearance}-workshop-menu`);
     await page.keyboard.press("Escape");
-    for (const tool of ["Equipment", "Position", "Pose", "Timeline", "Settings"]) {
+    for (const tool of ["Item settings", "Position", "Pose", "Timeline", "Settings"]) {
       await openWorkshopTool(page, tool);
       // Scan settled tool colors rather than an intermediate selection transition.
       await page.getByRole("toolbar", { name: "Movement tools", exact: true, includeHidden: true }).evaluate(async element => {
@@ -31,7 +31,7 @@ for (const appearance of ["light", "dark"] as const) {
     const editControls = page.getByRole("button", { name: "Edit controls", exact: true });
     if (await editControls.isVisible()) await editControls.click();
     await page.getByRole("button", { name: "Close comparison", exact: true }).click();
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await page.getByRole("button", { name: "Add equipment", exact: true }).filter({ visible: true }).click();
     const dialog = page.getByRole("dialog", { name: "Choose equipment", exact: true });
     await expect(dialog).toBeVisible();

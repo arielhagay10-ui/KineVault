@@ -1,6 +1,6 @@
 type ShortcutKey = Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey" | "repeat" | "isComposing" | "defaultPrevented">;
 type ShortcutContext = { typing: boolean; interactive: boolean; blocked: boolean; timeline?: boolean };
-export type WorkshopShortcut = "undo" | "redo" | "save" | "duplicate" | "remove" | "cut" | "copy" | "paste" | "play" | "previous" | "next" | "edit" | "camera" | "help" | "escape";
+export type WorkshopShortcut = "undo" | "redo" | "save" | "duplicate" | "remove" | "cut" | "copy" | "paste" | "play" | "previous" | "next" | "edit" | "camera" | "lock" | "help" | "escape";
 
 export function workshopShortcut(event: ShortcutKey, context: ShortcutContext): WorkshopShortcut | null {
   if (context.blocked || event.defaultPrevented || event.repeat || event.isComposing || event.altKey || event.ctrlKey && event.metaKey) return null;
@@ -34,5 +34,6 @@ export function workshopShortcut(event: ShortcutKey, context: ShortcutContext): 
   if (key === "]" || event.code === "BracketRight") return "next";
   if (letter === "e") return "edit";
   if (letter === "c") return "camera";
+  if (letter === "l") return "lock";
   return null;
 }

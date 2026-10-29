@@ -1,11 +1,12 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./published-catalog.helpers";
 
-test("anatomical model supports muscle groups, individual selection, isolation and playback", async ({ page }) => {
+test("anatomical model supports muscle groups, individual selection, isolation and playback", async ({ page, publishedCableRaise }) => {
   test.setTimeout(120_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/");
-  await page.getByRole("button", { name: "Try the movement viewer", exact: true }).click();
+  await page.goto(`/exercises/${publishedCableRaise.slug}`);
+  await page.getByRole("button", { name: "Inspect motion in 3D", exact: true }).click();
   const viewer = page.locator('[data-anatomy-state="ready"]');
   await expect(viewer).toBeVisible({ timeout: 60_000 });
   await page.getByLabel("Highlight", { exact: true }).selectOption("group:triceps");
@@ -35,11 +36,11 @@ test("anatomical model supports muscle groups, individual selection, isolation a
   expect(errors).toEqual([]);
 });
 
-test("anatomy download errors allow retry", async ({ page }) => {
+test("anatomy download errors allow retry", async ({ page, publishedCableRaise }) => {
   test.setTimeout(120_000);
   await page.route("**/models/z-anatomy/*.glb", route => route.fulfill({ status: 503, body: "Unavailable" }));
-  await page.goto("/");
-  await page.getByRole("button", { name: "Try the movement viewer", exact: true }).click();
+  await page.goto(`/exercises/${publishedCableRaise.slug}`);
+  await page.getByRole("button", { name: "Inspect motion in 3D", exact: true }).click();
   await expect(page.getByText("Could not load the 3D preview.", { exact: true })).toBeVisible();
   await page.unroute("**/models/z-anatomy/*.glb");
   await page.getByRole("button", { name: "Retry preview", exact: true }).click();

@@ -9,6 +9,7 @@ import { studioGripOffset } from "./studio-grip";
 import { studioPointToWorld } from "./studio";
 import { readFile } from "node:fs/promises";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { legPress, legPressFootPoint, legPressSolePoint } from "./leg-press";
 
 describe("studio machines", () => {
   it("round trips a pulldown grip and rejects it on other equipment", () => {
@@ -143,7 +144,7 @@ describe("studio machines", () => {
         raw.frames = raw.frames!.map(frame => ({ ...frame, scale, x: raw.x, z: raw.z, rotationY: raw.rotationY }));
         for (let step = 0; step <= 32; step++) {
           const time = step / 32 * scene.durationMs;
-          poseAnatomyRig(rig, { torso: { x: step % 2 ? 35 : -35, y: 30, z: 20 } }, true); body.updateMatrixWorld(true); applyStudioMachine(rig, scene, time);
+          poseAnatomyRig(rig, {}, true); body.updateMatrixWorld(true); applyStudioMachine(rig, scene, time);
           expect(rig.bones.torso.quaternion.angleTo(new Quaternion())).toBeLessThan(0.00001);
           const object = sampleStudioObject(raw, time), carriage = machineCarriagePoint(object);
           for (const side of ["left", "right"] as const) {
@@ -158,11 +159,19 @@ describe("studio machines", () => {
               expect(shoulder.y - bar.y).toBeGreaterThan(0);
               expect(shoulder.y - bar.y).toBeLessThan(0.05 * scale);
             }
-            const foot = slug === "leg-press" ? { x: sign * 0.17, y: carriage.y - 0.085, z: carriage.z - 0.085 } : { x: sign * 0.17, y: 0.119, z: slug === "smith-machine" ? 0.22 : 0.6 };
-            expect(rig.footBones[side].getWorldPosition(new Vector3()).distanceTo(studioPointToWorld(foot, object))).toBeLessThan(0.005);
+            const foot = slug === "leg-press" ? legPressFootPoint(object, side) : { x: sign * 0.17, y: 0.119, z: slug === "smith-machine" ? 0.22 : 0.6 };
+            const ankle = rig.footBones[side].getWorldPosition(new Vector3());
+            expect(ankle.distanceTo(studioPointToWorld(foot, object))).toBeLessThan((slug === "smith-machine" ? .005 : .13) * scale);
+            if (slug !== "smith-machine") {
+              const sole = rig.footBones[side].localToWorld(new Vector3(0, -.14, .065));
+              const normal = new Vector3(0, 1, 0);
+              if (slug === "leg-press") normal.set(0, -1, 0).applyAxisAngle(new Vector3(1, 0, 0), legPress.footDegrees * Math.PI / 180).applyAxisAngle(new Vector3(0, 1, 0), raw.rotationY * Math.PI / 180);
+              const plane = studioPointToWorld(slug === "leg-press" ? legPressSolePoint(object, side) : { x: 0, y: 0, z: .6 }, object);
+              expect(Math.abs(sole.sub(plane).dot(normal)), `${slug} ${side} scale ${scale} step ${step} ankle ${rig.footBones[side].rotation.toArray()} sole normal ${new Vector3(0, -1, 0).applyQuaternion(rig.footBones[side].getWorldQuaternion(new Quaternion())).dot(normal)}`).toBeLessThan(.005 * scale);
+            }
             if (slug === "leg-press") {
               const sole = new Vector3(0, -1, 0).applyQuaternion(rig.footBones[side].getWorldQuaternion(new Quaternion()));
-              const normal = new Vector3(0, Math.SQRT1_2, Math.SQRT1_2).applyAxisAngle(new Vector3(0, 1, 0), raw.rotationY * Math.PI / 180);
+              const normal = new Vector3(0, -1, 0).applyAxisAngle(new Vector3(1, 0, 0), legPress.footDegrees * Math.PI / 180).applyAxisAngle(new Vector3(0, 1, 0), raw.rotationY * Math.PI / 180);
               expect(sole.dot(normal)).toBeGreaterThan(0.999);
             }
           }

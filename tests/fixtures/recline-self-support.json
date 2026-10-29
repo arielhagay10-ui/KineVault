@@ -1,0 +1,317 @@
+{
+  "durationMs": 3200,
+  "cameraAngle": "three_quarter",
+  "motionStyle": "free",
+  "equipment": null,
+  "studio": {
+    "body": {
+      "rotationX": 0,
+      "rotationY": 0,
+      "rotationZ": 0,
+      "scale": 1,
+      "x": 0.47,
+      "y": -0.13,
+      "z": 0.05
+    },
+    "frontalPlane": false,
+    "objects": [
+      {
+        "attachment": "none",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "name": "Adjustable bench",
+        "pulleyHeight": 1.5,
+        "rotationX": 0,
+        "rotationY": 0,
+        "rotationZ": 0,
+        "scale": 1,
+        "slug": "bench",
+        "x": 0.95,
+        "y": 0,
+        "z": 0.3
+      },
+      {
+        "attachment": "left",
+        "frames": [
+          {
+            "rotationX": 134.99999999999997,
+            "rotationY": -1.987846675914698e-15,
+            "rotationZ": -174.00000000000003,
+            "scale": 1,
+            "timeMs": 0,
+            "x": 0.6636938577380632,
+            "y": 0.9480486509469137,
+            "z": 0.4805374418630319
+          },
+          {
+            "rotationX": -108.00000000000001,
+            "rotationY": -4.055207218865984e-14,
+            "rotationZ": -174.00000000000003,
+            "scale": 1,
+            "timeMs": 1600,
+            "x": 0.6636938577380634,
+            "y": 1.5700068368491575,
+            "z": -0.6820092156131683
+          },
+          {
+            "rotationX": 135,
+            "rotationY": -3.975693351829396e-16,
+            "rotationZ": -174,
+            "scale": 1,
+            "timeMs": 3200,
+            "x": 0.6636938577380632,
+            "y": 0.9480486509469137,
+            "z": 0.48053744186303177
+          }
+        ],
+        "id": "00000000-0000-4000-8000-000000000002",
+        "name": "Dumbbell",
+        "poseDriver": "arm",
+        "pulleyHeight": 1.5,
+        "rotationX": 134.99999999999997,
+        "rotationY": -1.987846675914698e-15,
+        "rotationZ": -174.00000000000003,
+        "scale": 1,
+        "slug": "dumbbell",
+        "x": 0.6636938577380632,
+        "y": 0.9480486509469137,
+        "z": 0.4805374418630319
+      }
+    ],
+    "presentation": {
+      "highlight": "none",
+      "isolate": false,
+      "view": "back"
+    },
+    "supports": [
+      {
+        "normal": {
+          "x": -0.1918442011558133,
+          "y": -0.027714912405699347,
+          "z": 0.9810339882558771
+        },
+        "objectId": null,
+        "point": {
+          "x": 0.033500213589652716,
+          "y": 0.41509327399307483,
+          "z": 0.2979069567299213
+        },
+        "region": "right-hand",
+        "surface": "self:torso",
+        "turn": 0
+      }
+    ]
+  },
+  "keyframes": [
+    {
+      "timeMs": 0,
+      "poses": {
+        "right-hip": {
+          "x": -12,
+          "y": 3,
+          "z": 15
+        },
+        "right-knee": {
+          "x": -32,
+          "y": 0,
+          "z": 0
+        },
+        "right-wrist": {
+          "x": -90,
+          "y": 0,
+          "z": 0
+        },
+        "right-ankle": {
+          "x": 20,
+          "y": -2,
+          "z": -12
+        },
+        "torso": {
+          "x": -31,
+          "y": 0,
+          "z": -7
+        },
+        "left-shoulder": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "left-wrist": {
+          "x": -90,
+          "y": 0,
+          "z": -6
+        },
+        "left-ankle": {
+          "x": -22,
+          "y": -7,
+          "z": 10
+        },
+        "left-hip": {
+          "x": -25,
+          "y": 0,
+          "z": 0
+        },
+        "left-knee": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "right-shoulder": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "left-elbow": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "right-elbow": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "timeMs": 1600,
+      "poses": {
+        "right-hip": {
+          "x": -12,
+          "y": 3,
+          "z": 15
+        },
+        "right-knee": {
+          "x": -32,
+          "y": 0,
+          "z": 0
+        },
+        "right-wrist": {
+          "x": -90,
+          "y": 0,
+          "z": 0
+        },
+        "right-ankle": {
+          "x": 20,
+          "y": -2,
+          "z": -12
+        },
+        "torso": {
+          "x": -31,
+          "y": 0,
+          "z": -7
+        },
+        "left-shoulder": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "left-wrist": {
+          "x": -90,
+          "y": 0,
+          "z": -6
+        },
+        "left-ankle": {
+          "x": -22,
+          "y": -7,
+          "z": 10
+        },
+        "left-hip": {
+          "x": -25,
+          "y": 0,
+          "z": 0
+        },
+        "left-knee": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "right-shoulder": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "left-elbow": {
+          "x": 117,
+          "y": 0,
+          "z": 0
+        },
+        "right-elbow": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "timeMs": 3200,
+      "poses": {
+        "right-hip": {
+          "x": -12,
+          "y": 3,
+          "z": 15
+        },
+        "right-knee": {
+          "x": -32,
+          "y": 0,
+          "z": 0
+        },
+        "right-wrist": {
+          "x": -90,
+          "y": 0,
+          "z": 0
+        },
+        "right-ankle": {
+          "x": 20,
+          "y": -2,
+          "z": -12
+        },
+        "torso": {
+          "x": -31,
+          "y": 0,
+          "z": -7
+        },
+        "left-shoulder": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "left-wrist": {
+          "x": -90,
+          "y": 0,
+          "z": -6
+        },
+        "left-ankle": {
+          "x": -22,
+          "y": -7,
+          "z": 10
+        },
+        "left-hip": {
+          "x": -25,
+          "y": 0,
+          "z": 0
+        },
+        "left-knee": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "right-shoulder": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "left-elbow": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "right-elbow": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "annotations": []
+}

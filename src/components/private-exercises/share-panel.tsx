@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { replacePrivateShare, revokePrivateShare } from "@/app/my-exercises/share-actions";
+import { primaryActionClass, secondaryActionClass } from "@/components/ui/page-layout";
 
 export function SharePanel({ privateId, active }: { privateId: string; active: boolean }) {
   const [state, action, pending] = useActionState(replacePrivateShare, { url: null, error: null });
@@ -18,14 +19,14 @@ export function SharePanel({ privateId, active }: { privateId: string; active: b
   }
 
   return (
-    <section className="mt-8 rounded-2xl border border-border bg-card p-6">
+    <section id="sharing" className="mt-8 scroll-mt-24 rounded-xl border border-border bg-card p-6">
       <h2 className="text-xl font-semibold">Share with friends</h2>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">Anyone with the link can view this private exercise. It stays out of Explore, and only you can edit it.</p>
-      <p className="mt-3 text-xs font-semibold text-muted-foreground">{active ? "A share link is active." : "No active share link."}</p>
+      <p role="status" className="mt-4 text-sm font-semibold text-foreground">{active ? "A share link is active." : "No active share link."}</p>
       <div className="mt-5 flex flex-wrap gap-3">
         <form action={action}>
           <input type="hidden" name="privateId" value={privateId} />
-          <button disabled={pending} type="submit" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+          <button disabled={pending} type="submit" className={primaryActionClass}>
             {pending ? "Creating…" : active ? "Replace link" : "Create share link"}
           </button>
         </form>
@@ -33,14 +34,14 @@ export function SharePanel({ privateId, active }: { privateId: string; active: b
           if (!window.confirm("Revoke the current link? Friends using it will lose access.")) event.preventDefault();
         }}>
           <input type="hidden" name="privateId" value={privateId} />
-          <button type="submit" className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground">Revoke link</button>
+          <button type="submit" className={secondaryActionClass}>Revoke link</button>
         </form>}
       </div>
       {state.url && active && <div className="mt-5 rounded-xl border border-border bg-muted p-4">
         <p className="text-sm font-semibold text-primary">New link created. Copy it now; it will not be shown again.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <input readOnly aria-label="Share link" value={state.url} className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm" />
-          <button type="button" onClick={copyLink} className="min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/85">{copied ? "Copied" : "Copy link"}</button>
+          <input readOnly aria-label="Share link" value={state.url} className="min-h-11 min-w-0 flex-1 basis-52 rounded-lg border border-input bg-card px-3 py-2 text-sm" />
+          <button type="button" onClick={copyLink} className={secondaryActionClass}>{copied ? "Copied" : "Copy link"}</button>
         </div>
         {copyState?.url === state.url && <p role={copyState.error ? "alert" : "status"} className={`mt-3 text-sm ${copyState.error ? "text-destructive" : "text-primary"}`}>
           {copyState.error ? "Could not copy. Select the link and copy it manually." : "Share link copied."}

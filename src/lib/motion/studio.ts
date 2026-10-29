@@ -5,9 +5,16 @@ export const studioAssetNames: Record<StudioObject["slug"], string> = {
   "cable-machine": "Cable machine", bench: "Adjustable bench", "squat-rack": "Squat rack", barbell: "Barbell", dumbbell: "Dumbbell", kettlebell: "Kettlebell",
   "lat-pulldown-machine": "Lat pulldown machine", "smith-machine": "Smith machine", "leg-press": "Leg press",
   "cable-row-machine": "Cable row", "pec-deck": "Pec deck",
+  "row-machine": "Plate-loaded row", "shoulder-press-machine": "Shoulder press", "chest-press-machine": "Converging chest press",
+  "t-bar-row-machine": "Chest-supported T-bar row",
+  stool: "Stool", "plyo-box": "Plyo box", "resistance-band": "Resistance band",
 };
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 export const maxPulleyHeight = 3.2;
+export const machineMotionFields = ["machinePosition", "machineHandleHeight", "machinePositionLeft", "machinePositionRight", "seatOffsetX", "seatOffsetZ"] as const;
+export function machineMotionAt(object: StudioObject) {
+  return Object.fromEntries(machineMotionFields.filter(key => object[key] !== undefined).map(key => [key, object[key]]));
+}
 export function studioAttachmentSlots(object: StudioObject): string[] {
   const sides = object.attachment === "both" ? ["left", "right"] : object.attachment === "none" ? [] : [object.attachment];
   const site = ["cable-machine", "cable-row-machine"].includes(object.slug) && object.cableAttachment === "cuff" ? object.cuffPosition ?? "wrist" : "hand";
@@ -47,7 +54,8 @@ export function sampleStudioObject(object: StudioObject, timeMs: number): Studio
     const frame = nextIndex < 0 ? frames[frames.length - 1] : frames[0];
     const transform = { ...identityTransform };
     for (const key of Object.keys(transform) as (keyof SceneTransform)[]) transform[key] = frame[key];
-    return { ...object, ...transform, machinePosition: frame.machinePosition ?? object.machinePosition, ...(frame.machineHandleHeight !== undefined ? { machineHandleHeight: frame.machineHandleHeight } : {}) };
+    const motion = Object.fromEntries(machineMotionFields.map(key => [key, frame[key] ?? object[key]]));
+    return { ...object, ...transform, ...motion };
   }
   const before = frames[nextIndex - 1], after = frames[nextIndex];
   const blend = (timeMs - before.timeMs) / (after.timeMs - before.timeMs);
@@ -61,7 +69,19 @@ export function sampleStudioObject(object: StudioObject, timeMs: number): Studio
     ? (before.machinePosition ?? object.machinePosition ?? 0.5) + ((after.machinePosition ?? object.machinePosition ?? 0.5) - (before.machinePosition ?? object.machinePosition ?? 0.5)) * blend : object.machinePosition;
   const height = before.machineHandleHeight !== undefined || after.machineHandleHeight !== undefined
     ? (before.machineHandleHeight ?? object.machineHandleHeight ?? 1.23) + ((after.machineHandleHeight ?? object.machineHandleHeight ?? 1.23) - (before.machineHandleHeight ?? object.machineHandleHeight ?? 1.23)) * blend : object.machineHandleHeight;
-  return { ...object, ...transform, machinePosition, ...(height !== undefined ? { machineHandleHeight: height } : {}) };
+  const positions: Partial<StudioObject> = {};
+  for (const key of ["machinePositionLeft", "machinePositionRight"] as const) {
+    if (before[key] === undefined && after[key] === undefined && object[key] === undefined) continue;
+    const a = before[key] ?? object[key] ?? before.machinePosition ?? object.machinePosition ?? 0;
+    const b = after[key] ?? object[key] ?? after.machinePosition ?? object.machinePosition ?? 0;
+    positions[key] = a + (b - a) * blend;
+  }
+  for (const key of ["seatOffsetX", "seatOffsetZ"] as const) {
+    if (before[key] === undefined && after[key] === undefined && object[key] === undefined) continue;
+    const a = before[key] ?? object[key] ?? 0, b = after[key] ?? object[key] ?? 0;
+    positions[key] = a + (b - a) * blend;
+  }
+  return { ...object, ...transform, ...positions, machinePosition, ...(height !== undefined ? { machineHandleHeight: height } : {}) };
 }
 
 export function updateStudioObjectTransform(object: StudioObject, value: SceneTransform, timeMs: number, animate: boolean): StudioObject {
@@ -71,15 +91,15 @@ export function updateStudioObjectTransform(object: StudioObject, value: SceneTr
   const first = { ...identityTransform };
   for (const key of Object.keys(first) as (keyof SceneTransform)[]) first[key] = object[key];
   const sampled = sampleStudioObject(object, timeMs), machinePosition = sampled.machinePosition;
-  const frames = (object.frames ?? [{ ...first, timeMs: 0, machinePosition }]).filter(frame => frame.timeMs !== timeMs);
+  const frames = (object.frames ?? [{ ...first, timeMs: 0, ...machineMotionAt(object) }]).filter(frame => frame.timeMs !== timeMs);
   const existing = object.frames?.find(frame => frame.timeMs === timeMs);
   const height = existing?.machineHandleHeight ?? sampled.machineHandleHeight;
-  return { ...object, frames: [...frames, { ...next, timeMs, machinePosition: existing?.machinePosition ?? machinePosition, ...(height !== undefined ? { machineHandleHeight: height } : {}) }].sort((a, b) => a.timeMs - b.timeMs) };
+  return { ...object, frames: [...frames, { timeMs, ...machineMotionAt(sampled), ...existing, ...next, machinePosition: existing?.machinePosition ?? machinePosition, ...(height !== undefined ? { machineHandleHeight: height } : {}) }].sort((a, b) => a.timeMs - b.timeMs) };
 }
 
 export function setStudioObjectAnimated(object: StudioObject, animated: boolean, timeMs: number, times: number[]): StudioObject {
   const sampled = sampleStudioObject(object, timeMs);
-  if (!animated) return { ...updateStudioObjectTransform(object, sampled, timeMs, false), machinePosition: sampled.machinePosition, ...(sampled.machineHandleHeight !== undefined ? { machineHandleHeight: sampled.machineHandleHeight } : {}) };
+  if (!animated) return { ...updateStudioObjectTransform(object, sampled, timeMs, false), ...machineMotionAt(sampled) };
   if (object.frames?.length) return object;
   let next = object;
   for (const time of times) next = updateStudioObjectTransform(next, sampled, time, true);

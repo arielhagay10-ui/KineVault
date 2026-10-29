@@ -24,7 +24,10 @@ function bodyMatrix(scene: WorkshopScene, timeMs: number) {
 function supportContext(scene: WorkshopScene) {
   const studio = scene.studio;
   const bench = studio?.objects.find(item => item.id === studio.seating?.benchId);
-  return JSON.stringify([studio?.body, studio?.seating, bench && [bench.x, bench.y, bench.z, bench.rotationX, bench.rotationY, bench.rotationZ, bench.scale, bench.benchAngle, bench.frames]]);
+  const roots = studio?.supports?.filter(contact => ["pelvis", "chest", "back"].includes(contact.region)) ?? [];
+  const rootIds = new Set(roots?.map(contact => contact.objectId));
+  return JSON.stringify([studio?.body, studio?.seating, bench && [bench.x, bench.y, bench.z, bench.rotationX, bench.rotationY, bench.rotationZ, bench.scale, bench.benchAngle, bench.frames], roots,
+    studio?.objects.filter(item => rootIds.has(item.id)).map(item => [item.id, item.x, item.y, item.z, item.rotationX, item.rotationY, item.rotationZ, item.scale, item.benchAngle, item.frames])]);
 }
 
 /** Carry existing held weights when the body's placement or bench support changes. */
@@ -54,7 +57,7 @@ export function carryHeldWeightsWithBody(previous: WorkshopScene, next: Workshop
       const angles = new Euler().setFromQuaternion(rotation);
       return { x: position.x, y: position.y, z: position.z, rotationX: angles.x * 180 / Math.PI, rotationY: angles.y * 180 / Math.PI, rotationZ: angles.z * 180 / Math.PI, scale: sampled.scale };
     };
-    const supportTimes = (scene: WorkshopScene) => scene.studio?.objects.find(object => object.id === scene.studio?.seating?.benchId)?.frames?.map(frame => frame.timeMs) ?? [];
+    const supportTimes = (scene: WorkshopScene) => scene.studio?.objects.filter(object => object.id === scene.studio?.seating?.benchId || scene.studio?.supports?.some(contact => contact.objectId === object.id && ["pelvis", "chest", "back"].includes(contact.region))).flatMap(object => object.frames?.map(frame => frame.timeMs) ?? []) ?? [];
     const times = [...new Set([...(item.frames?.map(frame => frame.timeMs) ?? []),
       ...previous.keyframes.map(frame => frame.timeMs), ...next.keyframes.map(frame => frame.timeMs),
       ...supportTimes(previous), ...supportTimes(next)])].sort((a, b) => a - b);

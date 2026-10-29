@@ -1,0 +1,17 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(10);
+select set_config('test.t_bar', '{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"objects":[{"id":"00000000-0000-4000-8000-000000000001","name":"Chest-supported T-bar row","slug":"t-bar-row-machine","x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"none","pulleyHeight":1.5,"machineUse":true,"machinePosition":0,"frames":[{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"timeMs":0,"machinePosition":0},{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"timeMs":2400,"machinePosition":1}]}]}', true);
+select ok(private.valid_studio_layout(current_setting('test.t_bar')::jsonb), 'T-bar default rep can be saved');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.t_bar')::jsonb, '{objects,0,machinePosition}', '1.1')), 'travel remains bounded');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.t_bar')::jsonb, '{objects,0,frames,1,machinePosition}', '-1')), 'animated travel remains bounded');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.t_bar')::jsonb, '{objects,0,machinePositionLeft}', '0.5')), 'shared lever rejects independent arm controls');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.t_bar')::jsonb, '{objects,0,slug}', '"unknown-machine"')), 'unknown machines remain rejected');
+select is((select count(*)::integer from public.equipment where slug = 't-bar-row-machine'), 1, 'one normalized equipment record');
+select ok(private.valid_studio_layout(jsonb_set(current_setting('test.t_bar')::jsonb, '{objects,0}', (current_setting('test.t_bar')::jsonb->'objects'->0) || '{"rowGrip":"wide","rowFootSupport":false,"attachment":"left"}'::jsonb)), 'wide grip and independent contacts survive saves');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.t_bar')::jsonb, '{objects,0,rowGrip}', '"invalid"')), 'unknown T-bar grips rejected');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.t_bar')::jsonb, '{objects,0,rowFootSupport}', '1')), 'T-bar support flag must be boolean');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.t_bar')::jsonb, '{objects,0,rowSeatHeight}', '0.7')), 'standing T-bar has no seat height');
+select * from finish();
+rollback;

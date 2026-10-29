@@ -19,7 +19,7 @@ export function StudioMachineDrag({ object, currentObject, editor, side = "left"
   const anchor = useRef<Group>(null);
   const drag = useRef<{ object: StudioObject; plane: Plane; hit: Vector3; inverse: Matrix4; point: Vector3; world: Vector3; right: Vector3; up: Vector3; forward: Vector3; direction: StudioDragPlane; sensitivity: number; moved: boolean; element: HTMLButtonElement; pointerId: number } | null>(null);
   const liveObject = () => currentObject?.current ?? object;
-  const handlePoint = (item: StudioObject) => item.slug === "pec-deck" ? machineHandlePoint(item, side) : machineCarriagePoint(item);
+  const handlePoint = (item: StudioObject) => ["pec-deck", "chest-press-machine"].includes(item.slug) ? machineHandlePoint(item, side) : machineCarriagePoint(item);
   const point = handlePoint(liveObject());
   useFrame(() => { anchor.current?.position.copy(handlePoint(liveObject())); });
   const pointerHit = (x: number, y: number, plane: Plane) => {
@@ -69,7 +69,7 @@ export function StudioMachineDrag({ object, currentObject, editor, side = "left"
     editor.onMachineHandleChange?.(object.id, machineDragValues(started.object, target.applyMatrix4(started.inverse), side));
   };
   return <group ref={anchor} position={point}><Html center zIndexRange={[20, 10]}>
-    <button type="button" aria-label={t("Drag {equipment} handle", { equipment: studioAssetNames[object.slug] })} title={t("Drag this handle. Arrow keys also move it; Escape cancels a drag.")}
+    <button type="button" aria-label={["row-machine", "chest-press-machine"].includes(object.slug) ? t("Drag {side} {equipment} handle", { side: t(side === "left" ? "Left" : "Right"), equipment: studioAssetNames[object.slug] }) : t("Drag {equipment} handle", { equipment: studioAssetNames[object.slug] })} title={t("Drag this handle. Arrow keys also move it; Escape cancels a drag.")}
       className="flex h-11 w-11 touch-none items-center justify-center rounded-full border-2 border-white bg-teal-700 text-white shadow-md outline-offset-2 focus-visible:outline-2 focus-visible:outline-teal-600 cursor-grab active:cursor-grabbing"
       onPointerDown={down} onPointerMove={move} onPointerUp={() => end()} onPointerCancel={() => end(true)} onLostPointerCapture={() => end(true)}
       onKeyDown={event => {

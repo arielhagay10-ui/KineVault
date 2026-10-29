@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { loadWorkshopScene } from "@/lib/motion/load-scene";
 import { DuplicatePrivateButton } from "@/components/private-exercises/duplicate-private-button";
 import { PrivateDraftPreview } from "@/components/private-exercises/private-draft-preview";
+import { PageHeader, PageState, primaryActionClass, secondaryActionClass } from "@/components/ui/page-layout";
+import { LibraryNavigation } from "@/components/ui/workspace-navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,7 @@ export default async function MyExercisesPage({ searchParams }: { searchParams: 
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, 10000) : 1;
   const pageSize = 12;
   const { data: exercises, error, count } = await supabase.from("private_exercises")
-    .select("id,content_id,catalog_candidate_id,updated_at,exercise_content(name,short_description)", { count: "exact" })
+    .select("id,content_id,catalog_candidate_id,updated_at,exercise_content(name,short_description,exercise_muscles(role,muscles(slug)))", { count: "exact" })
     .eq("owner_id", identity.userId).order("updated_at", { ascending: false }).order("id")
     .range((page - 1) * pageSize, page * pageSize - 1);
   const drafts = await Promise.all((exercises ?? []).map(async item => {
@@ -29,15 +31,10 @@ export default async function MyExercisesPage({ searchParams }: { searchParams: 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-5xl px-6 pb-20 pt-8">
-        <div className="flex flex-wrap items-end justify-between gap-5 py-8">
-          <div>
-
-            <h1 className="mt-2 text-[1.9375rem] font-semibold leading-[1.16] tracking-[-0.035em] sm:text-[2.375rem] sm:leading-[1.15]">My exercises</h1>
-            <p className="mt-3 text-[0.9375rem] leading-[1.65] text-muted-foreground">Your drafts stay private until you share a link or publish a public copy.</p>
-          </div>
-          <Link href="/my-exercises/new" className="inline-flex min-h-11 items-center gap-2 rounded-[8px] bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Plus size={17} aria-hidden /> New exercise</Link>
-        </div>
-        {error ? <p role="alert" className="text-red-700 dark:text-red-300">Private exercises could not be loaded.</p>
+        <LibraryNavigation />
+        <PageHeader title="My exercises" description="Your drafts stay private until you share a link or publish a public copy."
+          actions={<Link href="/my-exercises/new" className={primaryActionClass}><Plus size={17} aria-hidden />New exercise</Link>} />
+        {error ? <PageState error title="Private exercises could not be loaded" description="Try again to see your saved drafts."><Link href={`/my-exercises?page=${page}`} className={secondaryActionClass}>Try again</Link></PageState>
           : exercises?.length ? <div className="grid gap-4 sm:grid-cols-2">
             {drafts.map((item) => (
               <article key={item.id} className="min-w-0 rounded-[12px] border border-border bg-card p-6">
@@ -45,21 +42,28 @@ export default async function MyExercisesPage({ searchParams }: { searchParams: 
                 <h2 className="mt-2 break-words text-xl font-semibold">{item.exercise_content?.name ?? "Untitled exercise"}</h2>
                 {item.exercise_content?.short_description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{item.exercise_content.short_description}</p>}
                 <p className="mt-3 text-sm text-muted-foreground">Updated <time dateTime={item.updated_at}>{new Date(item.updated_at).toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })}</time></p>
-                {item.scene && <PrivateDraftPreview scene={item.scene} name={item.exercise_content?.name ?? "Untitled exercise"} />}
+                {item.scene && <PrivateDraftPreview scene={item.scene} name={item.exercise_content?.name ?? "Untitled exercise"}
+                  muscleSlugs={item.exercise_content?.exercise_muscles.flatMap(item => item.muscles ? [item.muscles.slug] : []) ?? []}
+                  secondaryMuscleSlugs={item.exercise_content?.exercise_muscles.flatMap(item => item.role === "secondary" && item.muscles ? [item.muscles.slug] : []) ?? []} />}
                 {item.previewError && <p className="mt-3 text-sm text-muted-foreground">Preview unavailable. Resume the draft to try again.</p>}
                 <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <Link href={`/my-exercises/${item.id}/workshop`} className="inline-flex min-h-11 items-center gap-2 rounded-[8px] bg-primary px-4 py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90">Resume draft <ArrowRight size={16} /></Link>
-                  <Link href={`/my-exercises/${item.id}/edit`} className="min-h-11 py-3 text-base text-primary underline">Optional details</Link>
-                  <Link href={`/my-exercises/${item.id}/submit`} className="min-h-11 py-3 text-base text-primary underline">{item.catalog_candidate_id ? "Submit for review" : "Publish exercise"}</Link>
-                  <DuplicatePrivateButton privateId={item.id} />
+                  <Link href={`/my-exercises/${item.id}/workshop`} className={primaryActionClass}>Resume draft <ArrowRight size={16} /></Link>
                 </div>
+                <details className="mt-4 border-t border-border pt-2">
+                  <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-ring">More actions</summary>
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <Link href={`/my-exercises/${item.id}/edit`} className={secondaryActionClass}>Optional details</Link>
+                    <Link href={`/my-exercises/${item.id}/edit#sharing`} className={secondaryActionClass}>Share exercise</Link>
+                    <Link href={`/my-exercises/${item.id}/submit`} className={secondaryActionClass}>{item.catalog_candidate_id ? "Submit for review" : "Publish exercise"}</Link>
+                    <DuplicatePrivateButton privateId={item.id} />
+                  </div>
+                </details>
               </article>
             ))}
-          </div> : <div className="rounded-[12px] border border-dashed border-border bg-card px-6 py-16 text-center">
-            <h2 className="text-xl font-semibold">{count ? "No drafts on this page" : "No private exercises yet"}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{count ? "Return to your recent drafts." : "Create a draft to keep your own exercise variation."}</p>
-            <Link href={count ? "/my-exercises" : "/my-exercises/new"} className="mt-5 inline-flex min-h-11 items-center gap-2 text-base font-semibold text-primary">{count ? "Recent drafts" : "Create one"} <ArrowRight size={16} /></Link>
-          </div>}
+          </div> : <PageState title={count ? "No drafts on this page" : "No private exercises yet"}
+            description={count ? "Return to your recent drafts." : "Create a draft to keep your own exercise variation."}>
+            <Link href={count ? "/my-exercises" : "/my-exercises/new"} className={primaryActionClass}>{count ? "Recent drafts" : "Create one"} <ArrowRight size={16} /></Link>
+          </PageState>}
         {(page > 1 || (count ?? 0) > page * pageSize) && <nav aria-label="Private library pages" className="mt-6 flex flex-wrap items-center gap-4 text-base">
           {page > 1 && <Link href={`/my-exercises?page=${page - 1}`} className="min-h-11 rounded-[12px] border border-border px-4 py-3">Previous drafts</Link>}
           {(count ?? 0) > page * pageSize && <Link href={`/my-exercises?page=${page + 1}`} className="min-h-11 rounded-[12px] border border-border px-4 py-3">More drafts</Link>}

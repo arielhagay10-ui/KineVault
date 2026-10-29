@@ -1,8 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./published-catalog.helpers";
 
 test("long searches stay valid and malformed filter URLs can be reset", async ({ page }) => {
   await page.goto("/exercises");
-  const search = page.getByLabel("Search", { exact: true });
+  const search = page.getByLabel("Search exercises", { exact: true });
   await search.fill("x".repeat(2000));
   await expect(search).toHaveValue("x".repeat(100));
   await page.getByRole("button", { name: "Apply filters", exact: true }).click();
@@ -10,15 +11,17 @@ test("long searches stay valid and malformed filter URLs can be reset", async ({
   await page.goto(`/exercises?q=${"x".repeat(101)}`);
   await expect(page.getByRole("heading", { name: "Invalid search filters" })).toBeVisible();
   await page.getByRole("link", { name: "Reset filters", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Find the movement you mean." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Explore exercises" })).toBeVisible();
 });
 
-test("Explore preserves combined anatomy and equipment filters in the URL", async ({ page }) => {
+test("Explore preserves combined anatomy and equipment filters in the URL", async ({ page, publishedCableRaise }) => {
   await page.goto("/exercises?jointAction=shoulder-abduction&equipment=cable");
-  await expect(page.getByRole("heading", { name: "Find the movement you mean." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Explore exercises" })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "Shoulder Abduction" })).toBeChecked();
   await expect(page.locator('input[name="equipment"][value="cable"]')).toBeChecked();
   await expect(page.getByText("2 active filters", { exact: true })).toBeVisible();
+  await page.locator(`a[href="/exercises/${publishedCableRaise.slug}"]`).click();
+  await expect(page.getByRole("heading", { level: 1, name: publishedCableRaise.name, exact: true })).toBeVisible();
 });
 
 test("a joint action explains the movement and links to filtered Explore", async ({ page }) => {

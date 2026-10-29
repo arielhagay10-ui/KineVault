@@ -9,18 +9,35 @@ export type WorkshopKeyframe = { timeMs: number; poses: RigPose };
 export type MotionAnnotation = { startMs: number; endMs: number; label: string; note: string | null; jointAction: string | null };
 export type SceneTransform = { x: number; y: number; z: number; rotationX: number; rotationY: number; rotationZ: number; scale: number };
 export type ScenePoint = { x: number; y: number; z: number };
+export const supportRegions = ["left-hand", "right-hand", "left-forearm", "right-forearm", "left-elbow", "right-elbow", "left-knee", "right-knee", "left-foot", "right-foot", "pelvis", "chest", "back"] as const;
+export type SupportRegion = typeof supportRegions[number];
+export type SupportContact = { region: SupportRegion; objectId: string | null; surface: string; point: ScenePoint; normal: ScenePoint; turn: number };
+export const selfSupportSurfaces = ["self:pelvis", "self:torso", "self:left-hip", "self:right-hip", "self:left-knee", "self:right-knee"] as const;
 export type ScenePresentation = { highlight: string; isolate: boolean; view: "front" | "side" | "three_quarter" | "back" };
-export const studioAssetSlugs = ["cable-machine", "bench", "squat-rack", "barbell", "dumbbell", "kettlebell", "lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck"] as const;
+export const studioAssetSlugs = ["cable-machine", "bench", "squat-rack", "barbell", "dumbbell", "kettlebell", "lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck", "row-machine", "t-bar-row-machine", "shoulder-press-machine", "chest-press-machine", "stool", "plyo-box", "resistance-band"] as const;
+export const bandAnchorTargets = ["fixed", "equipment", "left-hand", "right-hand", "left-foot", "right-foot", "pelvis"] as const;
+export type BandAnchor = { target: typeof bandAnchorTargets[number]; point: ScenePoint; objectId?: string };
 export const cableAttachmentSlugs = ["d-handle", "rope", "straight-bar", "angled-bar", "lat-bar", "v-bar", "cuff"] as const;
 export type CableAttachment = typeof cableAttachmentSlugs[number];
 export type StudioObject = SceneTransform & {
   id: string; name: string; slug: typeof studioAssetSlugs[number];
   attachment: "none" | "left" | "right" | "both"; pulleyHeight: number;
   poseDriver?: "arm" | "weight" | "left-arm" | "right-arm";
-  frames?: (SceneTransform & { timeMs: number; machinePosition?: number; machineHandleHeight?: number })[];
+  frames?: (SceneTransform & { timeMs: number; machinePosition?: number; machineHandleHeight?: number; machinePositionLeft?: number; machinePositionRight?: number; seatOffsetX?: number; seatOffsetZ?: number })[];
+  seatOffsetX?: number;
+  seatOffsetZ?: number;
+  seatFootSupport?: boolean;
+  pressGrip?: "wide" | "neutral" | "angled";
   machinePosition?: number;
+  machinePositionLeft?: number;
+  machinePositionRight?: number;
+  rowSeatHeight?: number;
+  rowGrip?: "neutral" | "wide";
+  rowFootSupport?: boolean;
   machineHandleHeight?: number;
   machineUse?: boolean;
+  machineRange?: { min: number; max: number };
+  band?: { start: BandAnchor; end: BandAnchor; length: number };
   machineGrip?: "supinated" | "pronated";
   machineMode?: "regular" | "reverse";
   machinePalm?: "inward" | "outward";
@@ -33,7 +50,7 @@ export type StudioObject = SceneTransform & {
   gripOffsets?: Partial<Record<"left" | "right", ScenePoint>>;
 };
 export type BenchFacing = "front" | "left" | "right" | "back" | "supine" | "prone";
-export type StudioLayout = { body: SceneTransform; objects: StudioObject[]; frontalPlane?: boolean; presentation?: ScenePresentation; seating?: { benchId: string; facing: BenchFacing } };
+export type StudioLayout = { body: SceneTransform; objects: StudioObject[]; supports?: SupportContact[]; frontalPlane?: boolean; presentation?: ScenePresentation; seating?: { benchId: string; facing: BenchFacing } };
 export const identityTransform: SceneTransform = { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scale: 1 };
 export const blankWorkshopScene: WorkshopScene = {
   motionStyle: "free", durationMs: 3200, cameraAngle: "three_quarter", equipment: null,

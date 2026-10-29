@@ -107,8 +107,10 @@ async function checkFirefox(options) {
     };
     const go = async path => {
       await page.goto(options.origin + path, { waitUntil: "networkidle2" });
-      // ThemeControl enables this only after React hydrates, including on warm navigations.
-      await page.waitForSelector('select[aria-label="Appearance"]:not([disabled])');
+      await page.waitForFunction(() => {
+        const trigger = document.querySelector('button[popovertarget="account-options"]');
+        return trigger ? !trigger.disabled : !!document.querySelector('[data-workshop="studio"]');
+      });
       // Native Tab can enter Firefox chrome. Activate the document before subsequent key input.
       if (!await page.evaluate(() => document.hasFocus())) await page.mouse.click(1, 1);
     };
@@ -162,10 +164,11 @@ async function checkFirefox(options) {
     };
     const record = name => { report.checks.push({ name, passed: true }); save(); process.stdout.write(`${name}: PASS\n`); };
     const appearance = async theme => {
-      await press("Site menu");
-      await page.waitForSelector('dialog[aria-label="Site navigation"][open]');
+      const triggerName = await page.$eval('button[popovertarget="account-options"]', button => button.getAttribute("aria-label"));
+      await press(triggerName);
+      await page.waitForSelector('[popover][aria-label="Account options"]:popover-open');
       await page.select('select[aria-label="Appearance"]', theme);
-      await click("Close menu");
+      await click("Close account options");
       await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, {}, theme);
     };
     await withPublishedCableRaise(options.origin, async published => {
@@ -185,16 +188,13 @@ async function checkFirefox(options) {
         await page.waitForSelector("main h1");
         await scan(`${theme}-exercise-detail`);
         record(`${theme}-shoulder-abduction-cable-detail`);
-        await press("Site menu");
-        await page.waitForSelector('dialog[aria-label="Site navigation"][open]');
-        for (const key of ["Tab", "Shift+Tab"]) for (let index = 0; index < 12; index++) {
-          await tab(key === "Shift+Tab");
-          await assertFocus("Site navigation");
-        }
-        await scan(`${theme}-navigation-dialog`);
+        await press("Appearance");
+        await page.waitForSelector('[popover][aria-label="Account options"]:popover-open');
+        await page.focus('select[aria-label="Appearance"]');
+        await scan(`${theme}-account-options`);
         await page.keyboard.press("Escape");
-        await page.waitForFunction(() => !document.querySelector('dialog[aria-label="Site navigation"][open]')
-          && document.activeElement?.getAttribute("aria-label") === "Site menu");
+        await page.waitForFunction(() => !document.querySelector('[popover][aria-label="Account options"]:popover-open')
+          && document.activeElement?.getAttribute("aria-label") === "Appearance");
         record(`${theme}-navigation-keyboard-focus-escape`);
         }
     });
@@ -259,7 +259,7 @@ async function checkFirefox(options) {
       save();
       await page.waitForFunction(() => document.querySelector('[aria-label="Selected item"] h2')?.textContent === "Dumbbell");
       await scan(`${theme}-selected-equipment`);
-      await click("Equipment", 'button[role="tab"]');
+      await click("Item settings", 'button[role="tab"]');
       const objects = await page.waitForSelector('select[aria-label="Selected item"]');
       await objects.focus();
       await page.keyboard.press("Home");

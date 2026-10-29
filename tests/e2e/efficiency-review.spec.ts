@@ -50,22 +50,26 @@ test("metadata warns only for actual edits and keeps them after cancelled naviga
     await page.getByRole("link", { name: "Back to my exercises" }).click();
     await expect(page).toHaveURL(/\/my-exercises$/);
     expect(warnings).toBe(1);
+    if (!await page.getByRole("link", { name: "Optional details", exact: true }).isVisible()) await page.getByText("More actions", { exact: true }).click();
     await page.getByRole("link", { name: "Optional details", exact: true }).click();
     await page.getByLabel("Name", { exact: true }).fill("History recovery");
     await page.goBack();
     await expect(page).toHaveURL(/\/my-exercises$/);
+    if (!await page.getByRole("link", { name: "Optional details", exact: true }).isVisible()) await page.getByText("More actions", { exact: true }).click();
     await page.getByRole("link", { name: "Optional details", exact: true }).click();
     await page.getByRole("button", { name: "Restore details", exact: true }).click();
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue("History recovery");
     await page.getByRole("button", { name: "Save privately", exact: true }).click();
     await expect(page).toHaveURL(/saved=1/);
     await page.getByRole("link", { name: "Back to my exercises" }).click();
+    if (!await page.getByRole("link", { name: "Optional details", exact: true }).isVisible()) await page.getByText("More actions", { exact: true }).click();
     await page.getByRole("link", { name: "Optional details", exact: true }).click();
     await page.getByLabel("Name", { exact: true }).fill("X");
     await page.getByText("Instructions and detailed classifications (optional)", { exact: true }).click();
     const invalidAliases = "a".repeat(161) + "\n" + Array.from({ length: 21 }, (_, index) => `Alias ${index}`).join("\n");
     await page.getByLabel("Aliases", { exact: true }).fill(invalidAliases);
     await page.goBack();
+    if (!await page.getByRole("link", { name: "Optional details", exact: true }).isVisible()) await page.getByText("More actions", { exact: true }).click();
     await page.getByRole("link", { name: "Optional details", exact: true }).click();
     await page.getByRole("button", { name: "Restore details", exact: true }).click();
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue("X");
@@ -118,10 +122,10 @@ test("mobile navigation and detail title remain visible in both themes", async (
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   for (const theme of ["light", "dark"]) {
-    await page.getByRole("button", { name: "Site menu", exact: true }).click();
+    await page.getByRole("button", { name: /^(Appearance|Account)$/ }).click();
     await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
-    await page.getByRole("button", { name: "Close menu", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Site menu", exact: true })).toBeInViewport();
+    await page.getByRole("button", { name: "Close account options", exact: true }).click();
+    await expect(page.getByRole("button", { name: /^(Appearance|Account)$/ })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `.local-artifacts/efficiency-review/home-mobile-${theme}.png`, fullPage: true });
   }

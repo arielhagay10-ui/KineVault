@@ -21,10 +21,10 @@ for (const appearance of ["light", "dark"] as const) {
     await expect(page).toHaveURL(/\/exercises\/[^/?]+$/);
     await expect(page.getByRole("heading", { level: 1, name: publishedCableRaise.name, exact: true })).toBeVisible();
     await auditAccessibility(page, testInfo, `${appearance}-exercise-detail`);
-    await page.getByRole("button", { name: "Site menu", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Site navigation" })).toBeVisible();
+    await page.getByRole("button", { name: /^(Appearance|Account)$/ }).click();
+    await expect(page.getByRole("dialog", { name: "Account options" })).toBeVisible();
     await auditAccessibility(page, testInfo, `${appearance}-navigation-dialog`);
-    await page.getByRole("button", { name: "Close menu", exact: true }).click();
+    await page.getByRole("button", { name: "Close account options", exact: true }).click();
     await page.goto("/exercises?q=" + "x".repeat(101));
     await expect(page.getByRole("heading", { name: "Invalid search filters" })).toBeVisible();
     await auditAccessibility(page, testInfo, `${appearance}-invalid-filters`);

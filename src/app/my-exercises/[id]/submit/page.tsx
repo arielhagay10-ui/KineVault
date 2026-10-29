@@ -4,6 +4,8 @@ import { getIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CommunityPublishForm } from "@/components/submissions/community-publish-form";
 import { CandidateSubmission } from "@/components/submissions/candidate-submission";
+import { PageHeader } from "@/components/ui/page-layout";
+import { LibraryNavigation } from "@/components/ui/workspace-navigation";
 
 export default async function SubmitExercisePage({ params }: { params: Promise<{ id: string }> }) {
   const identity = await getIdentity();
@@ -23,11 +25,11 @@ export default async function SubmitExercisePage({ params }: { params: Promise<{
   if (publicationError) throw new Error("Publication details could not be loaded");
   const name = exercise.exercise_content?.name.trim() ?? "";
   const nameReady = name.length >= 2 && name.toLowerCase() !== "untitled exercise";
-  return <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-    <div className="mx-auto max-w-3xl">
-      <Link href={`/my-exercises/${id}/edit`} className="text-sm font-medium text-primary hover:underline">Private exercise</Link>
-      <h1 className="mt-8 text-4xl font-semibold tracking-tight">Publish exercise</h1>
-      <section className="mt-6 rounded-2xl border border-border bg-card p-6">
+  return <main className="min-h-screen bg-background text-foreground">
+    <div className="mx-auto max-w-5xl px-6 pb-20 pt-8">
+      <LibraryNavigation />
+      <PageHeader title="Publish exercise" back={{ href: `/my-exercises/${id}/edit`, label: "Private exercise" }} />
+      <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="text-xl font-semibold">{exercise.exercise_content?.name}</h2>
         {publication ? <>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">This draft already has a public snapshot. Your private edits do not change that snapshot.</p>

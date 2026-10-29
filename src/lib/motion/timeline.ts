@@ -1,5 +1,5 @@
 import { identityTransform, sampleWorkshopPose, type SceneTransform, type WorkshopScene, type StudioObject } from "./workshop";
-import { sampleStudioObject, updateStudioObjectTransform } from "./studio";
+import { machineMotionAt, sampleStudioObject, updateStudioObjectTransform } from "./studio";
 import { canCarryWithArm, sampleHeldWeightPose } from "./held-weight-pose";
 
 /** Add sampled moments in each half, retaining every authored moment. */
@@ -30,7 +30,7 @@ export function pasteWorkshopFrame(scene: WorkshopScene, index: number, clipboar
       if (!copied) return item;
       const next = updateStudioObjectTransform(item, copied, frame.timeMs, true);
       if (next.frames && next.frames.length > 24) throw Error("This change needs more than 24 weight moments. Remove unused moments in Timeline first.");
-      return { ...next, frames: next.frames?.map(point => point.timeMs === frame.timeMs ? { ...point, machinePosition: copied.machinePosition, machineHandleHeight: copied.machineHandleHeight } : point) };
+      return { ...next, frames: next.frames?.map(point => point.timeMs === frame.timeMs ? { ...point, ...machineMotionAt(copied), machinePositionLeft: copied.machinePositionLeft, machinePositionRight: copied.machinePositionRight } : point) };
     }) } } : {}),
   };
 }

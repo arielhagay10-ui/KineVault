@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getIdentity } from "@/lib/auth";
 import { Constants } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader, PageState, primaryActionClass, secondaryActionClass } from "@/components/ui/page-layout";
 
 export default async function ReviewQueuePage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -24,15 +25,15 @@ export default async function ReviewQueuePage({ searchParams }: {
   const names = new Map((profiles ?? []).map((item) => [item.user_id, item.display_name]));
   const url = (targetPage: number) => `/admin/submissions?status=${status}&page=${targetPage}${mine ? "&mine=1" : ""}`;
   return <>
-    <h1 className="text-3xl font-semibold tracking-tight">Review queue</h1>
-    <form className="mt-6 flex flex-wrap items-end gap-4">
-      <label className="text-sm font-semibold">Status<select name="status" defaultValue={status} className="ml-3 rounded-lg border border-border bg-card px-3 py-2">
+    <PageHeader title="Review queue" description="Review and resolve community submissions." />
+    <form className="flex flex-wrap items-end gap-4">
+      <label className="flex flex-col gap-2 text-sm font-semibold">Status<select name="status" defaultValue={status} className="min-h-11 rounded-lg border border-input bg-card px-3 py-2">
         {Constants.public.Enums.submission_status.filter((item) => item !== "draft").map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}
       </select></label>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="mine" value="1" defaultChecked={mine} className="accent-primary" />Assigned to me</label>
-      <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Filter</button>
+      <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" name="mine" value="1" defaultChecked={mine} className="accent-primary" />Assigned to me</label>
+      <button className={primaryActionClass}>Filter</button>
     </form>
-    <div className="mt-7 overflow-x-auto rounded-2xl border border-border bg-card"><table className="w-full min-w-[620px] text-left text-sm">
+    {!!rows.length && <div className="mt-7 overflow-x-auto rounded-xl border border-border bg-card"><table className="w-full min-w-[620px] text-left text-sm">
       <thead className="bg-muted text-xs text-muted-foreground"><tr>{["Exercise", "Contributor", "Submitted", "Assignment"].map((item) => <th key={item} scope="col" className="p-4">{item}</th>)}</tr></thead>
       <tbody>{rows.map((item) => <tr key={item.id} className="border-t border-border">
         <td className="p-4"><Link href={`/admin/submissions/${item.id}`} className="font-semibold text-primary hover:underline">{item.exercise_content?.name ?? "Exercise"}</Link><p className="mt-1 text-xs text-muted-foreground">{item.exercise_content?.exercise_families?.name ?? "Family suggested"}</p></td>
@@ -40,7 +41,8 @@ export default async function ReviewQueuePage({ searchParams }: {
         <td className="p-4 text-muted-foreground">{item.submitted_at ? new Date(item.submitted_at).toLocaleDateString() : "—"}</td>
         <td className="p-4 text-muted-foreground">{item.assigned_reviewer_id === identity?.userId ? "You" : item.assigned_reviewer_id ? "Another reviewer" : "Unassigned"}</td>
       </tr>)}</tbody>
-    </table>{!rows.length && <p className="p-8 text-sm text-muted-foreground">No submissions match this queue.</p>}</div>
+    </table></div>}
+    {!rows.length && <div className="mt-7"><PageState title="No submissions match this queue" description="Change the status or assignment filter to see other submissions."><Link href="/admin/submissions" className={secondaryActionClass}>Clear filters</Link></PageState></div>}
     <nav className="mt-6 flex items-center justify-between text-sm" aria-label="Queue pages">
       {page > 1 ? <Link href={url(page - 1)} className="font-semibold text-primary">Previous</Link> : <span />}
       <span className="text-muted-foreground">Page {page}</span>

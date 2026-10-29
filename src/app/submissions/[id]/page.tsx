@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LibraryNavigation } from "@/components/ui/workspace-navigation";
 import { notFound, redirect } from "next/navigation";
 import { withdrawSubmission } from "@/app/submissions/actions";
 import { MotionInspector } from "@/components/character/motion-inspector";
@@ -8,6 +9,7 @@ import { loadPrivateRenderMedia } from "@/lib/media/private-media";
 import { loadWorkshopScene } from "@/lib/motion/load-scene";
 import { createClient } from "@/lib/supabase/server";
 import { formatReviewValue, humanLabel, reviewFieldLabels, type ReviewField } from "@/lib/moderation/schema";
+import { PageHeader, primaryActionClass, secondaryActionClass } from "@/components/ui/page-layout";
 
 export const dynamic = "force-dynamic";
 
@@ -44,19 +46,16 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
   const familyName = family.data?.find((item) => item.id === content.data.family_id)?.name;
   const canWithdraw = submission.status === "submitted" || submission.status === "changes_requested";
 
-  return <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-    <div className="mx-auto max-w-5xl">
-      <Link href="/submissions" className="text-sm font-medium text-primary hover:underline">My submissions</Link>
-      <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="mt-2 text-4xl font-semibold tracking-[-0.055em]">{content.data.name}</h1>
-          <p className="mt-3 text-sm capitalize text-muted-foreground">{submission.status.replaceAll("_", " ")} · {submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : "Draft"}</p></div>
-        <div className="flex flex-wrap gap-3">
-          {submission.source_private_exercise_id && <Link href={`/my-exercises/${submission.source_private_exercise_id}/edit`} className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-primary">Edit my private copy</Link>}
-          {submission.status === "changes_requested" && submission.source_private_exercise_id && <Link href={`/my-exercises/${submission.source_private_exercise_id}/submit`} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">Send a revision</Link>}
-          {canWithdraw && <form action={withdrawSubmission}><input type="hidden" name="submissionId" value={id} /><button type="submit" className="rounded-xl border border-red-200 bg-card px-4 py-2.5 text-sm font-semibold text-red-700 dark:text-red-300">Withdraw</button></form>}
-        </div>
-      </div>
+  return <main className="min-h-screen bg-background text-foreground">
+    <div className="mx-auto max-w-5xl px-6 pb-20 pt-8">
+      <LibraryNavigation />
+      <PageHeader title={content.data.name} back={{ href: "/submissions", label: "My submissions" }}
+        description={<span className="capitalize">{submission.status.replaceAll("_", " ")} · {submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : "Draft"}</span>}
+        actions={<>
+          {submission.source_private_exercise_id && <Link href={`/my-exercises/${submission.source_private_exercise_id}/edit`} className={secondaryActionClass}>Edit my private copy</Link>}
+          {submission.status === "changes_requested" && submission.source_private_exercise_id && <Link href={`/my-exercises/${submission.source_private_exercise_id}/submit`} className={primaryActionClass}>Send a revision</Link>}
+          {canWithdraw && <form action={withdrawSubmission}><input type="hidden" name="submissionId" value={id} /><button type="submit" className={secondaryActionClass}>Withdraw</button></form>}
+        </>} />
       {content.data.short_description && <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">{content.data.short_description}</p>}
       {(renderedMedia?.webm || renderedMedia?.mp4) && <section className="mt-9 rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">Rendered demonstration</h2><span className="text-xs text-muted-foreground">Private review asset</span></div>

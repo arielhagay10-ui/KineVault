@@ -32,7 +32,7 @@ test("workshop equipment, paired joints, title, palm controls and joint limits a
     await expect(title).toBeVisible();
     await title.fill("Single editor name");
     await expect(page.getByRole("heading", { name: "Single editor name", exact: true })).toBeVisible();
-    await openWorkshopTool(page, "Equipment");
+    await openWorkshopTool(page, "Item settings");
     await expect(page.getByRole("textbox", { name: "Exercise name", exact: true })).toHaveValue("Single editor name");
     await page.getByRole("button", { name: "Add equipment", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Choose equipment", exact: true });

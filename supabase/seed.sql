@@ -120,7 +120,8 @@ where ja.slug = d.slug;
 
 insert into public.equipment_categories (slug, name) values
   ('free-weight', 'Free Weight'), ('cable', 'Cable'),
-  ('machine', 'Machine'), ('bodyweight', 'Bodyweight')
+  ('machine', 'Machine'), ('bodyweight', 'Bodyweight'),
+  ('support', 'Support'), ('resistance-band', 'Resistance Band')
 on conflict (slug) do nothing;
 
 insert into public.equipment (category_id, slug, name)
@@ -138,6 +139,12 @@ from (values
   ('machine', 'leg-press', 'Leg Press'),
   ('machine', 'cable-row-machine', 'Cable Row'),
   ('machine', 'pec-deck', 'Pec Deck'),
+  ('machine', 'row-machine', 'Plate-loaded Row'),
+  ('machine', 'shoulder-press-machine', 'Shoulder Press'),
+  ('machine', 't-bar-row-machine', 'Chest-supported T-bar Row'),
+  ('support', 'stool', 'Stool'),
+  ('support', 'plyo-box', 'Plyo Box'),
+  ('resistance-band', 'resistance-band', 'Resistance Band'),
   ('machine', 'lateral-raise-machine', 'Lateral Raise Machine'),
   ('machine', 'leg-extension-machine', 'Leg Extension Machine'),
   ('machine', 'leg-curl-machine', 'Leg Curl Machine'),

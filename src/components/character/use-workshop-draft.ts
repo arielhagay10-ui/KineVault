@@ -6,9 +6,9 @@ import { DraftSaveQueue, clearDraftRecoveryCopies, confirmDraftRecovery, draftRe
 import type { WorkshopScene } from "@/lib/motion/workshop";
 import { RecoveryCheckpoint, type WorkshopGestureScene } from "@/lib/motion/workshop-gesture";
 
-export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName, scene, name, paused, gesture }: {
+export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName, scene, name, firstPoseInitialized, paused, gesture }: {
   ownerId: string; privateId: string | null; initialScene: WorkshopScene; initialName: string;
-  scene: WorkshopScene; name: string; paused: boolean; gesture?: WorkshopGestureScene;
+  scene: WorkshopScene; name: string; firstPoseInitialized: boolean; paused: boolean; gesture?: WorkshopGestureScene;
 }) {
   const [queue] = useState(() => new DraftSaveQueue(privateId, saveWorkshopScene));
   const [sessionId] = useState(() => crypto.randomUUID());
@@ -24,16 +24,16 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
   const storageKey = useRef(key);
   const snapshot = useMemo(() => draftSnapshot({ scene, name }), [scene, name]);
   const [baseline, setBaseline] = useState(() => draftSnapshot({ scene: initialScene, name: initialName }));
-  const latest = useRef({ scene, name, snapshot });
+  const latest = useRef({ scene, name, snapshot, firstPoseInitialized });
   const mounted = useRef(false);
   const inFlight = useRef(0);
   const dirty = snapshot !== baseline;
   const captureLatest = useCallback(() => {
     const live = latest.current;
     const preview = gesture?.getScene();
-    return preview && preview !== live.scene ? { scene: preview, name: live.name, snapshot: draftSnapshot({ scene: preview, name: live.name }) } : live;
+    return preview && preview !== live.scene ? { ...live, scene: preview, snapshot: draftSnapshot({ scene: preview, name: live.name }) } : live;
   }, [gesture]);
-  useEffect(() => { latest.current = { scene, name, snapshot }; }, [scene, name, snapshot]);
+  useEffect(() => { latest.current = { scene, name, snapshot, firstPoseInitialized }; }, [scene, name, snapshot, firstPoseInitialized]);
   useEffect(() => {
     mounted.current = true;
     const frame = requestAnimationFrame(() => {
@@ -53,17 +53,17 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
     if (!recoveryReady || recovery) return;
     let available = true;
     try {
-      if (dirty) persistDraftRecovery(localStorage, ownerId, storageKey.current, { scene, name, privateId: queue.privateId, confirmed: queue.confirmed, sessionId, updatedAt: Date.now() });
+      if (dirty) persistDraftRecovery(localStorage, ownerId, storageKey.current, { scene, name, firstPoseInitialized, privateId: queue.privateId, confirmed: queue.confirmed, sessionId, updatedAt: Date.now() });
       else if (inFlight.current === 0) removeOwnedDraftRecovery(localStorage, storageKey.current, sessionId, ownerId);
     } catch { available = false; }
     const frame = requestAnimationFrame(() => setRecoverable(available));
     return () => cancelAnimationFrame(frame);
-  }, [dirty, recovery, recoveryReady, key, scene, name, queue, saving, ownerId, sessionId]);
+  }, [dirty, recovery, recoveryReady, key, scene, name, firstPoseInitialized, queue, saving, ownerId, sessionId]);
 
   useEffect(() => {
     if (!recoveryReady || recovery) return;
     const checkpoint = new RecoveryCheckpoint<WorkshopScene>(preview => {
-      const value = { scene: preview, name: latest.current.name };
+      const value = { scene: preview, name: latest.current.name, firstPoseInitialized: latest.current.firstPoseInitialized };
       try {
         if (draftSnapshot(value) !== baseline) persistDraftRecovery(localStorage, ownerId, storageKey.current, { ...value, privateId: queue.privateId, confirmed: queue.confirmed, sessionId, updatedAt: Date.now() });
         else if (inFlight.current === 0) removeOwnedDraftRecovery(localStorage, storageKey.current, sessionId, ownerId);
@@ -74,7 +74,7 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
       else {
         // Completion precedes the owner's React commit; lifecycle/save callbacks
         // in this event must already see the completed or cancelled scene.
-        latest.current = { scene: event.scene, name: latest.current.name, snapshot: draftSnapshot({ scene: event.scene, name: latest.current.name }) };
+        latest.current = { ...latest.current, scene: event.scene, snapshot: draftSnapshot({ scene: event.scene, name: latest.current.name }) };
         checkpoint.flush(event.scene);
       }
     });
@@ -98,7 +98,7 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
     if (!mounted.current) return null;
     const live = captureLatest();
     const value = requestedName === undefined ? live : {
-      scene: live.scene, name: requestedName, snapshot: draftSnapshot({ scene: live.scene, name: requestedName }),
+      ...live, name: requestedName, snapshot: draftSnapshot({ scene: live.scene, name: requestedName }),
     };
     if (!value.name.trim()) { setError("Name your exercise before saving."); return null; }
     if (!navigator.onLine) { setMessage("Offline · draft kept on this device"); setError("Reconnect, then Retry."); return null; }
@@ -120,7 +120,7 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
       const nextKey = draftRecoveryKey(ownerId, confirmedId);
       try {
         const live = captureLatest();
-        const maintained = confirmDraftRecovery(localStorage, storageKey.current, nextKey, { scene: live.scene, name: live.name, privateId: confirmedId, confirmed: true, sessionId, updatedAt: Date.now() }, mounted.current, live.snapshot === value.snapshot && inFlight.current === 0, ownerId);
+        const maintained = confirmDraftRecovery(localStorage, storageKey.current, nextKey, { scene: live.scene, name: live.name, firstPoseInitialized: live.firstPoseInitialized, privateId: confirmedId, confirmed: true, sessionId, updatedAt: Date.now() }, mounted.current, live.snapshot === value.snapshot && inFlight.current === 0, ownerId);
         if (maintained) storageKey.current = nextKey;
       } catch { storageKey.current = nextKey; if (mounted.current) setRecoverable(false); }
     }

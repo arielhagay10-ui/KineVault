@@ -1,12 +1,15 @@
 import { Material, Mesh, Object3D, Texture, Vector3 } from "three";
-import { machineCarriagePoint } from "./studio-machines";
+import { machineCarriagePoint, machineLever } from "./studio-machines";
+import { chestPressLever } from "./chest-press";
+import { shoulderPressLever } from "./shoulder-press";
 import type { CableAttachment, StudioObject } from "./workshop";
 
 /** Internal renderer contract in solver metres/Y-up. All meshes are original. */
 export const equipmentAssets = {
+  "chest-press-machine": { url: "/models/equipment/chest-press-machine.v1.glb", requiredGroups: ["Static", "Weights", "Handles", "LeftLever", "RightLever", "LeftNeutralGrip", "RightNeutralGrip"] },
   "lat-pulldown-machine": { url: "/models/equipment/lat-pulldown.v1.glb", requiredGroups: ["Static", "Weights", "Handles"] },
   "smith-machine": { url: "/models/equipment/smith-machine.v1.glb", requiredGroups: ["Static", "Weights", "Handles"] },
-  "leg-press": { url: "/models/equipment/leg-press.v1.glb", requiredGroups: ["Static", "Weights", "Handles"] },
+  "leg-press": { url: "/models/equipment/leg-press.v2.glb", requiredGroups: ["Static", "Weights", "Handles"] },
   "cable-row-machine": { url: "/models/equipment/cable-row-machine.v1.glb", requiredGroups: ["Static", "Weights", "Handles"] },
   "pec-deck": { url: "/models/equipment/pec-deck.v1.glb", requiredGroups: ["Static", "Weights", "Handles", "LeftArm", "RightArm"] },
   "cable-machine": { url: "/models/equipment/cable-machine.v1.glb", requiredGroups: ["Static", "Pulley"] },
@@ -15,6 +18,12 @@ export const equipmentAssets = {
   barbell: { url: "/models/equipment/barbell.v1.glb", requiredGroups: ["Static"] },
   dumbbell: { url: "/models/equipment/dumbbell.v1.glb", requiredGroups: ["Static"] },
   kettlebell: { url: "/models/equipment/kettlebell.v1.glb", requiredGroups: ["Static"] },
+  "row-machine": { url: "/models/equipment/row-machine.v3.glb", requiredGroups: ["Static", "Weights", "Handles", "Seat", "LeftLever", "RightLever"] },
+  "t-bar-row-machine": { url: "/models/equipment/t-bar-row-machine.v1.glb", requiredGroups: ["Static", "Lever"] },
+  "shoulder-press-machine": { url: "/models/equipment/shoulder-press-machine.v2.glb", requiredGroups: ["Static", "Weights", "Handles", "LeftLever", "RightLever", "LeftNeutralGrip", "RightNeutralGrip"] },
+  stool: { url: "/models/equipment/stool.v1.glb", requiredGroups: ["Static"] },
+  "plyo-box": { url: "/models/equipment/plyo-box.v1.glb", requiredGroups: ["Static"] },
+  "resistance-band": { url: "/models/equipment/resistance-band.v1.glb", requiredGroups: ["Static"] },
 } as const satisfies Record<StudioObject["slug"], { url: string; requiredGroups: readonly string[] }>;
 
 export const attachmentAssets = {
@@ -73,13 +82,31 @@ export function createEquipmentAssetInstance(source: Object3D, definition: Equip
 export function updateEquipmentAsset(instance: EquipmentAssetInstance, object: StudioObject) {
   const { groups } = instance;
   const travel = object.machinePosition ?? .5;
+  if (groups.Lever) {
+    const lever = machineLever(object, "left");
+    groups.Lever.position.copy(lever.pivot); groups.Lever.rotation.x = lever.angle;
+  }
+  if (object.slug === "row-machine" && groups.Seat) groups.Seat.position.y = (object.rowSeatHeight ?? .66) - .66;
+  if (object.slug === "resistance-band") groups.Static.visible = false;
+  if (groups.LeftLever && groups.RightLever) {
+    for (const [side, node] of [["left", groups.LeftLever], ["right", groups.RightLever]] as const) {
+      const lever = machineLever(object, side);
+      node.position.copy(lever.pivot);
+      if (object.slug === "chest-press-machine") node.quaternion.setFromAxisAngle(chestPressLever(object, side).axis, lever.angle);
+      else if (object.slug === "shoulder-press-machine") node.quaternion.setFromAxisAngle(shoulderPressLever(object, side).axis, lever.angle);
+      else node.rotation.x = lever.angle;
+      const swivel = groups[side === "left" ? "LeftNeutralGrip" : "RightNeutralGrip"];
+      if (swivel) swivel.quaternion.copy(node.quaternion).invert();
+    }
+  }
   if (groups.Handles) {
     groups.Handles.position.copy(machineCarriagePoint(object));
     groups.Handles.visible = object.slug !== "cable-row-machine" || !object.cableAttachment;
   }
   if (groups.Weights) {
     const distance = ({ "lat-pulldown-machine": .98, "cable-row-machine": .66, "pec-deck": .4 } as Record<string, number>)[object.slug] ?? 0;
-    groups.Weights.position.y = travel * distance;
+    groups.Weights.position.y = object.slug === "chest-press-machine"
+      ? Math.max(object.machinePositionLeft ?? travel, object.machinePositionRight ?? travel) * .26 : travel * distance;
   }
   if (groups.Pulley) groups.Pulley.position.y = object.pulleyHeight;
   if (groups.Back) {

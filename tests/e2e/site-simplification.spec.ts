@@ -4,24 +4,21 @@ import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 
-test("shared appearance has no topbar or scrollbar gutter", async ({ page }) => {
+test("shared navigation and appearance remain usable without a scrollbar gutter", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("banner")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Site menu", exact: true })).toBeVisible();
-  const menuBox = (await page.getByRole("button", { name: "Site menu", exact: true }).boundingBox())!;
-  expect(menuBox.y).toBeLessThanOrEqual(32);
-  expect(page.viewportSize()!.width - menuBox.x - menuBox.width).toBeLessThanOrEqual(32);
-  expect(await page.locator("body").evaluate(element => getComputedStyle(element).fontFamily)).toContain("Comfortaa");
+  await expect(page.getByRole("banner")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  expect(await page.locator("body").evaluate(element => getComputedStyle(element).fontFamily)).not.toContain("Comfortaa");
   await expect(page.locator('img[src="/posters/home-anatomy.webp"]')).toHaveCount(0);
-  await expect.poll(() => page.getByRole("img", { name: "Blue mascot wearing glasses and holding a pencil and notebook", exact: true }).evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect.poll(() => page.getByRole("img", { name: "Blue mascot wearing glasses and holding a pencil and notebook", exact: true }).first().evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   mkdirSync(".local-artifacts/site-simplification", { recursive: true });
   await page.screenshot({ path: ".local-artifacts/site-simplification/home-desktop.png" });
-  await page.getByRole("button", { name: "Site menu", exact: true }).click();
-  await page.getByLabel("Appearance", { exact: true }).selectOption("dark");
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption("dark");
   await page.reload();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.goto("/exercises");
-  await expect(page.getByRole("banner")).toHaveCount(0);
+  await expect(page.getByRole("banner")).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.locator("body > .os-scrollbar-vertical")).toHaveCount(1);
@@ -55,11 +52,14 @@ test("tutorial keeps editing usable and a first exercise saves without WebGL", a
     await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByRole("heading", { name: "Start here", exact: true })).toBeVisible();
-    await page.getByRole("link", { name: "Create an exercise", exact: true }).click();
+    await expect(page.getByRole("navigation", { name: "Your library", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Account", exact: true }).click();
+    await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption("dark");
+    await page.getByRole("button", { name: "Close account options", exact: true }).click();
+    await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("link", { name: "Create", exact: true }).click();
     const tutorial = page.getByRole("dialog", { name: "Workshop tutorial", exact: true });
     await expect(tutorial).toBeVisible();
-    await expect(page.locator("[data-site-menu]")).toBeHidden();
+    await expect(page.getByRole("banner")).toHaveCount(0);
     await expect(page.locator('[aria-label="Workshop editor"]')).not.toHaveAttribute("inert", "");
     await page.keyboard.press("Control+s");
     await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
@@ -84,6 +84,7 @@ test("tutorial keeps editing usable and a first exercise saves without WebGL", a
     mkdirSync(".local-artifacts/site-simplification", { recursive: true });
     await page.screenshot({ path: ".local-artifacts/site-simplification/workshop-desktop.png" });
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator("[data-workshop-menu] > summary").click();
     await page.getByRole("button", { name: "Tutorial", exact: true }).click();
     await expect(tutorial).toBeVisible();
     await page.screenshot({ path: ".local-artifacts/site-simplification/tutorial-mobile.png" });
@@ -91,9 +92,11 @@ test("tutorial keeps editing usable and a first exercise saves without WebGL", a
     // Reload directly into a scroll-locked workshop, then leave through client navigation.
     await page.reload();
     await expect(page.getByText("3D preview needs WebGL.", { exact: true })).toBeVisible();
+    await page.locator("[data-workshop-menu] > summary").click();
     await page.getByRole("link", { name: "Exercise details", exact: true }).click();
     await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit/);
     await expect(page.getByRole("heading", { name: "Edit exercise", exact: true })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     // A wheel event can arrive while client navigation is still releasing the workshop lock.
     await expect(async () => {
       await page.mouse.wheel(0, 800);

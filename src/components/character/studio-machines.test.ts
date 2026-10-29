@@ -27,3 +27,14 @@ it("mounts both pec deck drag handles only for explicit Free drag", () => {
   expect(handleCount(StudioMachine({ ...props, editor: { ...editor, directDragging: true } }))).toBe(2);
   expect(handleCount(StudioMachine({ ...props, editor: { ...editor, directDragging: true, interactionEnabled: false } }))).toBe(0);
 });
+
+it("mounts separate left and right chest press drag controls", () => {
+  const object = createQuickScene("chest-press-machine").studio!.objects[0];
+  const unchanged = () => undefined;
+  const editor: StudioEditor = {
+    interactionEnabled: true, playing: false, tool: "select", directDragging: true, placementLockedIds: [object.id], onMachineHandleChange: unchanged,
+    selection: null, snap: false, sensitivity: 1, dragging: false, posing: false,
+    onSelect: unchanged, onBodyChange: unchanged, onObjectChange: unchanged, onJointChange: unchanged, onDragStart: unchanged, onDragEnd: unchanged, onGripReach: unchanged,
+  };
+  expect(handleCount(StudioMachine({ object, editor, group: { current: new Group() }, rig: {} as AnatomyRig, pose: {} }))).toBe(2);
+});
