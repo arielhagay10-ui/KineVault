@@ -23,7 +23,7 @@ const shortcuts = [
 export function WorkshopShortcutGuide() {
   const { t } = useWorkshopLanguage();
   return <section aria-label={t("Keyboard shortcuts")} className="space-y-3">
-    <h3 className="font-semibold">{t("Keyboard shortcuts")}</h3>
+    <h2 className="text-base font-semibold">{t("Keyboard shortcuts")}</h2>
     <dl className="grid gap-x-6 sm:grid-cols-2">{shortcuts.map(([action, keys]) => <div key={action} className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 py-2">
       <dt>{t(action)}</dt><dd><kbd dir="ltr" className="inline-block rounded border border-border bg-muted px-2 py-1 font-mono text-xs">{keys}</kbd></dd>
     </div>)}</dl>

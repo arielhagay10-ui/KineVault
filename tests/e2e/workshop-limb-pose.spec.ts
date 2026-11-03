@@ -1,3 +1,4 @@
+import { workshopPose } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { mkdirSync } from "node:fs";
@@ -116,7 +117,7 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopMoment(page, "Finish");
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
-    await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("1");
+    await expect(workshopPose(page, 1)).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("1600");
     await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await page.getByRole("button", { name: "Front", exact: true }).click();

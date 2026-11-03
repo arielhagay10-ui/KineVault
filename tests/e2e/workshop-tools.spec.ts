@@ -1,3 +1,4 @@
+import { selectWorkshopPose } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { setWorkshopLanguage, selectWorkshopJoint, selectWorkshopObject, expandWorkshopControls, openWorkshopRecovery, openWorkshopMenu } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
@@ -87,15 +88,14 @@ test("workshop tools are directly accessible without scrolling through unrelated
     await page.setViewportSize({ width: 1440, height: 1000 });
     const tools = page.getByRole("group", { name: "Workshop tools", exact: true });
     const open = async (name: string) => {
-      const edit = page.getByRole("button", { name: "Edit controls", exact: true });
-      if (await edit.isVisible()) await edit.click();
-      // Setups and Settings live in the header menu; the other tools are always-visible tabs.
-      const inMenu = ["Setups", "Settings"].includes(name);
       const menu = page.locator("[data-workshop-menu]");
-      if (inMenu) await openWorkshopMenu(page);
-      else if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator(":scope > summary").click();
-      const tab = (inMenu ? page : tools).getByRole("tab", { name, exact: true, includeHidden: true }); await expect(tab).toBeInViewport();
+      if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator(":scope > summary").click();
+      // Setups is a section of Item settings and Settings a section of Timeline.
+      const tab = tools.getByRole("tab", { name: name === "Setups" ? "Item settings" : name === "Settings" ? "Timeline" : name, exact: true });
+      await tab.scrollIntoViewIfNeeded(); await expect(tab).toBeInViewport();
       await tab.click(); await expect(tab).toHaveAttribute("aria-selected", "true");
+      const section = name === "Setups" ? page.locator("[data-workshop-setups]") : name === "Settings" ? page.locator("[data-workshop-settings]") : null;
+      if (section && !await section.evaluate(element => (element as HTMLDetailsElement).open)) await section.locator(":scope > summary").click();
     };
     await expect(tools).toBeVisible({ timeout: 5000 });
     await open("Item settings");
@@ -119,9 +119,9 @@ test("workshop tools are directly accessible without scrolling through unrelated
     await expect(page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true })).toBeInViewport();
     await page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true }).fill("70");
     await page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true }).press("Enter");
-    await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
+    await selectWorkshopPose(page, 1);
     await expect(page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true })).toHaveValue("0");
-    await page.getByLabel("Editing pose", { exact: true }).selectOption("0");
+    await selectWorkshopPose(page, 0);
     await expect(page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true })).toHaveValue("70");
     await open("Timeline");
     await expect(page.getByRole("button", { name: "Add pose", exact: true })).toBeInViewport();
@@ -144,7 +144,6 @@ test("workshop tools are directly accessible without scrolling through unrelated
     expect(preview.height).toBeGreaterThan(550);
     expect(preview.y + preview.height).toBeLessThan(1000);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("button", { name: "Edit controls", exact: true }).click();
     await tools.scrollIntoViewIfNeeded();
     await page.screenshot({ path: ".local-artifacts/workshop/tools/mobile-before-contacts.png" });
     expect(await page.locator('[data-workshop="studio"]').evaluate(element => element.clientHeight)).toBe(844);

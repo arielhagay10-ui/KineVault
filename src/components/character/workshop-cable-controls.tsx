@@ -23,7 +23,7 @@ export function WorkshopCableControls({ object, onAttachment, onHold, onCuffPosi
   const both = !["d-handle", "cuff"].includes(attachment);
   const sides = (["left", "right"] as const).filter(side => object.attachment === side || object.attachment === "both");
   return <section aria-label={t("Cable attachment and grip")} className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
-    <div className="flex items-start justify-between gap-2"><h2 className="font-semibold">{t("Cable attachment and grip")}</h2>
+    <div className="flex items-start justify-between gap-2"><h2 className="text-lg font-semibold">{t("Cable attachment and grip")}</h2>
       <span role="img" aria-label={t("Attachment outside reach. Bring the hands closer together or adjust the arm poses.")}
         title={t("Attachment outside reach. Bring the hands closer together or adjust the arm poses.")} className={`shrink-0 text-amber-600 ${reachable ? "invisible" : ""}`}><TriangleAlert aria-hidden="true" size={20} /></span>
     </div>

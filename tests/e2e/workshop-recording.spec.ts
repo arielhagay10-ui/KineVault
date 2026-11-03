@@ -1,3 +1,5 @@
+import { workshopPose } from "./workshop-menu.helpers";
+import { selectWorkshopPose } from "./workshop-menu.helpers";
 import { openWorkshopDeviceRecovery } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
@@ -63,7 +65,7 @@ test("held dumbbells follow bench positions and first/finish poses are recorded 
     expect((layout.data!.studio_layout as StudioLayout).objects.find(item => item.id === weights[0].id)!.y).not.toBeCloseTo(scene.studio!.objects[1].y, 1);
 
     await page.goto("/my-exercises/new"); await dismissWorkshopTutorial(page);
-    await expect(page.getByRole("combobox", { name: "Editing pose", exact: true })).toBeEnabled();
+    await expect(workshopPose(page, 0)).toBeEnabled();
     await selectWorkshopMoment(page, "Finish");
     await expect(page.getByRole("button", { name: "Capture pose", exact: true })).toBeDisabled();
     await selectWorkshopMoment(page, "Start");
@@ -127,7 +129,7 @@ test("held dumbbells follow bench positions and first/finish poses are recorded 
     await selectWorkshopMoment(page, "Start");
     await jointField(page, "x").fill("55"); await jointField(page, "x").press("Enter");
     await page.getByRole("button", { name: "Capture start", exact: true }).click();
-    await page.getByLabel("Editing pose", { exact: true }).selectOption("2");
+    await selectWorkshopPose(page, 2);
     await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
     await expect(jointField(page, "x")).toHaveValue("0");
     await expect(page.locator('[data-pose-save-state]')).toHaveAttribute("data-pose-save-state", "saved");
@@ -140,7 +142,7 @@ test("held dumbbells follow bench positions and first/finish poses are recorded 
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
     await page.reload(); await dismissWorkshopTutorial(page);
-    await page.getByLabel("Editing pose", { exact: true }).selectOption("2");
+    await selectWorkshopPose(page, 2);
     await openWorkshopTool(page, "Pose"); await selectWorkshopJoint(page, "Left elbow");
     await expect(jointField(page, "x")).toHaveValue("65");
     expect(errors).toEqual([]);

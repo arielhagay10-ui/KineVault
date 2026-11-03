@@ -5,9 +5,10 @@ import { incrementWorkshopNumber } from "@/lib/motion/workshop-number";
 import { parseLocalizedWorkshopNumber } from "@/lib/motion/workshop-language";
 import { useWorkshopLanguage } from "./workshop-language";
 
-export type WorkshopNumberFieldProps = { label: string; value: number; onChange: (value: number) => void | boolean; min?: number; max?: number; step?: number; disabled?: boolean; maximumFractionDigits?: number };
+/** `visibleLabel` shortens the on-screen label when a group heading already names the control; `label` stays the accessible name. */
+export type WorkshopNumberFieldProps = { label: string; visibleLabel?: string; value: number; onChange: (value: number) => void | boolean; min?: number; max?: number; step?: number; disabled?: boolean; maximumFractionDigits?: number };
 
-export function WorkshopNumberField({ label, value, onChange, min, max, step = 1, disabled = false, maximumFractionDigits = 12 }: WorkshopNumberFieldProps) {
+export function WorkshopNumberField({ label, visibleLabel, value, onChange, min, max, step = 1, disabled = false, maximumFractionDigits = 12 }: WorkshopNumberFieldProps) {
   const id = useId();
   const { t, formatNumber } = useWorkshopLanguage();
   const [draft, setDraft] = useState<string | null>(null);
@@ -36,10 +37,10 @@ export function WorkshopNumberField({ label, value, onChange, min, max, step = 1
   };
   const buttonClass = "min-h-11 min-w-11 rounded-lg border border-border bg-background text-lg font-semibold hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40";
   return <div className="min-w-0 space-y-1.5">
-    <label htmlFor={id} className="block text-base font-semibold">{t(label)}</label>
+    <label htmlFor={id} className={visibleLabel ? "block text-sm text-muted-foreground" : "block text-base font-semibold"}>{t(visibleLabel ?? label)}</label>
     <div className="flex min-w-0 items-center gap-2">
       <button type="button" disabled={disabled || min !== undefined && base <= min} aria-label={t("Decrease {label} by {increment}", { label: t(label), increment })} className={buttonClass} onClick={() => adjust(-1)}>−</button>
-      <input id={id} type="text" inputMode="decimal" dir="ltr" value={text} disabled={disabled} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}
+      <input id={id} type="text" inputMode="decimal" dir="ltr" value={text} disabled={disabled} aria-label={visibleLabel ? t(label) : undefined} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}
         onChange={event => { setDraft(event.target.value); setError(null); }} onBlur={() => {
           if (cancelledBlur.current) { cancelledBlur.current = false; return; }
           commit();

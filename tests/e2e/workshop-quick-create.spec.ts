@@ -1,4 +1,5 @@
-import { openWorkshopDeviceRecovery, openWorkshopMenu } from "./workshop-menu.helpers";
+import { currentWorkshopPose, workshopPoses } from "./workshop-menu.helpers";
+import { openWorkshopDeviceRecovery } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
@@ -38,9 +39,13 @@ test("single editor preserves private creation, recovery, picker, RTL and mobile
     await page.goto("/my-exercises/new");
     await dismissWorkshopTutorial(page);
     await expect(page.getByRole("button", { name: /^(Quick create|Advanced editing)$/, includeHidden: true })).toHaveCount(0);
-    for (const name of ["Item settings", "Position", "Contacts", "Pose", "Timeline", "View", "Setups", "Settings"]) {
+    for (const name of ["Item settings", "Position", "Contacts", "Pose", "Timeline", "View"]) {
       await openWorkshopTool(page, name);
       await expect(page.getByRole("tab", { name, exact: true, includeHidden: true })).toHaveAttribute("aria-selected", "true");
+    }
+    for (const [name, section] of [["Setups", "[data-workshop-setups]"], ["Settings", "[data-workshop-settings]"]]) {
+      await openWorkshopTool(page, name);
+      await expect(page.locator(section)).toHaveAttribute("open", "");
     }
     await expect(page.getByRole("button", { name: "Save exercise", exact: true })).toBeVisible();
     await expect(page.getByLabel("Exercise name", { exact: true })).toBeVisible();
@@ -52,7 +57,7 @@ test("single editor preserves private creation, recovery, picker, RTL and mobile
     await page.getByRole("button", { name: "Capture start", exact: true }).click();
     await selectWorkshopMoment(page, "Finish");
     const movementControls = page.getByRole("region", { name: "Playback controls", exact: true });
-    await expect(movementControls.getByRole("combobox", { name: "Editing pose", exact: true }).locator("option").filter({ hasText: /^Start(?: ·|$)/ })).toHaveCount(1);
+    await expect(movementControls.getByRole("group", { name: "Poses", exact: true }).getByRole("button", { name: /^Start pose · / })).toHaveCount(1);
     await openWorkshopTool(page, "Timeline");
     await expandWorkshopControls(page, "Pose actions");
     await expect(page.getByRole("button", { name: "Match loop end to start", exact: true })).toBeVisible();
@@ -115,8 +120,6 @@ test("single editor preserves private creation, recovery, picker, RTL and mobile
     await page.screenshot({ path: ".local-artifacts/workshop/simplification/browser/mobile-rtl.png", fullPage: true });
     await setWorkshopLanguage(page, "en");
     await openWorkshopTool(page, "View");
-    await page.getByRole("button", { name: "Collapse preview", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Show preview", exact: true })).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
     await context.setOffline(false);
@@ -150,9 +153,9 @@ test("finish inspection keeps the editing pose and animated placement locked", a
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption({ label: "Cable row" });
     await page.getByRole("button", { name: "Check both hands at finish", exact: true }).press("Enter");
     await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue(String(scene.durationMs / 2));
-    await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("-1");
-    await expect(page.getByLabel("Editing pose", { exact: true }).locator("option:checked")).toContainText("New pose");
-    await expect(page.getByLabel("Editing pose", { exact: true }).locator("option")).toHaveCount(3);
+    await expect(currentWorkshopPose(page)).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Playback controls", exact: true }).getByRole("status")).toHaveText("Between poses");
+    await expect(workshopPoses(page)).toHaveCount(2);
     await openWorkshopTool(page, "Item settings");
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption({ label: "Cable row" });
     await openWorkshopTool(page, "Position");
@@ -255,7 +258,7 @@ test.describe("touch and enlarged text", () => {
       await page.getByRole("dialog").getByRole("button", { name: "Pec deck", exact: true }).tap();
       await openWorkshopTool(page, "Contacts");
       await page.getByLabel("Pec deck mode", { exact: true }).selectOption("reverse");
-    await expect(page.getByRole("combobox", { name: "Editing pose", exact: true }).locator("option").filter({ hasText: /^Finish(?: ·|$)/ })).toHaveCount(1);
+    await expect(page.getByRole("group", { name: "Poses", exact: true }).getByRole("button", { name: /^Finish pose · / })).toHaveCount(1);
       await page.getByRole("button", { name: "Capture start", exact: true }).tap();
       await selectWorkshopMoment(page, "Finish");
       await page.getByRole("button", { name: "Capture pose", exact: true }).tap();
@@ -267,7 +270,7 @@ test.describe("touch and enlarged text", () => {
       await page.getByLabel("Exercise name", { exact: true }).fill("Touch reverse pec deck");
       await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20000 });
       await setWorkshopLanguage(page, "he");
-      await expect(page.getByRole("combobox", { name: "תנוחה בעריכה", exact: true })).toBeVisible();
+      await expect(page.getByRole("group", { name: "תנוחות", exact: true })).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: ".local-artifacts/workshop/simplification/browser/touch-rtl.png", fullPage: true });
       await page.setViewportSize({ width: 640, height: 900 });
@@ -312,8 +315,7 @@ test("a late save response cannot erase a newer resumed draft", async ({ page, c
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await expect.poll(() => !!release).toBe(true);
     // Client navigation keeps the old component's pending completion in this document.
-    await openWorkshopMenu(page);
-    await page.getByRole("link", { name: "Exercise details", exact: true }).click();
+    await page.getByRole("link", { name: "Add details", exact: true }).click();
     await expect(page).toHaveURL(/\/edit$/, { timeout: 60_000 });
     await page.getByRole("link", { name: "Open motion workshop", exact: true }).click();
     await expect(page).toHaveURL(/\/workshop$/, { timeout: 60_000 });

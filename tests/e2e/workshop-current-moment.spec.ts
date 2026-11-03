@@ -1,3 +1,4 @@
+import { currentWorkshopPose, workshopPoses } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -34,9 +35,9 @@ test("single joint edits follow the scrubbed time and preserve other poses after
     await scrubber.fill("1070");
     await jointField(page, "x").fill("65"); await jointField(page, "x").press("Enter");
     await expect(scrubber).toHaveValue("1070");
-    await expect(page.getByLabel("Editing pose", { exact: true }).locator("option:checked")).toContainText("1.07s");
+    await expect(currentWorkshopPose(page)).toHaveAttribute("aria-label", /^1\.07s pose · /);
     await page.getByRole("button", { name: "Undo", exact: true }).click();
-    await expect(page.getByLabel("Editing pose", { exact: true }).locator("option")).toHaveCount(3);
+    await expect(workshopPoses(page)).toHaveCount(3);
     await page.getByRole("button", { name: "Redo", exact: true }).click();
     await scrubber.fill("1600"); await expect(jointField(page, "x")).toHaveValue("40");
     await jointField(page, "x").fill("80"); await jointField(page, "x").press("Enter");

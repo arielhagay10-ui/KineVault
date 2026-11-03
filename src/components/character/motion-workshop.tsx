@@ -74,7 +74,7 @@ import { WorkshopTutorial } from "./workshop-tutorial";
 import { useWorkshopTutorial } from "./use-workshop-tutorial";
 import { workshopTutorialSteps } from "@/lib/motion/workshop-tutorial";
 import { WorkshopBenchControls } from "./workshop-bench-controls";
-import { WorkshopToolNavigation, WorkshopToolPanel, workshopTools, type WorkshopTool } from "./workshop-tool-navigation";
+import { WorkshopToolNavigation, WorkshopToolPanel, type WorkshopTool } from "./workshop-tool-navigation";
 import { WorkshopCableControls } from "./workshop-cable-controls";
 import { WorkshopDisclosure } from "./workshop-disclosure";
 import { WorkshopPoseFeedback, type WorkshopPoseFeedbackKind } from "./workshop-pose-feedback";
@@ -89,7 +89,7 @@ const jointNames: Record<JointSlug, string> = {
 };
 const label = (milliseconds: number) => `${(milliseconds / 1000).toFixed(2)}s`;
 const inputClass = "mt-1 min-h-11 w-full min-w-0 rounded-lg border border-border bg-background p-2 text-base font-normal";
-const buttonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-base font-semibold transition-[filter,background-color] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40 aria-pressed:bg-accent aria-pressed:text-accent-foreground";
+const buttonClass = "inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-base font-semibold transition-[filter,background-color] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40 aria-pressed:bg-accent aria-pressed:text-accent-foreground";
 const menuRowClass = "flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-start text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40";
 
 function TransformFields({ value, onChange, positionOnly = false, disabled = false, rotationDisabled = false }: { value: SceneTransform; onChange: (value: SceneTransform) => void | boolean; positionOnly?: boolean; disabled?: boolean; rotationDisabled?: boolean }) {
@@ -151,7 +151,6 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
   const [editorMode, dispatchEditor] = useReducer(workshopEditorMode, { mode: "select" });
   const { interactionMode, tool, posing, limbPosing, freeDragging } = workshopEditorFlags(editorMode);
   const enterEditor = (state: WorkshopEditorMode) => dispatchEditor({ type: "enter", state });
-  const [previewOpen, setPreviewOpen] = useState(true);
   const [focusMode, setFocusMode] = useState(false);
   const [comparison, setComparison] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
@@ -211,7 +210,6 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
   const dragSession = useRef<{ scene: WorkshopScene; latest: WorkshopScene; timeMs: number; afterCommit?: (next: WorkshopScene) => void } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
-  const [mobileEditing, setMobileEditing] = useState(false);
   const [frameError, setFrameError] = useState<string | null>(null);
   const history = useWorkshopHistory();
   const { past, future, record } = history;
@@ -387,7 +385,8 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
   const undo = () => { if (supportRepositioning) { cancelSupportEdit(); return; } if (!past.length || dragging || adjusting) return; const entry = history.undo(scene)!; restore(entry.scene); setStatus(`Undid ${entry.label}`); };
   const redo = () => { if (supportRepositioning) { cancelSupportEdit(); return; } if (!future.length || dragging || adjusting) return; const entry = history.redo(scene)!; restore(entry.scene); setStatus(`Redid ${entry.label}`); };
   const selectFrame = (index: number) => { cancelSupportEdit(); setPlaying(false); setSelectedFrame(index); setTimeMs(scene.keyframes[index].timeMs); setFrameError(null); };
-  const currentPoseSaved = recordedPoses[current.timeMs] === poseSignatures.get(current.timeMs);
+  const poseStates = scene.keyframes.map(frame => recordedPoses[frame.timeMs] === undefined ? "new" as const
+    : recordedPoses[frame.timeMs] === poseSignatures.get(frame.timeMs) ? "captured" as const : "changed" as const);
   const savePose = () => {
     if (dragging || adjusting || captureElbow) return;
     if (recordedPoses[0] === undefined && selectedFrame !== 0) { selectFrame(0); setStatus("Capture the start before the finish."); return; }
@@ -848,6 +847,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
   const objectLabel = (item: StudioObject) => equipmentLabel(studio.objects, item);
   const weightGripControls = weight && <div className="space-y-3 rounded-xl border border-border p-3">
     <h3 className="font-semibold" data-workshop-translate="false">{objectLabel(object)}</h3>
+    {!held && <p className="text-sm text-muted-foreground">{t("Choose a hand to pick it up. It stays on the floor until then.")}</p>}
     <div className="flex flex-wrap gap-2">{(["left", "right", ...(canHoldBoth ? ["both"] : [])] as ("left" | "right" | "both")[]).map(hand => <button key={hand} type="button" aria-pressed={object.attachment === hand} onClick={() => holdObject(hand)} className={`${buttonClass} ${object.attachment === hand ? "bg-primary text-primary-foreground" : "bg-card"}`}>{t(hand === "both" ? "Hold with both hands" : `Hold with ${hand} hand`)}</button>)}</div>
     {held && <><button type="button" disabled={playing || dragging} title={t("Fits every saved pose and clears custom grip points and elbow locks. Undo restores the movement.")} onClick={() => holdObject(object.attachment, true)} className={buttonClass}>{t("Reset to automatic grip")}</button><button type="button" onClick={() => holdObject("none")} className={buttonClass}>{t("Release")}</button></>}
       <p className="text-sm text-muted-foreground">{t(object.slug === "dumbbell" && object.attachment === "both"
@@ -957,22 +957,21 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
         break;
       case "escape":
         if (selection) { selectObject(null); setLimbWarning(null); }
-        else if (focusMode) { setFocusMode(false); setMobileEditing(true); }
+        else if (focusMode) { setFocusMode(false); }
         else { camera(); setPlaying(false); }
         break;
     }
   };
-  const playbackControls = <WorkshopPlaybackControls scene={scene} timeMs={timeMs} playback={playback} playing={playing} speed={speed} selectedFrame={selectedFrame} disabled={dragging || supportRepositioning || !!captureElbow} demonstrationCaption={demonstrationCaption} onPlayingChange={value => { cancelSupportEdit(); setGripEdit(null); setLimbNudge(undefined); setPlaying(value); }} onSpeedChange={setSpeed} onTimeChange={previewTime} onFrameChange={selectFrame} poseSaved={currentPoseSaved} firstPoseRecorded={recordedPoses[0] !== undefined} onSavePose={savePose} />;
+  const playbackControls = <WorkshopPlaybackControls scene={scene} timeMs={timeMs} playback={playback} playing={playing} speed={speed} selectedFrame={selectedFrame} disabled={dragging || supportRepositioning || !!captureElbow} demonstrationCaption={demonstrationCaption} onPlayingChange={value => { cancelSupportEdit(); setGripEdit(null); setLimbNudge(undefined); setPlaying(value); }} onSpeedChange={setSpeed} onTimeChange={previewTime} onFrameChange={selectFrame} poseStates={poseStates} firstPoseRecorded={recordedPoses[0] !== undefined} onSavePose={savePose} />;
   const openTool = (next: WorkshopTool) => {
     cancelSupportEdit();
-    setPanel(next); setMobileEditing(true); setMoreOpen(false);
+    setPanel(next); setMoreOpen(false);
     if (moreHelp.current) moreHelp.current.open = false;
     if (historyHelp.current) historyHelp.current.open = false;
     if (shortcutHelp.current) shortcutHelp.current.open = false;
     if (next !== "placement" || !selectedJoint) dispatchEditor({ type: "panel", panel: next, joint: !!selectedJoint });
-    if (next === "contact") {
-      if (selectedJoint) setSelection({ kind: "body" });
-    }
+    // With no item selected, Contacts shows the figure's contacts, so name the figure as the selection.
+    if (next === "contact" && (selectedJoint || !selection)) setSelection({ kind: "body" });
     requestAnimationFrame(() => {
       const element = workshopRoot.current?.querySelector<HTMLElement>(`[data-workshop-panel="${next}"]`);
       element?.closest("[data-workshop-controls-scroll]")?.scrollTo({ top: 0 });
@@ -983,7 +982,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
     if (!tutorial.open) return;
     const frame = requestAnimationFrame(() => {
       const tip = workshopTutorialSteps[tutorial.step];
-      setFocusMode(false); setPreviewOpen(true); setPlaying(false); setPanel(tip.panel); setMobileEditing(tip.target === "equipment" || tip.target === "pose");
+      setFocusMode(false); setPlaying(false); setPanel(tip.panel);
       if (tip.panel === "pose") dispatchEditor({ type: "panel", panel: "pose" });
     });
     return () => cancelAnimationFrame(frame);
@@ -1030,36 +1029,26 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
       onBlurCapture={event => { if (adjusting && event.target instanceof HTMLInputElement && event.target.hasAttribute("data-workshop-scene-range")) endDrag(); }}
       data-focus-mode={focusMode} data-tutorial-open={tutorial.open} className="fixed inset-0 z-[60] flex min-w-0 flex-col overflow-hidden bg-card text-base focus-visible:outline-2 focus-visible:outline-ring md:overflow-hidden [&_.text-xs]:text-sm [&_summary]:min-h-11 [&_input[type=range]]:min-h-6" data-workshop="studio" dir={language === "he" ? "rtl" : "ltr"} lang={language}>
 <section aria-label={t("Workshop actions")} className="relative shrink-0 space-y-1 border-b bg-card px-3 py-2 md:px-4">
-      <div className="flex min-w-0 items-center gap-2">
-        <Link href="/my-exercises" aria-label={t("My exercises")} title={t("My exercises")} className={`${buttonClass} shrink-0`}><ArrowLeft size={16} className="rtl:rotate-180" /><span className="hidden lg:inline">{t("My exercises")}</span></Link>
-        <h1 aria-label={name.trim() || t("Untitled exercise")} className="min-w-24 flex-1 text-lg font-semibold sm:min-w-36"><input aria-label={t("Exercise name")} title={t("Rename exercise")} value={name} maxLength={160} onChange={event => setName(event.target.value)} className="min-h-11 w-full min-w-0 rounded-md border border-transparent bg-transparent px-2 text-lg font-semibold placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring" placeholder={t("Untitled exercise")} /></h1>
-        <div className="flex shrink-0 items-center gap-2">
-          <p role="status" aria-live="polite" className="sr-only max-w-40 text-sm text-muted-foreground sm:not-sr-only">{t(manualSaveRequests > 0 ? "Saving…" : draft.message)}</p>
-          <button data-tutorial-target="save" aria-label={t("Save exercise")} type="button" onClick={() => save()} aria-busy={pending} disabled={dragging || !!captureElbow} className={`${buttonClass} bg-primary text-primary-foreground`}><Save size={16} /><span className="hidden sm:inline">{t(pending ? "Saving…" : "Save exercise")}</span><span className="sm:hidden">{t(pending ? "Saving…" : "Save")}</span></button>
+      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 lg:flex">
+        <Link href="/my-exercises" aria-label={t("My exercises")} title={t("My exercises")} className={`${buttonClass} shrink-0`}><ArrowLeft size={16} className="rtl:rotate-180" /><span className="hidden xl:inline">{t("My exercises")}</span></Link>
+        <h1 aria-label={name.trim() || t("Untitled exercise")} className="min-w-0 flex-1 text-lg font-semibold lg:min-w-36"><input aria-label={t("Exercise name")} title={t("Rename exercise")} value={name} maxLength={160} onChange={event => setName(event.target.value)} className="min-h-11 w-full min-w-0 truncate rounded-md border border-transparent bg-transparent px-2 text-lg font-semibold placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring" placeholder={t("Untitled exercise")} /></h1>
+        <div className="flex shrink-0 items-center gap-2 lg:order-last">
+          <p role="status" aria-live="polite" className="sr-only max-w-48 truncate text-sm text-muted-foreground sm:not-sr-only">{t(manualSaveRequests > 0 ? "Saving…" : draft.message)}</p>
+          <button data-tutorial-target="save" aria-label={t("Save exercise")} type="button" onClick={() => save()} aria-busy={pending} disabled={dragging || !!captureElbow} data-save-state={draft.currentConfirmed && !pending ? "saved" : "unsaved"} className={`${buttonClass.replace("transition-[filter,background-color] ", "")} ${draft.currentConfirmed && !pending ? "text-muted-foreground" : "border-primary bg-primary text-primary-foreground"}`}>{draft.currentConfirmed && !pending ? <Check size={16} /> : <Save size={16} />}<span className="hidden sm:inline">{t(pending ? "Saving…" : "Save exercise")}</span><span className="sm:hidden">{t(pending ? "Saving…" : "Save")}</span></button>
         </div>
-      </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-border/60 pt-1">
+        <div className="col-span-3 flex min-w-0 flex-wrap items-center gap-1 border-t border-border/60 pt-1 sm:gap-2 lg:contents">
         <div role="group" aria-label={t("Edit history")} className="flex gap-1">
           <button type="button" aria-label={t("Undo")} disabled={!past.length || dragging} onClick={undo} title={t("Undo · Ctrl / ⌘ + Z")} className={buttonClass}><Undo2 size={16} /></button>
           <button type="button" aria-label={t("Redo")} disabled={!future.length || dragging} onClick={redo} title={t("Redo · Ctrl / ⌘ + Shift + Z · Ctrl + Y")} className={buttonClass}><Redo2 size={16} /></button>
         </div>
-        <button data-tutorial-target="equipment" ref={addButton} aria-label={t("Add equipment")} title={t("Add equipment")} type="button" onClick={event => { event.currentTarget.focus(); setEquipmentPickerView("popular"); setAdding(!adding); }} aria-expanded={adding} className={`${buttonClass} ms-auto`}><Plus size={16} /><span className="hidden sm:inline">{t("Add equipment")}</span><span className="sm:hidden">{t("Add")}</span></button>
-        <details ref={moreHelp} onToggle={event => { setMoreOpen(event.currentTarget.open); if (!event.currentTarget.open && shortcutHelp.current) shortcutHelp.current.open = false; }} name="workshop-dropdown" data-workshop-menu className="relative"><summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">{t("More")}<ChevronDown size={12} /></summary><div className="absolute end-0 top-full z-50 mt-1 max-h-[calc(100dvh-9rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border bg-card p-1.5 shadow-lg">
-        <div role="tablist" aria-label={t("More tools")} aria-orientation="vertical">
-          {workshopTools.slice(6).map(([tool, label]) => <button key={tool} id={`workshop-tool-${tool}`} type="button" role="tab" aria-controls={`workshop-panel-${tool}`} aria-selected={panel === tool} onClick={() => {
-            openTool(tool);
-            requestAnimationFrame(() => document.getElementById(`workshop-panel-${tool}`)?.focus({ preventScroll: true }));
-          }} onKeyDown={event => {
-            const tabs = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-            const index = tabs.indexOf(event.currentTarget);
-            const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : event.key === "ArrowDown" ? (index + 1) % tabs.length : event.key === "ArrowUp" ? (index + tabs.length - 1) % tabs.length : null;
-            if (next !== null) { event.preventDefault(); tabs[next].focus(); }
-          }} className={`${menuRowClass} aria-selected:bg-accent aria-selected:text-accent-foreground`}>{t(label)}</button>)}
-        </div>
+        {(activeMachine || studio.seating) && <button type="button" onClick={leaveEquipment} disabled={dragging} aria-label={t(activeMachine ? "Leave machine" : "Stand up")} className={buttonClass}><span className="sm:hidden">{t(activeMachine ? "Leave" : "Stand up")}</span><span className="hidden sm:inline">{t(activeMachine ? "Leave machine" : "Stand up")}</span></button>}
+        {savedId && <Link href={`/my-exercises/${savedId}/edit`} aria-label={t("Add details")} title={t("Add details")} className={buttonClass}><BookOpen size={16} /><span className="hidden sm:inline">{t("Add details")}</span></Link>}
+        <button data-tutorial-target="equipment" ref={addButton} aria-label={t("Add equipment")} title={t("Add equipment")} type="button" onClick={event => { event.currentTarget.focus(); setEquipmentPickerView("popular"); setAdding(!adding); }} aria-expanded={adding} className={`${buttonClass} ms-auto`}><Plus size={16} /><span className="hidden sm:inline">{t("Add equipment")}</span></button>
+        <details ref={moreHelp} onToggle={event => { setMoreOpen(event.currentTarget.open); if (!event.currentTarget.open && shortcutHelp.current) shortcutHelp.current.open = false; }} name="workshop-dropdown" data-workshop-menu className="relative"><summary className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring sm:px-3 [&::-webkit-details-marker]:hidden">{t("More")}<ChevronDown size={12} className="hidden sm:block" /></summary><div className="absolute end-0 top-full z-50 mt-1 max-h-[calc(100dvh-9rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border bg-card p-1.5 shadow-lg">
         <button type="button" aria-label={t("Tutorial")} aria-expanded={tutorial.open} onClick={() => { if (moreHelp.current) moreHelp.current.open = false; if (tutorial.open) closeTutorial(); else tutorial.update({ open: true, step: 0 }); }} className={menuRowClass}><Info size={16} />{t("Tutorial")}</button>
         <div className="my-1 border-t" />
         <WorkshopFullscreenButton target={workshopRoot} className={`${menuRowClass} [&_span]:inline`} />
-        <button type="button" aria-pressed={focusMode} disabled={dragging || adjusting} onClick={() => { setFocusMode(!focusMode); setMobileEditing(focusMode); if (moreHelp.current) moreHelp.current.open = false; setPreviewOpen(true); if (!focusMode) { if (historyHelp.current) historyHelp.current.open = false; if (shortcutHelp.current) shortcutHelp.current.open = false; } }} className={menuRowClass}><Scan size={16} />{focusMode ? t("Show controls") : t("Hide controls")}</button>
+        <button type="button" aria-pressed={focusMode} disabled={dragging || adjusting} onClick={() => { setFocusMode(!focusMode); if (moreHelp.current) moreHelp.current.open = false; if (!focusMode) { if (historyHelp.current) historyHelp.current.open = false; if (shortcutHelp.current) shortcutHelp.current.open = false; } }} className={menuRowClass}><Scan size={16} />{focusMode ? t("Show controls") : t("Hide controls")}</button>
 
         <label className="flex min-h-11 items-center justify-between gap-3 px-3 py-1 text-sm font-medium">{t("Language")}<select aria-label={t("Workshop language")} value={language} onChange={event => setLanguage(event.target.value as "en" | "he")} className="min-h-11 max-w-32 rounded-md bg-background px-2 font-normal"><option value="en">{t("English")}</option><option value="he">עברית</option></select></label>
         <div className="my-1 border-t" />
@@ -1081,8 +1070,8 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
           </section>
         </details>
         <div className="my-1 border-t" />
-        {savedId && <Link href={`/my-exercises/${savedId}/edit`} aria-label={t("Exercise details")} className={menuRowClass}><BookOpen size={16} />{t("Add exercise details")}</Link>}
-        <button type="button" onClick={() => save(true)} disabled={dragging || !!captureElbow} className={menuRowClass}><Save size={16} />{t("Save & add details")}</button><Link href="/my-exercises" className={menuRowClass}><ArrowLeft size={16} />{t("Exit workshop")}</Link></div></details>
+        <button type="button" onClick={() => save(true)} disabled={dragging || !!captureElbow} className={menuRowClass}><Save size={16} />{t("Save & add details")}</button></div></details>
+      </div>
       </div>
 
       {!draft.recoverable && draft.dirty && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{t("Local recovery unavailable · save before leaving")}</p>}
@@ -1090,27 +1079,26 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
       {draft.error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{draft.error} <button type="button" onClick={() => save()} disabled={pending} className={buttonClass}>{t("Retry saving")}</button> {/sign[ -]in/i.test(draft.error) && <a href={`/sign-in?next=${encodeURIComponent(savedId ? `/my-exercises/${savedId}/workshop` : "/my-exercises/new")}`} className="underline">{t("Sign in again")}</a>}</p>}
       {draft.recovery && <WorkshopRecoveryNotice updatedAt={draft.recovery.updatedAt} hasSavedVersion={!!privateId} onRestore={() => { const recovered = draft.recovery!; update(recovered.scene, "Restore recovered draft"); setFirstPoseInitialized(recovered.firstPoseInitialized ?? true); setName(recovered.name); draft.acceptRecovery(); setSelectedFrame(0); setTimeMs(0); }} onDismiss={draft.dismissRecovery} />}
 
-      {focusMode && <button inert={moreOpen} type="button" onClick={() => { setFocusMode(false); setMobileEditing(true); }} className={buttonClass}><Scan size={16} />{t("Show controls")}</button>}
-      {!focusMode && <div inert={moreOpen} className="flex items-center justify-between gap-2 md:hidden"><div role="group" aria-label={t("Workshop view")} className="flex gap-1"><button type="button" aria-pressed={!mobileEditing} onClick={() => { setMobileEditing(false); setPreviewOpen(true); }} className={buttonClass}>{t("Preview")}</button><button type="button" aria-pressed={mobileEditing} onClick={() => setMobileEditing(true)} className={buttonClass}>{t("Edit controls")}</button></div>{(activeMachine || studio.seating) && <button type="button" onClick={leaveEquipment} disabled={dragging} className={buttonClass}>{t(activeMachine ? "Leave machine" : "Stand up")}</button>}</div>}
+      {focusMode && <button inert={moreOpen} type="button" onClick={() => { setFocusMode(false); }} className={buttonClass}><Scan size={16} />{t("Show controls")}</button>}
     </section>
     {adding && <WorkshopEquipmentPicker options={equipmentOptions} ownerKey={ownerId} initialView={equipmentPickerView} onClose={closePicker} onSelect={slug => addObject(slug as StudioObject["slug"])} />}
     {nameRequest && <WorkshopNameDialog initialName={name} onClose={() => setNameRequest(null)} onSave={enteredName => save(nameRequest.continueToDetails, enteredName)} />}
-    <div inert={moreOpen} className={"grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden md:overflow-hidden " + (focusMode ? "" : "md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]")}>
-      <div data-tutorial-target="preview" className={"relative min-h-0 min-w-0 flex-col overflow-hidden border-b bg-background p-2 md:flex md:border-b-0 md:p-3 " + (mobileEditing && !focusMode ? "hidden" : "flex")} data-workshop-preview>
-        <div data-workshop-figure-preview hidden={!previewOpen} className="relative flex min-h-0 flex-1 flex-col">
+    <div inert={moreOpen} className={"grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden " + (focusMode ? "" : "grid-rows-[minmax(160px,min(42dvh,440px))_minmax(120px,1fr)] md:grid-cols-[minmax(0,1fr)_320px] md:grid-rows-1 xl:grid-cols-[minmax(0,1fr)_360px]")}>
+      <div data-tutorial-target="preview" className={"relative flex min-h-0 min-w-0 flex-col overflow-hidden border-b bg-background p-2 md:border-b-0 md:p-3"} data-workshop-preview>
+        <div data-workshop-figure-preview className="relative flex min-h-0 flex-1 flex-col">
           {!comparison && <WorkshopManipulationControls
             active={interactionMode === "camera" ? "camera" : freeDragging ? "free" : limbPosing ? "limbs" : tool === "select" ? "select" : tool === "rotate" ? "rotate" : "move"}
             onTool={chooseManipulation} plane={dragPlane} onPlane={setDragPlane}
-            selectedName={selectedJoint ? t(jointNames[selectedJoint]) : object ? objectLabel(object) : selection?.kind === "body" ? t("Anatomical figure") : null}
+            selectedName={selectedJoint ? t(jointControlName) : object ? objectLabel(object) : selection?.kind === "body" ? t("Anatomical figure") : null}
             hint={limbPosing && interactionMode === "edit" ? t(freeDragging ? "Drag a hand or foot using its round button" : "Select a hand or foot, then use arrows. Direction locks movement.") : undefined}
             disabled={dragging || adjusting || !!captureElbow || playing}
             canMove={!selectedJoint || isWrist || isAnkle}
             rotating={tool === "rotate" || !!selectedJoint && !selectedLimb} sensitivity={sensitivity} onSensitivity={changeSensitivity} snap={snap} onSnap={setSnap} />}
           {comparison ? <div className="min-h-0 flex-1 overflow-y-auto"><WorkshopComparison scene={scene} /></div> : <MotionCanvas scene={scene} gesture={gesture} timeMs={timeMs} playback={playback} editor={editor} simplifiedControls controlsTarget={viewControlsTarget} interactionMode={interactionMode} onInteractionModeChange={value => { cancelSupportEdit(); dispatchEditor({ type: "choose", tool: value === "edit" ? "move" : "camera" }); }} onMachineReachChange={onMachineReach} onSupportRigReady={onSupportRigReady} onSupportReachChange={onSupportReachChange} fillViewport className="min-h-44 flex-1" canvasOverlay={<>
             <WorkshopPlacementWarning objects={studio.objects} overlapping={overlappingObjects} supports={supportReports} onSupportInspect={region => {
-              cancelSupportEdit(); setSupportRegion(region); setSelection({ kind: "body" }); setPanel("contact"); setMobileEditing(true);
+              cancelSupportEdit(); setSupportRegion(region); setSelection({ kind: "body" }); setPanel("contact");
             }} onInspect={id => {
-              selectObject({ kind: "object", id }); setPanel("placement"); setMobileEditing(true);
+              selectObject({ kind: "object", id }); setPanel("placement");
               requestAnimationFrame(() => {
                 const placement = workshopRoot.current?.querySelector<HTMLElement>('[data-workshop-panel="placement"]');
                 placement?.closest("[data-workshop-controls-scroll]")?.scrollTo({ top: 0 });
@@ -1120,13 +1108,13 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
             }} />
             {interactionMode === "edit" && <WorkshopPoseFeedback kind={limbWarning} dragging={dragging} />}
           {(playing || interactionMode === "edit" && (selectedJoint || controllingWeight || bodyLocked || tool !== "select")) && <div data-workshop-current-hint className="pointer-events-none absolute bottom-8 start-2 end-16 z-10 flex justify-between gap-3 text-xs">
-            <span className="rounded-lg bg-card/95 px-3 py-2 font-semibold">{playing ? t("Previewing movement") : interactionMode === "camera" ? t("Drag to rotate the camera. Choose Move to reposition the figure or equipment.") : limbPosing ? t(freeDragging ? "Drag a hand or foot using its round button" : "Drag an arrow to move this hand or foot") : controllingWeight?.machineUse ? <><span data-workshop-translate="false">{controllingWeight.name}</span> {t("controls contact")}</> : controllingWeight ? jointBlocked ? t("Move the held weight or release its support to pose this arm") : t("The held weight follows the arm") : selectedJoint ? `${t(jointNames[selectedJoint])} · ${t(isWrist ? "use the palm controls" : "drag a ring to pose")}` : rootSupport ? t("Adjust or release the body support to move the figure.") : bodyLocked ? t(seatedBench && !activeMachine ? "Select the bench to move the figure" : "Select the machine to move the figure") : tool === "rotate" ? t("Drag a colored ring to rotate") : tool === "translate" ? t("Drag an arrow to move") : t("Drag the figure or equipment to move it")}</span>
+            <span className="rounded-lg bg-card/95 px-3 py-2 font-semibold">{playing ? t("Previewing movement") : interactionMode === "camera" ? t("Drag to rotate the camera. Choose Move to reposition the figure or equipment.") : limbPosing ? t(freeDragging ? "Drag a hand or foot using its round button" : selectedLimb ? "Drag an arrow to move this hand or foot" : "Select a hand or foot") : controllingWeight?.machineUse ? <><span data-workshop-translate="false">{controllingWeight.name}</span> {t("controls contact")}</> : controllingWeight ? jointBlocked ? t("Move the held weight or release its support to pose this arm") : t("The held weight follows the arm") : selectedJoint ? `${t(jointControlName)} · ${t(isWrist ? "use the palm controls" : "drag a ring to pose")}` : rootSupport ? t("Adjust or release the body support to move the figure.") : bodyLocked ? t(seatedBench && !activeMachine ? "Select the bench to move the figure" : "Select the machine to move the figure") : tool === "rotate" ? t("Drag a colored ring to rotate") : tool === "translate" ? t("Drag an arrow to move") : t("Drag the figure or equipment to move it")}</span>
           </div>}
           </>} />}
         </div>
 
       </div>
-<div data-workshop-controls-scroll hidden={focusMode} className={"min-h-0 min-w-0 overflow-y-auto bg-card " + (focusMode ? "hidden" : "md:block md:border-s " + (mobileEditing ? "block" : "hidden"))}>
+<div data-workshop-controls-scroll hidden={focusMode} className={"min-h-0 min-w-0 overflow-y-auto bg-card " + (focusMode ? "hidden" : "block md:border-s")}>
       <div className="sticky top-0 z-20 bg-card"><WorkshopToolNavigation selected={panel} onSelect={openTool} /></div>
       <aside data-tutorial-target="inspector" aria-label={t("Workshop controls")} className="min-w-0 space-y-5 p-4" inert={dragging}>
         {panel === "placement" && selection && interactionMode === "edit" && <WorkshopFineAdjustment
@@ -1138,11 +1126,11 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
           onStep={tool === "rotate" || !!selectedJoint && !selectedLimb ? setNudgeAngle : setNudgeDistance} onNudge={nudgeSelection} />}
         {limbPosing && interactionMode === "edit" && <div className="space-y-2 text-sm text-muted-foreground">{limbBlockReasons.map(reason => <p key={reason}>{reason}</p>)}{Math.round(timeMs) !== current.timeMs && <button type="button" onClick={() => poseMoment(timeMs)} className={buttonClass}>{t("Edit this moment")}</button>}</div>}
         <label className="block border-b border-border pb-5 text-sm font-semibold text-muted-foreground">{t("Selected item")}<select aria-label={t("Selected item")} value={object?.id ?? (selectedJoint ? `joint:${selectedJoint}` : selection?.kind === "body" ? "body" : "")} onChange={event => selectObject(!event.target.value ? null : event.target.value === "body" ? { kind: "body" } : { kind: "object", id: event.target.value })} className={`${inputClass} text-foreground`}>
-          <option value="">{t("No selection")}</option>{selectedJoint && <option value={`joint:${selectedJoint}`} disabled>{t(jointNames[selectedJoint])}</option>}<option value="body">{t("Anatomical figure")}</option>{studio.objects.map(item => <option key={item.id} value={item.id} data-workshop-translate="false">{objectLabel(item)}{["left", "right", "both"].includes(item.attachment) ? ` · ${t(item.attachment === "both" ? "Held with both hands" : `Held with ${item.attachment} hand`)}` : ""}</option>)}
+          <option value="">{t("No selection")}</option>{selectedJoint && <option value={`joint:${selectedJoint}`} disabled>{t(jointControlName)}</option>}<option value="body">{t("Anatomical figure")}</option>{studio.objects.map(item => <option key={item.id} value={item.id} data-workshop-translate="false">{objectLabel(item)}{["left", "right", "both"].includes(item.attachment) ? ` · ${t(item.attachment === "both" ? "Held with both hands" : `Held with ${item.attachment} hand`)}` : ""}</option>)}
         </select></label>
         {object && <button type="button" onClick={toggleItemLock} disabled={dragging || adjusting || playing} aria-pressed={lockedItemIds.includes(object.id)} aria-label={t(lockedItemIds.includes(object.id) ? "Unlock placement" : "Lock placement")} className={buttonClass}>{t(lockedItemIds.includes(object.id) ? "Unlock placement" : "Lock placement")} <kbd dir="ltr">L</kbd></button>}
-        <WorkshopToolPanel tool="equipment" selected={panel}><section className="space-y-3"><h2 className="text-sm font-semibold">{t("Scene setup")}</h2><p className="text-sm text-muted-foreground">{t("Add equipment above, or choose the figure for a bodyweight exercise. Select an item to adjust its position or contacts.")}</p>{panel === "equipment" && plateRowControls}{object && <button type="button" onClick={removeObject} className={buttonClass}><Trash2 size={14} />{t("Remove item")}</button>}</section></WorkshopToolPanel>
-        <WorkshopToolPanel tool="setups" selected={panel}>
+        <WorkshopToolPanel tool="equipment" selected={panel}><section className="space-y-3"><h2 className="text-lg font-semibold">{t("Scene setup")}</h2><p className="text-sm text-muted-foreground">{t("Add equipment above, or choose the figure for a bodyweight exercise. Select an item to adjust its position or contacts.")}</p>{panel === "equipment" && plateRowControls}{object && <button type="button" onClick={removeObject} className={buttonClass}><Trash2 size={14} />{t("Remove item")}</button>}</section>
+        <details data-workshop-setups className="rounded-lg border border-border p-3"><summary className="min-h-11 cursor-pointer content-center font-semibold">{t("Setups")}</summary><div className="mt-3 space-y-3">
           <details className="rounded-lg border p-3"><summary className="min-h-11 cursor-pointer content-center font-semibold">{t("Body support setups")}</summary>
             <p className="my-3 text-sm text-muted-foreground">{t("Start with editable supports. Applying replaces body poses across the movement; Undo restores them.")}</p>
             <div className="grid gap-2">{supportSetups.map(setup => <button key={setup} type="button" className={buttonClass} disabled={setup.startsWith("bench") && !studio.objects.some(item => item.slug === "bench")} onClick={() => {
@@ -1153,8 +1141,8 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
             }}>{t(supportSetupLabels[setup])}</button>)}</div>
           </details>
           <WorkshopSetups expanded ownerId={ownerId} scene={scene} onApply={next => { update(next, "Apply equipment setup"); setSelection({ kind: "body" }); setPlaying(false); setTimeMs(current.timeMs); }} />
-        </WorkshopToolPanel>
-        <WorkshopToolPanel tool="view" selected={panel} eager><h2 className="text-lg font-semibold">{t("View and muscles")}</h2><div className="flex flex-wrap gap-2"><button type="button" aria-pressed={comparison} disabled={dragging} onClick={() => { setComparison(!comparison); setPlaying(false); }} className={buttonClass}>{comparison ? t("Close comparison") : t("Compare start and finish")}</button><button type="button" aria-expanded={previewOpen} onClick={() => setPreviewOpen(!previewOpen)} className={buttonClass}>{previewOpen ? t("Collapse preview") : t("Show preview")}</button></div><div ref={setViewControlsTarget} /></WorkshopToolPanel>
+        </div></details></WorkshopToolPanel>
+        <WorkshopToolPanel tool="view" selected={panel} eager><h2 className="text-lg font-semibold">{t("View and muscles")}</h2><div className="flex flex-wrap gap-2"><button type="button" aria-pressed={comparison} disabled={dragging} onClick={() => { setComparison(!comparison); setPlaying(false); }} className={buttonClass}>{comparison ? t("Close comparison") : t("Compare start and finish")}</button></div><div ref={setViewControlsTarget} /></WorkshopToolPanel>
         <WorkshopToolPanel tool="timeline" selected={panel}>{object && (!held || isStudioMachine(object.slug)) && object.slug !== "bench" && object.slug !== "squat-rack" && <InspectorSection title={t("Equipment movement")} visible={panel === "timeline"}>          {object && <div className="mt-4 space-y-2 rounded-lg border p-3 text-sm">
             <button type="button" aria-pressed={!!rawObject?.frames?.length} className={buttonClass} onClick={() => {
               const enabled = !rawObject?.frames?.length;
@@ -1179,7 +1167,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
 
           </InspectorSection>}        <section data-tutorial-target="timeline" className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">{t("Timeline")}</h2>
+            <h2 className="text-lg font-semibold">{t("Timeline")}</h2>
             <button type="button" aria-label={t("Add pose")} title={t("Add pose")} onClick={() => addFrame()} disabled={dragging || scene.keyframes.length >= 24} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-primary hover:bg-muted"><Plus size={16} />{t("Add pose")}</button>
           </div>
           <WorkshopNumberField label="Time to finish seconds" min={0.125} max={6} step={0.1} maximumFractionDigits={3} value={scene.durationMs / 2000} disabled={dragging} onChange={seconds => changeDuration(Math.round(seconds * 2000))} />
@@ -1216,9 +1204,18 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
               <label>{t("Duration")}<select value={scene.durationMs} onChange={event => changeDuration(Number(event.target.value))} className="ml-2 rounded border bg-card p-2">{Array.from(new Set([1600, 2400, 3200, 4800, 6400, 8000, scene.durationMs])).sort((a, b) => a - b).map(value => <option key={value} value={value}>{label(value)}</option>)}</select></label>
             </div></details>
           </details>
-        </section></WorkshopToolPanel>
+        </section>
+        {scene.equipment && <section className="rounded-xl border p-3 text-xs"><p className="font-semibold">{equipmentOptions.find(item => item.slug === scene.equipment?.slug)?.label ?? scene.equipment.slug} {t("· demo equipment")}</p><button type="button" onClick={() => update({ ...scene, equipment: null })} className={`${buttonClass} mt-2`}>{t("Remove demo equipment")}</button></section>}
+        <details data-workshop-settings className="border-t border-border pt-3"><summary className="cursor-pointer text-xs font-semibold text-muted-foreground">{t("Advanced settings")}</summary><div className="mt-4 space-y-4">
+
+          <label className="block text-xs font-semibold">{t("Movement setup")}<select value={scene.motionStyle ?? "free"} onChange={event => update({ ...scene, studio: { ...studio, seating: undefined }, motionStyle: event.target.value as WorkshopScene["motionStyle"] })} className={inputClass}>
+            <option value="free">{t("Free posing")}</option><option value="squat">{t("Squat — feet planted")}</option><option value="hinge">{t("Hip hinge — feet planted")}</option><option value="row">{t("Bent-over row")}</option><option value="split-squat">{t("Stationary lunge")}</option><option value="bench-press">{t("Incline bench press")}</option><option value="seated-curl">{t("Seated biceps curl")}</option><option value="incline-curl">{t("Incline dumbbell curl")}</option>
+          </select></label>
+          <AnnotationFields annotations={scene.annotations ?? []} durationMs={scene.durationMs} actions={jointActions} onChange={annotations => update({ ...scene, annotations })} />
+        </div></details>
+        </WorkshopToolPanel>
         <WorkshopToolPanel tool="pose" selected={panel}>
-          <div className="space-y-2"><p className="text-sm leading-6 text-muted-foreground">{t("Choose a body joint below, or select it directly in the scene, to bend or turn it. Use Hands & feet to reposition a limb.")}</p></div>
+          <div className="space-y-2"><p className="text-sm leading-6 text-muted-foreground">{t("Choose a body joint below, or select it directly in the scene, to bend or turn it. Use Hands and feet to reposition a limb.")}</p></div>
           <WorkshopJointPicker compact selected={selectedJoint} bothSides={bothSides} onBothSidesChange={setBothSides} onSelect={slug => selectObject({ kind: "joint", slug })} />
           <InspectorSection title={t("Movement")} visible={panel === "pose" && !!selectedJoint}>          {selectedJoint ? <WorkshopJointValues active={panel === "pose"} scene={scene} playback={playback} sampler={inspectorSampler} joint={selectedJoint} initial={jointAngles}>{jointAngles => <div className="mt-3 space-y-3">
             {jointBlocked && <p className="text-xs text-muted-foreground">{t("Move the held weight, or release it to use these joint controls.")}</p>}
@@ -1233,7 +1230,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
               const value = jointControlValue(selectedJoint, axis, jointAngles[axis]);
               const changeAngle = (value: number) => setPose(selectedJoint, { ...jointAngles, [axis]: jointControlValue(selectedJoint, axis, clamp(value, ...range)) }, axis);
               const action = isWrist ? axis === "x" ? "Palm turn" : axis === "y" ? "Wrist bend" : "Wrist tilt" : isAnkle ? axis === "x" ? "Toes up / down" : axis === "y" ? "Foot turn" : "Foot tilt" : axis === "x" ? "Bend" : axis === "y" ? "Turn" : "Side to side";
-              return <fieldset key={`${selectedJoint}-${axis}`} className="space-y-2"><legend className="text-base font-semibold">{action}</legend><WorkshopGestureRange gesture={gesture} aria-label={t(`${action} ${jointControlName} degrees`)} disabled={jointBlocked} min={range[0]} max={range[1]} value={value} onChange={event => changeAngle(Number(event.target.value))} className="w-full accent-primary disabled:opacity-40" /><WorkshopNumberField label={t(`${action} ${jointControlName} degrees`)} disabled={jointBlocked} min={range[0]} max={range[1]} maximumFractionDigits={2} value={value} onChange={changeAngle} /></fieldset>;
+              return <fieldset key={`${selectedJoint}-${axis}`} className="space-y-2"><legend className="text-base font-semibold">{action}</legend><WorkshopGestureRange gesture={gesture} aria-label={t(`${action} ${jointControlName} degrees`)} disabled={jointBlocked} min={range[0]} max={range[1]} value={value} onChange={event => changeAngle(Number(event.target.value))} className="w-full accent-primary disabled:opacity-40" /><WorkshopNumberField label={t(`${action} ${jointControlName} degrees`)} visibleLabel="Degrees" disabled={jointBlocked} min={range[0]} max={range[1]} maximumFractionDigits={1} value={value} onChange={changeAngle} /></fieldset>;
             })}
             <button type="button" disabled={jointBlocked} onClick={() => setPose(selectedJoint, { x: 0, y: 0, z: 0 })} className={buttonClass}>{t("Reset joint")}</button>
             <p className="text-xs text-muted-foreground">{isWrist ? t("Turn the palm, bend the wrist, or tilt it sideways.") : isKnee ? t("0° is straight. Positive bends the knee backward; extension is limited to 5°.") : isAnkle ? t("Raise or point the toes, turn the foot, or tilt it sideways.") : t("Drag a rotation ring, or use these sliders.")}</p>
@@ -1252,13 +1249,13 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
           </WorkshopDisclosure>
         </WorkshopToolPanel>
         <section hidden={!["placement", "contact"].includes(panel)} aria-label={t("Selected item")} data-grip-reachable={object && gripReach[object.id] === false ? "false" : "true"}>
-          <h2 className="text-base font-semibold">{selectedJoint ? jointNames[selectedJoint] : object ? <span data-workshop-translate="false">{objectLabel(object)}</span> : t("Anatomical figure")}</h2>
+          <h2 className="text-lg font-semibold">{selectedJoint ? jointNames[selectedJoint] : object ? <span data-workshop-translate="false">{objectLabel(object)}</span> : t("Anatomical figure")}</h2>
           <WorkshopToolPanel tool="contact" selected={panel}>{cableControls}{(!object || object.slug === "bench") && benchControls}{seatingControls}
           {!object && <WorkshopSupportControls region={supportRegion} contact={selectedSupport} picking={!!supportEdit?.picking} adjusting={!!supportEdit?.adjusting} repositioning={supportRepositioning}
             error={supportError ?? (supportReports.some(report => report.region === supportRegion && !report.reachable) ? "This support is beyond reach. Reposition the body or move the contact closer." : supportReports.some(report => report.region === supportRegion && report.orientationLimited) ? "Contact angle is limited. Adjust the contact orientation or nearby joints." : undefined)}
             onRegionChange={region => { cancelSupportEdit(); setSupportRegion(region); }}
-            onPick={() => { setPlaying(false); setGripEdit(null); enterEditor({ mode: "select" }); setSupportError(undefined); setSupportEdit({ region: supportRegion, picking: true, adjusting: false }); setMobileEditing(false); }}
-            onAdjust={() => { setPlaying(false); enterEditor({ mode: "select" }); setSupportEdit({ region: supportRegion, picking: false, adjusting: true }); setMobileEditing(false); }}
+            onPick={() => { setPlaying(false); setGripEdit(null); enterEditor({ mode: "select" }); setSupportError(undefined); setSupportEdit({ region: supportRegion, picking: true, adjusting: false }); }}
+            onAdjust={() => { setPlaying(false); enterEditor({ mode: "select" }); setSupportEdit({ region: supportRegion, picking: false, adjusting: true }); }}
             onChange={contact => placeSupport(contact, true)} onRelease={releaseSupport} onReposition={repositionForSupports}
             onConfirmReposition={() => { endDrag(); setSupportRepositioning(false); }} onCancel={cancelSupportEdit} />}
           {object?.slug === "cable-row-machine" && <section className="space-y-2 rounded-xl border p-3"><p className="text-sm">{t("Seated row links the seat, feet and handle. Free cable movement lets you pose the whole body.")}</p><button type="button" onClick={freeCable} className={buttonClass}>{t("Free cable movement")}</button></section>}
@@ -1308,7 +1305,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
           </div>}
           {weightGripControls}
           {canHold && !["cable-machine", "cable-row-machine"].includes(object.slug) && <div className="mt-4 rounded-xl bg-primary/5 p-3">
-            {!weight && <><WorkshopGuidance className="mb-2 text-sm">{t("Holding or attaching replaces contacts in the chosen hand and clears their elbow locks. An engaged machine is released. One Undo restores the scene.")}</WorkshopGuidance><h3 className="text-sm font-semibold">{t(isStudioMachine(object.slug) ? "Hold this equipment" : "Hold this weight")}</h3>
+            {!weight && <><WorkshopGuidance className="mb-2 text-sm">{t("Holding or attaching replaces contacts in the chosen hand and clears their elbow locks. An engaged machine is released. One Undo restores the scene.")}</WorkshopGuidance><h3 className="text-base font-semibold">{t(isStudioMachine(object.slug) ? "Hold this equipment" : "Hold this weight")}</h3>
             <div className="mt-2 flex flex-wrap gap-2">{(["left", "right", ...(canHoldBoth ? ["both"] : [])] as ("left" | "right" | "both")[]).map(hand => <button key={hand} type="button" aria-pressed={object.attachment === hand} onClick={() => holdObject(hand)} className={`${buttonClass} ${object.attachment === hand ? "bg-primary text-primary-foreground" : "bg-card"}`}>{`Hold with ${hand === "both" ? "both hands" : `${hand} hand`}`}</button>)}</div></>}
             {held && <><p className="mt-3 flex items-center gap-1 text-xs font-semibold"><Check size={13} />{object.attachment === "both" ? t("Held with both hands") : `Held with ${object.attachment} hand`}</p>
               <p className="mt-1 text-xs text-muted-foreground">{t(isStudioMachine(object.slug) ? "Hands follow the machine grips. Body placement and supports stay editable." : "Joint edits keep the weight in the hand. Drag the weight to pose the arm.")}</p>
@@ -1368,18 +1365,9 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
 </WorkshopToolPanel>
 
         </section>
-        <WorkshopToolPanel tool="settings" selected={panel}>
-        {scene.equipment && <section className="rounded-xl border p-3 text-xs"><p className="font-semibold">{equipmentOptions.find(item => item.slug === scene.equipment?.slug)?.label ?? scene.equipment.slug} {t("· demo equipment")}</p><button type="button" onClick={() => update({ ...scene, equipment: null })} className={`${buttonClass} mt-2`}>{t("Remove demo equipment")}</button></section>}
-        <details name="workshop-dropdown" className="border-t border-border pt-3"><summary className="cursor-pointer text-xs font-semibold text-muted-foreground">{t("Advanced settings")}</summary><div className="mt-4 space-y-4">
-
-          <label className="block text-xs font-semibold">{t("Movement setup")}<select value={scene.motionStyle ?? "free"} onChange={event => update({ ...scene, studio: { ...studio, seating: undefined }, motionStyle: event.target.value as WorkshopScene["motionStyle"] })} className={inputClass}>
-            <option value="free">{t("Free posing")}</option><option value="squat">{t("Squat — feet planted")}</option><option value="hinge">{t("Hip hinge — feet planted")}</option><option value="row">{t("Bent-over row")}</option><option value="split-squat">{t("Stationary lunge")}</option><option value="bench-press">{t("Incline bench press")}</option><option value="seated-curl">{t("Seated biceps curl")}</option><option value="incline-curl">{t("Incline dumbbell curl")}</option>
-          </select></label>
-          <AnnotationFields annotations={scene.annotations ?? []} durationMs={scene.durationMs} actions={jointActions} onChange={annotations => update({ ...scene, annotations })} />
-        </div></details></WorkshopToolPanel>
       </aside></div>
     </div>
     <div inert={moreOpen} className="shrink-0">{playbackControls}</div>
     {(status || tutorial.open) && <div className={status?.startsWith("Removed") || tutorial.open ? "flex shrink-0 flex-wrap items-center justify-between gap-2 border-t px-4 py-2 text-sm text-muted-foreground" : "sr-only"}>{status && <p role="status">{t(status)}</p>}{status?.startsWith("Removed") && <button type="button" onClick={undo} disabled={!past.length} className={buttonClass}>{t("Undo removal")}</button>}{tutorial.open && <span>{t("Camera looks around · Edit changes the scene")}</span>}</div>}
-  {tutorial.open && <WorkshopTutorial root={workshopRoot} step={tutorial.step} onStep={index => { setPreviewOpen(true); setFocusMode(false); tutorial.update({ open: true, step: index }); }} onClose={closeTutorial} />}</div></>)}</WorkshopCommitMetrics></WorkshopGuidanceProvider></WorkshopLanguageProvider>;
+  {tutorial.open && <WorkshopTutorial root={workshopRoot} step={tutorial.step} onStep={index => { setFocusMode(false); tutorial.update({ open: true, step: index }); }} onClose={closeTutorial} />}</div></>)}</WorkshopCommitMetrics></WorkshopGuidanceProvider></WorkshopLanguageProvider>;
 }

@@ -1,3 +1,4 @@
+import { selectWorkshopPose } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -70,7 +71,7 @@ test("tutorial keeps editing usable and a first exercise saves without WebGL", a
     await expect(tutorial).toHaveCount(0);
     await expect(page.getByText("3D preview needs WebGL.", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Capture start", exact: true }).click();
-    await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
+    await selectWorkshopPose(page, 1);
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await page.getByLabel("Exercise name", { exact: true }).fill("No graphics exercise");
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
@@ -92,8 +93,7 @@ test("tutorial keeps editing usable and a first exercise saves without WebGL", a
     // Reload directly into a scroll-locked workshop, then leave through client navigation.
     await page.reload();
     await expect(page.getByText("3D preview needs WebGL.", { exact: true })).toBeVisible();
-    await page.locator("[data-workshop-menu] > summary").click();
-    await page.getByRole("link", { name: "Exercise details", exact: true }).click();
+    await page.getByRole("link", { name: "Add details", exact: true }).click();
     await expect(page).toHaveURL(/\/my-exercises\/[^/]+\/edit/);
     await expect(page.getByRole("heading", { name: "Edit exercise", exact: true })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

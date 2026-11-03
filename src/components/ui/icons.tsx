@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 import {
   faArrowDown, faArrowLeft, faArrowRight, faArrowUp, faArrowUpRightFromSquare,
-  faArrowsRotate, faArrowsUpDownLeftRight, faBookOpen, faBox, faCheck,
+  faArrowsUpDownLeftRight, faCameraRotate, faBookOpen, faBox, faCheck,
   faChevronDown, faDumbbell, faExpand, faHand, faHeart, faMagnifyingGlass,
   faMagnifyingGlassMinus, faMagnifyingGlassPlus, faMinimize, faPause, faPlay,
   faPlus, faRotate, faRotateLeft, faRotateRight, faSave, faShieldHalved,
@@ -43,7 +43,7 @@ export const Menu = createIcon(faBars);
 export const Minimize = createIcon(faMinimize);
 export const Move = createIcon(faArrowsUpDownLeftRight);
 export const Move3D = Move;
-export const Orbit = createIcon(faArrowsRotate);
+export const Orbit = createIcon(faCameraRotate);
 export const Pause = createIcon(faPause);
 export const Play = createIcon(faPlay);
 export const Plus = createIcon(faPlus);

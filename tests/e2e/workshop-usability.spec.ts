@@ -35,7 +35,7 @@ test("pose controls stay focused, show concise angles, and save faster repetitio
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopJoint(page, "Left elbow");
     const angle = page.getByRole("textbox", { name: "Bend Left elbow degrees", exact: true });
-    await expect(angle).toHaveValue("23.35");
+    await expect(angle).toHaveValue("23.4");
     await angle.focus();
     await angle.press("Tab");
     const canvas = (await page.locator("canvas").boundingBox())!;

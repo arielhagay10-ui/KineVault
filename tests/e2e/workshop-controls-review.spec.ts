@@ -1,3 +1,4 @@
+import { currentWorkshopPose } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -119,7 +120,7 @@ test("workshop equipment, paired joints, title, palm controls and joint limits a
     await openWorkshopTool(page, "Pose"); await joints.selectOption("wrist");
     await selectWorkshopMoment(page, "Finish");
     await page.getByRole("button", { name: "Palm up", exact: true }).click();
-    await expect(page.locator("[data-pose-save-state]")).toContainText("Finish");
+    await expect(currentWorkshopPose(page)).toHaveAttribute("aria-label", /^Finish pose · /);
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 20_000 });
     const savedDraft = await owner.from("private_exercises").select("content_id").eq("id", animatedDraft.data).single();

@@ -37,8 +37,6 @@ test("placement warnings overlay the preview without resizing it and lead to the
       await openWorkshopTool(page, "Position");
       const x = page.getByLabel("Position X meters", { exact: true });
       await x.fill("0"); await x.press("Enter");
-      const preview = page.getByRole("button", { name: "Preview", exact: true });
-      if (await preview.isVisible()) await preview.click();
       const warning = page.locator("[data-workshop-placement-warning]");
       await expect(warning).toBeVisible();
       const canvas = page.locator("canvas");
@@ -64,7 +62,6 @@ test("placement warnings overlay the preview without resizing it and lead to the
       await expect(warning).not.toHaveAttribute("open", "");
       await openWorkshopTool(page, "Position");
       await x.fill("3"); await x.press("Enter");
-      if (await preview.isVisible()) await preview.click();
       await expect(warning).toBeHidden();
       expect(await measure()).toEqual(before);
     }

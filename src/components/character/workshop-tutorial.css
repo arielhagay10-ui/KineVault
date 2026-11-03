@@ -18,10 +18,12 @@
 }
 
 @media (min-width: 1024px) {
+  /* The desktop card floats over the preview: tall enough for every step's tips, one height so it never jumps. */
   .workshop-tutorial-card {
     top: var(--tutorial-card-top, 12px);
     left: var(--tutorial-card-left, calc(50% - 11rem));
     width: var(--tutorial-card-width, 22rem);
+    height: min(26rem, calc(100dvh - 24px));
     transform: none;
   }
 }
@@ -30,11 +32,6 @@
   [data-workshop][data-tutorial-open="true"] {
     bottom: auto;
     height: calc(100dvh - var(--tutorial-panel-height) - 24px);
-  }
-
-  [data-workshop][data-tutorial-open="true"] [data-workshop-preview] {
-    height: 34dvh;
-    min-height: 320px;
   }
 
   .workshop-tutorial-card {

@@ -38,9 +38,9 @@ test("T-bar picker, default row, playback and private save survive reload", asyn
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page).toHaveURL(/\/my-exercises\/[0-9a-f-]+\/workshop$/, { timeout: 60_000 });
     await expect(page.getByText(/Saved privately|Saved at.*Private/)).toBeVisible();
-    const before = await page.getByText(/^Preview time /).innerText();
+    const before = await page.getByLabel("Preview time", { exact: true }).inputValue();
     await page.getByRole("button", { name: "Play", exact: true }).click();
-    await expect.poll(() => page.getByText(/^Preview time /).innerText()).not.toBe(before);
+    await expect.poll(() => page.getByLabel("Preview time", { exact: true }).inputValue()).not.toBe(before);
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     await page.reload();
     await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible({ timeout: 60_000 });

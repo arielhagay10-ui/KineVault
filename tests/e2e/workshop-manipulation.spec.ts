@@ -11,9 +11,13 @@ test("one editor selects safely and constrains nudges with Undo and saved placem
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(page.getByRole("button", { name: /^(Quick create|Advanced editing)$/, includeHidden: true })).toHaveCount(0);
-  for (const name of ["Item settings", "Position", "Contacts", "Pose", "Timeline", "View", "Setups", "Settings"]) {
+  for (const name of ["Item settings", "Position", "Contacts", "Pose", "Timeline", "View"]) {
     await openWorkshopTool(page, name);
     await expect(page.getByRole("tab", { name, exact: true, includeHidden: true })).toHaveAttribute("aria-selected", "true");
+  }
+  for (const [name, section] of [["Setups", "[data-workshop-setups]"], ["Settings", "[data-workshop-settings]"]]) {
+    await openWorkshopTool(page, name);
+    await expect(page.locator(section)).toHaveAttribute("open", "");
   }
   await openWorkshopTool(page, "Item settings");
   await page.getByRole("button", { name: "Select", exact: true }).click();

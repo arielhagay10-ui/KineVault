@@ -1,3 +1,4 @@
+import { currentWorkshopPose } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { expect } from "@playwright/test";
 import { test } from "../readiness/workshop.fixture";
@@ -50,12 +51,10 @@ test("recovery actions, equipment entry and capture state stay visible without e
   await expect(view).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tab", { name: "Item settings", exact: true })).toBeFocused();
+  // More holds commands only; Setups and Settings are sections of the inspector panels.
   await openWorkshopMenu(page);
-  await page.getByRole("tab", { name: "Setups", exact: true }).focus();
-  await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("tab", { name: "Settings", exact: true })).toBeFocused();
-  await page.keyboard.press("Enter");
-  await expect(page.locator('[data-workshop-panel="settings"]')).toBeFocused();
+  await expect(page.locator("[data-workshop-menu]").getByRole("tab")).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await expect(page.locator("[data-workshop-menu]")).not.toHaveAttribute("open");
   await openWorkshopTool(page, "Item settings");
   const equipment = page.locator('[data-workshop-panel="equipment"]');
@@ -64,8 +63,7 @@ test("recovery actions, equipment entry and capture state stay visible without e
   await expect(page.getByRole("dialog", { name: "Choose equipment", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByText("Dismiss steps", { exact: true })).toHaveCount(0);
-  const poses = page.getByRole("combobox", { name: "Editing pose", exact: true });
-  await expect(poses.locator("option:checked")).toContainText("Pose captured");
+  await expect(currentWorkshopPose(page)).toHaveAttribute("aria-label", /· captured$/);
   await expect(page.getByRole("button", { name: "Capture start", exact: true })).toBeVisible();
   await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption("body");
   await page.getByRole("toolbar", { name: "Movement tools", exact: true }).getByRole("button", { name: "Move", exact: true }).click();
@@ -100,7 +98,7 @@ test("recovery actions, equipment entry and capture state stay visible without e
   await dismissWorkshopTutorial(page);
   await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
   await page.evaluate(() => document.documentElement.classList.add("dark"));
-  await expect(page.getByRole("combobox", { name: "Editing pose", exact: true }).locator("option:checked")).toContainText("Pose not captured");
+  await expect(currentWorkshopPose(page)).toHaveAttribute("aria-label", /· not captured yet$/);
   await expect(page.getByRole("button", { name: "Capture start", exact: true })).toBeEnabled();
   await page.screenshot({ path: `${folder}/desktop-new.png` });
   await openWorkshopMenu(page);

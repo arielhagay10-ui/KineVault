@@ -62,22 +62,19 @@ export async function expectRowTravel(page: Page, value: string) {
   await expect(page.getByLabel("Row pull percent", { exact: true })).toHaveValue(value);
 }
 
+/** Setups lives in Item settings and Settings in Timeline; both open as collapsible sections. */
 export async function openWorkshopTool(page: Page, name: string) {
   await page.getByRole("region", { name: "Workshop editor", exact: true }).waitFor({ state: "visible" });
-  const edit = page.getByRole("button", { name: "Edit controls", exact: true });
-  if (await edit.isVisible()) await edit.click();
   const menu = page.locator("[data-workshop-menu]");
   if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator(":scope > summary").click();
-  if (["Setups", "Settings"].includes(name)) await openWorkshopMenu(page);
-  const tab = page.getByRole("tab", { name, exact: true, includeHidden: true });
+  const tabName = name === "Setups" ? "Item settings" : name === "Settings" ? "Timeline" : name;
+  const tab = page.getByRole("tab", { name: tabName, exact: true, includeHidden: true });
   await tab.click();
   await expect(tab).toHaveAttribute("aria-selected", "true");
   if (name === "Position") await expandWorkshopControls(page, "Precise placement");
   if (name === "Timeline") await expandWorkshopControls(page, "Advanced pose actions");
-  if (name === "Settings") {
-    const details = page.locator('[data-workshop-panel="settings"] details');
-    if (!await details.evaluate(element => (element as HTMLDetailsElement).open)) await details.locator("summary").click();
-  }
+  const section = name === "Setups" ? page.locator("[data-workshop-setups]") : name === "Settings" ? page.locator("[data-workshop-settings]") : null;
+  if (section && !await section.evaluate(element => (element as HTMLDetailsElement).open)) await section.locator(":scope > summary").click();
 }
 
 export async function expandWorkshopControls(page: Page, name: string) {
@@ -105,11 +102,18 @@ export async function selectWorkshopObject(page: Page, name: string) {
   await select.selectOption((await option.getAttribute("value"))!);
 }
 
+/** The timeline's pose markers, in time order. */
+export const workshopPoses = (page: Page) => page.getByRole("group", { name: "Poses", exact: true }).getByRole("button");
+export const workshopPose = (page: Page, index: number) => page.getByRole("group", { name: "Poses", exact: true }).locator(`[data-pose-index="${index}"]`);
+
+export const currentWorkshopPose = (page: Page) => page.getByRole("group", { name: "Poses", exact: true }).locator('[aria-pressed="true"]');
+
+export async function selectWorkshopPose(page: Page, index: number | string) {
+  await workshopPose(page, Number(index)).click();
+}
+
 export async function selectWorkshopMoment(page: Page, moment: "Start" | "Finish" | "Return") {
-  const poses = page.getByRole("combobox", { name: "Editing pose", exact: true });
-  const value = await poses.locator("option").filter({ hasText: new RegExp(`^${moment}(?: ·|$)`) }).getAttribute("value");
-  if (value === null) throw new Error(`Missing ${moment} pose`);
-  await poses.selectOption(value);
+  await page.getByRole("group", { name: "Poses", exact: true }).getByRole("button", { name: new RegExp(`^${moment} pose · `) }).click();
 }
 
 export async function selectWorkshopJoint(page: Page, name: string) {
