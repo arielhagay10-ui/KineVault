@@ -62,7 +62,7 @@
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^26.6.5",
+    "@types/node": "^24.19.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
@@ -73,7 +73,7 @@
     "shadcn": "^4.22.1",
     "supabase": "^2.122.0",
     "tailwindcss": "^4",
-    "typescript": "^7",
+    "typescript": "^5",
     "vitest": "^5.0.5"
   }
 }
