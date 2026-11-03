@@ -1,3 +1,4 @@
+import { selectWorkshopPose } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -49,7 +50,7 @@ test("plate row adjusts seat, grips and individual arms without losing seating o
       for (const view of ["Three-quarter", "Side"]) {
         await page.getByRole("button", { name: view, exact: true }).click();
         for (let index = 0; index <= 16; index += 2) {
-          await page.getByRole("combobox", { name: "Editing pose", exact: true }).selectOption(String(index));
+          await selectWorkshopPose(page, String(index));
           await page.screenshot({ path: `.local-artifacts/plate-row/${grip}-${view}-${index}.png` });
         }
       }
@@ -80,10 +81,10 @@ test("plate row adjusts seat, grips and individual arms without losing seating o
     await page.getByLabel("Left lever pull percent", { exact: true }).press("Enter");
     await page.getByLabel("Right lever pull percent", { exact: true }).fill("40");
     await page.getByLabel("Right lever pull percent", { exact: true }).press("Enter");
-    const beforePlayback = await page.getByText(/^Preview time /).innerText();
+    const beforePlayback = await page.getByLabel("Preview time", { exact: true }).inputValue();
     await page.getByRole("button", { name: "Play", exact: true }).click();
     await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
-    await expect.poll(() => page.getByText(/^Preview time /).innerText()).not.toBe(beforePlayback);
+    await expect.poll(() => page.getByLabel("Preview time", { exact: true }).inputValue()).not.toBe(beforePlayback);
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
     await expect(page.getByText(/Saved at.*Private/)).toBeVisible();

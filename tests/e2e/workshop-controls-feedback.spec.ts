@@ -1,3 +1,4 @@
+import { selectWorkshopPose } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { randomUUID } from "node:crypto";
@@ -101,7 +102,7 @@ test("exclusive menus, joint reset, right-drag camera and held cable placement s
     await page.getByRole("checkbox", { name: "Apply to all poses", exact: true }).check();
     await page.getByRole("button", { name: "Reset all joints", exact: true }).click();
     for (const index of ["0", "1", "2"]) {
-      await page.getByLabel("Editing pose", { exact: true }).selectOption(index);
+      await selectWorkshopPose(page, index);
       await expect(elbow).toHaveValue("0");
     }
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();

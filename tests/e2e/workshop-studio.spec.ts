@@ -494,7 +494,6 @@ test("support controls, explicit animation and presentation survive saving witho
     await jointField(page, "x").fill("80");
     await expect(jointField(page, "x")).toHaveValue("80");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
     await canvas.scrollIntoViewIfNeeded();
     await expect(canvas).toBeInViewport({ ratio: 1 });
     const mobileBounds = (await canvas.boundingBox())!;

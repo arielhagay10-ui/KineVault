@@ -539,9 +539,9 @@ Back link / exercise name / one-line instruction
   background fill; numeric joint fields are 64px wide.
 - Desktop: flexible preview + 280px control column; preview padding 12px;
   control column padding 16px and left divider.
-- Desktop keeps the preview visible while controls scroll independently. Mobile scrolls the preview and controls together so playback and focused fields remain accessible.
-- Canvas height: mobile `clamp(220px,35dvh,360px)`;
-  desktop `clamp(260px,calc(100dvh - 460px),620px)`.
+- Desktop keeps the preview visible while controls scroll independently. Mobile pins the preview above the controls; the controls scroll beneath it and playback stays in the footer.
+- Mobile preview row, including the movement toolbar: 160px up to `min(42dvh,440px)`; the controls below keep at least 120px.
+  Desktop canvas height: `clamp(260px,calc(100dvh - 460px),620px)`.
 - Controls max-height: mobile `55dvh`; desktop `calc(100dvh - 240px)`.
 - Mobile stacks preview above controls with a top divider.
 - Preview instruction overlay uses card/95, 12px type, and ignores pointer events.

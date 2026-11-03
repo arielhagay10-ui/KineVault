@@ -1,3 +1,4 @@
+import { workshopPose } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { dismissWorkshopTutorial, enableWorkshopFreeDrag, expandWorkshopControls, openWorkshopTool } from "./workshop-menu.helpers";
@@ -67,10 +68,10 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
     await expect(page.getByRole("button", { name: "Stop using machine", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Redo", exact: true }).first().click();
     await selectWorkshopMoment(page, "Start");
-    await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("0");
+    await expect(workshopPose(page, 0)).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "Capture start", exact: true }).click();
     await selectWorkshopMoment(page, "Finish");
-    await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("1");
+    await expect(workshopPose(page, 1)).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
     await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(4);
     await page.getByRole("button", { name: "Front", exact: true }).click();
@@ -85,7 +86,7 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
     await selectWorkshopJoint(page, "Torso");
     await jointField(page, "x").fill("15"); await jointField(page, "x").press("Enter");
     await selectWorkshopMoment(page, "Start");
-    await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("0");
+    await expect(workshopPose(page, 0)).toHaveAttribute("aria-pressed", "true");
     await expect(jointField(page, "x")).toHaveValue("0");
     await selectWorkshopMoment(page, "Finish");
     await expect(jointField(page, "x")).toHaveValue("15");
@@ -126,7 +127,7 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
     await page.getByRole("button", { name: "Play", exact: true }).click(); await page.waitForTimeout(3600);
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     await setWorkshopLanguage(page, "he");
-    await expect(page.getByRole("combobox", { name: "תנוחה בעריכה", exact: true })).toBeVisible();
+    await expect(page.getByRole("group", { name: "תנוחות", exact: true })).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `${folder}/mobile.png`, fullPage: true });
@@ -142,7 +143,7 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
     await selectWorkshopJoint(page, "Left elbow");
     await jointField(page, "x").fill("45"); await jointField(page, "x").press("Enter");
     await selectWorkshopMoment(page, "Finish");
-    await expect(page.getByLabel("Editing pose", { exact: true })).toHaveValue("1");
+    await expect(workshopPose(page, 1)).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByLabel("Preview time", { exact: true })).toHaveValue("1600");
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
     await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(4);

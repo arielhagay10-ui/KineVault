@@ -1,3 +1,5 @@
+import { workshopPoses } from "./workshop-menu.helpers";
+import { selectWorkshopPose } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -56,14 +58,14 @@ for (const mode of ["single", "both", "deep"] as const) test(`${mode} held barbe
     }
     await page.getByLabel("Preview time", { exact: true }).fill("800");
     await jointField(page, "x").fill("60"); await jointField(page, "x").press("Enter"); await expect(jointField(page, "x")).toHaveValue("60");
-    await expect(page.getByLabel("Editing pose", { exact: true }).locator("option")).toHaveCount(4);
+    await expect(workshopPoses(page)).toHaveCount(4);
     await page.screenshot({ path: `${evidence}/joint-controls.png` });
     await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
     await page.reload(); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await selectWorkshopJoint(page, secondJoint);
-    await page.getByLabel("Editing pose", { exact: true }).selectOption("2"); await expect(jointField(page, "x")).toHaveValue(String(peak));
-    await page.getByLabel("Editing pose", { exact: true }).selectOption("1"); await expect(jointField(page, "x")).toHaveValue("60");
-    await page.getByLabel("Editing pose", { exact: true }).selectOption("0"); await selectWorkshopJoint(page, firstJoint);
+    await selectWorkshopPose(page, 2); await expect(jointField(page, "x")).toHaveValue(String(peak));
+    await selectWorkshopPose(page, 1); await expect(jointField(page, "x")).toHaveValue("60");
+    await selectWorkshopPose(page, 0); await selectWorkshopJoint(page, firstJoint);
     expect(Number(await jointField(page, "x").inputValue())).toBeCloseTo(45, 0);
     await openWorkshopTool(page, "Contacts"); await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(weight.id);
     await expect(page.getByRole("combobox", { name: "Selected item", exact: true }).locator("option:checked")).toContainText("Held with both hands");

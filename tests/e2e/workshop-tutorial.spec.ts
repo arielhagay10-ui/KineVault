@@ -60,7 +60,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
         && Math.abs(spotlight.y - controls.y + 5) < 1
         && Math.abs(spotlight.height - controls.height - 10) < 1;
     }).toBe(true);
-    await expect(tutorial).toContainText("or select it directly in the scene");
+    await expect(tutorial).toContainText("or select it in the scene");
     await page.screenshot({ path: ".local-artifacts/workshop/tutorial/desktop-pose.png" });
     await page.getByRole("button", { name: "Capture start", exact: true }).click();
     await selectWorkshopMoment(page, "Finish");

@@ -13,15 +13,14 @@ test("opens a closed disclosure while its toggle ARIA state is stale", async ({ 
   await expect(page.locator("details")).toHaveJSProperty("open", true);
 });
 
-test("waits for the mobile editor before revealing its tools", async ({ page }) => {
+test("waits for the editor before opening its tools", async ({ page }) => {
   page.setDefaultTimeout(1500);
   await page.setContent("<main></main>");
   await page.evaluate(() => {
     setTimeout(() => {
       document.querySelector("main")!.innerHTML = `<section role="region" aria-label="Workshop editor">
-        <button onclick="document.querySelector('[data-tools]').hidden = false">Edit controls</button>
         <details data-workshop-menu><summary>More</summary></details>
-        <div data-tools hidden><button role="tab" aria-selected="false" onclick="this.setAttribute('aria-selected', 'true')">Item settings</button></div>
+        <div><button role="tab" aria-selected="false" onclick="this.setAttribute('aria-selected', 'true')">Item settings</button></div>
       </section>`;
     }, 100);
   });

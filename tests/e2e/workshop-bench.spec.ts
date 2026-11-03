@@ -105,6 +105,8 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
       await controls.getByLabel("Sitting direction").selectOption(facing);
       await expect(controls.getByLabel("Sitting direction")).toHaveValue(facing);
     }
+    // Chest support needs a pad of at least 60 degrees; lower pads exceed the automatic leg-pose limits.
+    await controls.getByRole("button", { name: "Upright", exact: true }).click();
     await controls.getByRole("button", { name: "Chest supported", exact: true }).click();
     await expect(controls.getByRole("button", { name: "Chest supported", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.setViewportSize({ width: 390, height: 844 });

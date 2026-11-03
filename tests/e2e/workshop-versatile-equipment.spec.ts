@@ -51,8 +51,6 @@ test("bands, props and free Smith grips survive edits, history and reload", asyn
     await page.getByRole("button", { name: "Redo", exact: true }).click();
     await expect(page.getByLabel("Band end attachment", { exact: true })).toHaveValue("left-foot");
     await page.setViewportSize({ width: 390, height: 844 });
-    const editControls = page.getByRole("button", { name: "Edit controls", exact: true });
-    if (await editControls.isVisible()) await editControls.click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await selectWorkshopObject(page, "Smith machine");

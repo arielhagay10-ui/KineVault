@@ -7,7 +7,7 @@ import { useWorkshopLanguage } from "./workshop-language";
 export type WorkshopManipulationTool = "camera" | "select" | "move" | "rotate" | "limbs" | "free";
 
 export function WorkshopManipulationControls({
-  active, onTool, plane, onPlane, selectedName, disabled, rotating, canMove = true,
+  active, onTool, plane, onPlane, selectedName, hint, disabled, rotating, canMove = true,
   sensitivity, onSensitivity, snap, onSnap,
 }: {
   active: WorkshopManipulationTool;
@@ -15,6 +15,8 @@ export function WorkshopManipulationControls({
   plane: StudioDragPlane;
   onPlane: (plane: StudioDragPlane) => void;
   selectedName: string | null;
+  /** Mode guidance shown on the selection line, so it never adds a row above the canvas. */
+  hint?: string;
   disabled: boolean;
   rotating: boolean;
   canMove?: boolean;
@@ -24,21 +26,36 @@ export function WorkshopManipulationControls({
   onSnap: (value: boolean) => void;
 }) {
   const { t } = useWorkshopLanguage();
-  const button = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40";
+  const button = "inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40";
   const tools = [
     ["camera", "Camera", Orbit], ["select", "Select", Hand], ["move", "Move", Move3D],
-    ["rotate", "Rotate", Rotate3D], ["limbs", "Hands & feet", UserRound],
+    ["rotate", "Rotate", Rotate3D], ["limbs", "Hands and feet", UserRound],
   ] as const;
   return <div data-tutorial-target="manipulation" className="shrink-0 space-y-2 border-b border-border pb-2">
-    <div role="toolbar" aria-label={t("Movement tools")} className="flex flex-wrap items-center gap-1">
+    <div role="toolbar" aria-label={t("Movement tools")} className="flex items-center gap-1 sm:flex-wrap">
+      {/* Phones scroll tools and Direction in one row; Drag options stays outside so its menu is not clipped. */}
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto sm:flex-wrap sm:overflow-visible">
       {tools.map(([tool, label, Icon]) => <button key={tool} type="button"
         aria-label={t(tool === "limbs" ? "Pose hands and feet" : label)}
         title={t(label)}
         aria-pressed={active === tool} disabled={disabled || tool === "move" && !canMove} onClick={() => onTool(tool)}
-        className={`${button} ${active === tool ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+        className={`${button} shrink-0 ${active === tool ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
         <Icon size={17} aria-hidden="true" className="sm:hidden xl:block" /><span className="hidden sm:inline">{t(label)}</span>
       </button>)}
-      <details name="workshop-dropdown" className="relative ms-auto">
+      {selectedName && !rotating && active !== "camera" && active !== "select" && <label className="flex shrink-0 items-center gap-2 text-sm font-medium sm:ms-auto"><span className="sr-only sm:not-sr-only">{t("Direction")}</span>
+        <select aria-label={t("Movement plane")} value={plane} disabled={disabled} onChange={event => onPlane(event.target.value as StudioDragPlane)}
+          className="min-h-11 max-w-36 rounded-lg border border-border bg-background px-2 text-sm">
+          <optgroup label={t("Planes")}>
+            <option value="view">{t("Across the view")}</option><option value="front">{t("Front plane")}</option>
+            <option value="side">{t("Side plane")}</option><option value="floor">{t("Along the floor")}</option>
+          </optgroup>
+          <optgroup label={t("One direction")}>
+            <option value="x">{t("Left / right")}</option><option value="y">{t("Up / down")}</option><option value="z">{t("Forward / backward")}</option>
+          </optgroup>
+        </select>
+      </label>}
+      </div>
+      <details name="workshop-dropdown" className="relative ms-auto shrink-0">
         <summary aria-label={t("Drag options")} title={t("Drag options")} className={`${button} cursor-pointer list-none text-muted-foreground hover:bg-muted`}><SlidersHorizontal size={17} className="sm:hidden" /><span className="sr-only sm:not-sr-only">{t("Drag options")}</span></summary>
         <div className="absolute end-0 top-full z-30 mt-1 w-64 space-y-2 rounded-xl border border-border bg-card p-3 shadow-lg">
           <button type="button" aria-label={t("Move with mouse")} aria-pressed={active === "free"}
@@ -54,20 +71,10 @@ export function WorkshopManipulationControls({
         </div>
       </details>
     </div>
-    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-1 text-sm">
-      <p className="min-w-0 flex-1 truncate text-muted-foreground">{selectedName ? <><span className="sr-only">{t("Selected:")}</span> <span className="font-semibold text-foreground" data-workshop-translate="false">{selectedName}</span></> : t("Select a joint, the figure or equipment to begin.")}</p>
-      {selectedName && !rotating && active !== "camera" && active !== "select" && <label className="flex items-center gap-2 font-medium"><span className="sr-only sm:not-sr-only">{t("Direction")}</span>
-        <select aria-label={t("Movement plane")} value={plane} disabled={disabled} onChange={event => onPlane(event.target.value as StudioDragPlane)}
-          className="min-h-11 max-w-36 rounded-lg border border-border bg-background px-2 text-sm">
-          <optgroup label={t("Planes")}>
-            <option value="view">{t("Across the view")}</option><option value="front">{t("Front plane")}</option>
-            <option value="side">{t("Side plane")}</option><option value="floor">{t("Along the floor")}</option>
-          </optgroup>
-          <optgroup label={t("One direction")}>
-            <option value="x">{t("Left / right")}</option><option value="y">{t("Up / down")}</option><option value="z">{t("Forward / backward")}</option>
-          </optgroup>
-        </select>
-      </label>}
+    {/* Phones skip this line: the canvas chip and Selected item already name the selection and the next step. */}
+    <div className="hidden min-w-0 flex-wrap items-center justify-between gap-2 px-1 text-sm sm:flex">
+      <p className="min-w-0 truncate text-muted-foreground">{selectedName ? <><span className="sr-only">{t("Selected:")}</span> <span className="font-semibold text-foreground" data-workshop-translate="false">{selectedName}</span></> : t("Select a joint, the figure or equipment to begin.")}</p>
+      {hint && <p className="min-w-0 text-muted-foreground">{hint}</p>}
     </div>
     {active === "camera" && <p className="px-1 text-sm text-muted-foreground">{t("Drag to look around. Choose Select to edit the scene.")}</p>}
   </div>;
@@ -79,7 +86,7 @@ export function WorkshopFineAdjustment({ plane, disabled, canNudge, rotating, ax
   onNudge: (axis: "x" | "y" | "z", direction: number) => void;
 }) {
   const { t } = useWorkshopLanguage();
-  const button = "inline-flex min-h-11 items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40";
+  const button = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40";
   const positions = { x: ["Move left", "Move right"], y: ["Move down", "Move up"], z: ["Move backward", "Move forward"] };
   const rotations = { x: ["Bend less", "Bend more"], y: ["Turn less", "Turn more"], z: ["Tilt less", "Tilt more"] };
   const labels = rotating ? rotations : positions;

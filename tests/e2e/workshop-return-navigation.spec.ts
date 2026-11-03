@@ -35,7 +35,7 @@ test("saved workshop has visible return navigation on desktop, mobile and in foc
     const back = actions.getByRole("link", { name: "My exercises", exact: true });
     await expect(back).toBeVisible();
     await expect(back).toHaveAttribute("href", "/my-exercises");
-    await expect(actions.getByRole("link", { name: "Exercise details", exact: true })).toBeVisible();
+    await expect(actions.getByRole("link", { name: "Add details", exact: true })).toBeVisible();
     mkdirSync(".local-artifacts/workshop/return-navigation", { recursive: true });
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 });

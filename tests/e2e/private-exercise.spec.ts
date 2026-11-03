@@ -1,3 +1,4 @@
+import { selectWorkshopPose } from "./workshop-menu.helpers";
 import { addWorkshopEquipment, dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { expect, test, type BrowserContext } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
@@ -33,7 +34,7 @@ test("an owner can publish a snapshot, keep private edits independent, share and
   await page.goto("/my-exercises/new");
   await dismissWorkshopTutorial(page);
   await page.getByRole("button", { name: "Capture start", exact: true }).click();
-  await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
+  await selectWorkshopPose(page, 1);
   await page.getByRole("button", { name: "Capture pose", exact: true }).click();
   await page.getByLabel("Exercise name", { exact: true }).fill("Private Cable Raise");
   await openWorkshopMenu(page);
@@ -44,7 +45,9 @@ test("an owner can publish a snapshot, keep private edits independent, share and
   await page.getByLabel("Short description").fill("My cable raise variation.");
   await page.getByLabel("Exercise family").selectOption("lateral-raise");
   await page.getByText("Anatomy (optional)", { exact: true }).click();
+  await page.getByText("Edit primary muscles", { exact: true }).click();
   await page.getByRole("group", { name: "Primary muscles" }).getByLabel("Lateral Deltoid").check();
+  await page.getByText("Choose joint actions", { exact: true }).click();
   await page.getByRole("group", { name: "Joint actions" }).getByLabel("Shoulder Abduction", { exact: true }).check();
   await page.getByText("Edit equipment", { exact: true }).click();
   await page.getByRole("group", { name: "Equipment" }).getByLabel("Cable", { exact: true }).check();
@@ -66,7 +69,7 @@ test("an owner can publish a snapshot, keep private edits independent, share and
   await addWorkshopEquipment(page, "Cable machine");
   await page.getByRole("button", { name: "Hold with left hand", exact: true }).click();
   await openWorkshopTool(page, "Timeline");
-  await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
+  await selectWorkshopPose(page, 1);
   await openWorkshopTool(page, "Pose");
   await selectWorkshopJoint(page, "Left shoulder");
   await jointField(page, "z").fill("-80");
@@ -75,7 +78,7 @@ test("an owner can publish a snapshot, keep private edits independent, share and
   await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
   await page.reload();
   await openWorkshopTool(page, "Timeline");
-  await page.getByLabel("Editing pose", { exact: true }).selectOption("1");
+  await selectWorkshopPose(page, 1);
   await openWorkshopTool(page, "Pose");
   await selectWorkshopJoint(page, "Left shoulder");
   await expect(jointField(page, "z")).toHaveValue("-80");

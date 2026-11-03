@@ -13,7 +13,7 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
   const [queue] = useState(() => new DraftSaveQueue(privateId, saveWorkshopScene));
   const [sessionId] = useState(() => crypto.randomUUID());
   const [savedId, setSavedId] = useState(privateId);
-  const [message, setMessage] = useState(privateId ? "Saved privately" : "Your private draft");
+  const [message, setMessage] = useState(privateId ? "Saved privately" : "Not saved yet");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<DraftRecovery | null>(null);

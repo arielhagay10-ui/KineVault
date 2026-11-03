@@ -102,6 +102,7 @@ test("original candidates keep the review path and canonical identity", async ({
     await expect(page.getByRole("button", { name: "Publish exercise", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Submit for review", exact: true })).toBeVisible();
     await page.goto("/my-exercises");
+    await page.getByText("More actions", { exact: true }).click();
     await expect(page.getByRole("link", { name: "Submit for review", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Publish exercise", exact: true })).toHaveCount(0);
   });

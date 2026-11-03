@@ -118,9 +118,7 @@ test("workshop history, inspector, focus, comparison and personal setups", async
     await openWorkshopTool(page, "Setups");
     await expect(page.getByRole("button", { name: "My row setup", exact: true })).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-    await page.getByRole("button", { name: "Edit controls", exact: true }).click();
     await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption({ label: "Cable row" });
     await openWorkshopTool(page, "Timeline");
     await slider.scrollIntoViewIfNeeded();
@@ -129,9 +127,7 @@ test("workshop history, inspector, focus, comparison and personal setups", async
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await openWorkshopTool(page, "View");
     await page.getByRole("button", { name: "Compare start and finish", exact: true }).click();
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(page.getByRole("region", { name: "Finish pose comparison" })).toBeVisible();
-    await page.getByRole("button", { name: "Edit controls", exact: true }).click();
     await page.getByRole("button", { name: "Close comparison", exact: true }).click({ timeout: 10_000 });
     await expect(page.getByRole("region", { name: "Start and finish comparison", includeHidden: true })).toHaveCount(0);
     await page.screenshot({ path: ".local-artifacts/workshop/improvements/mobile.png", fullPage: true });
