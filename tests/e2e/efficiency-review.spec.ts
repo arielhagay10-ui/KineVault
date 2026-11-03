@@ -28,6 +28,7 @@ test("metadata warns only for actual edits and keeps them after cancelled naviga
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto(`/my-exercises/${draft.data}/edit`);
     await page.getByText("Anatomy (optional)", { exact: true }).click();
+    await page.getByText("Edit primary muscles", { exact: true }).click();
     await page.getByRole("group", { name: "Primary muscles", exact: true }).getByRole("searchbox").fill("shoulder");
     await page.getByRole("link", { name: "Open motion workshop" }).click();
     await expect(page).toHaveURL(/\/workshop$/);

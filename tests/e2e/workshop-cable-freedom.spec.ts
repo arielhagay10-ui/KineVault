@@ -48,8 +48,8 @@ test("row attachments, independent handle movement, free deadlift poses and save
       await page.locator("canvas").screenshot({ path: `${folder}/seated-${kind}.png` });
     }
     await cableAttachmentButton(page, "straight-bar").click();
+    // Taking the handle by hand releases the seated machine path.
     await page.getByRole("button", { name: "Hold with both hands", exact: true }).click();
-    await page.getByRole("button", { name: "Stop using machine", exact: true }).click();
     await expect(page.getByRole("button", { name: "Use this machine", exact: true })).toBeVisible();
     await enableWorkshopFreeDrag(page);
     await expect(page.getByRole("button", { name: "Drag cable handle", exact: true })).toBeVisible();

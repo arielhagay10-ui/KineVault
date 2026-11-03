@@ -1102,10 +1102,10 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
             active={interactionMode === "camera" ? "camera" : freeDragging ? "free" : limbPosing ? "limbs" : tool === "select" ? "select" : tool === "rotate" ? "rotate" : "move"}
             onTool={chooseManipulation} plane={dragPlane} onPlane={setDragPlane}
             selectedName={selectedJoint ? t(jointNames[selectedJoint]) : object ? objectLabel(object) : selection?.kind === "body" ? t("Anatomical figure") : null}
+            hint={limbPosing && interactionMode === "edit" ? t(freeDragging ? "Drag a hand or foot using its round button" : "Select a hand or foot, then use arrows. Direction locks movement.") : undefined}
             disabled={dragging || adjusting || !!captureElbow || playing}
             canMove={!selectedJoint || isWrist || isAnkle}
             rotating={tool === "rotate" || !!selectedJoint && !selectedLimb} sensitivity={sensitivity} onSensitivity={changeSensitivity} snap={snap} onSnap={setSnap} />}
-          {limbPosing && interactionMode === "edit" && <p className="shrink-0 px-1 py-0.5 text-sm text-muted-foreground">{t(freeDragging ? "Drag a hand or foot using its round button" : "Select a hand or foot, then use arrows. Direction locks movement.")}</p>}
           {comparison ? <div className="min-h-0 flex-1 overflow-y-auto"><WorkshopComparison scene={scene} /></div> : <MotionCanvas scene={scene} gesture={gesture} timeMs={timeMs} playback={playback} editor={editor} simplifiedControls controlsTarget={viewControlsTarget} interactionMode={interactionMode} onInteractionModeChange={value => { cancelSupportEdit(); dispatchEditor({ type: "choose", tool: value === "edit" ? "move" : "camera" }); }} onMachineReachChange={onMachineReach} onSupportRigReady={onSupportRigReady} onSupportReachChange={onSupportReachChange} fillViewport className="min-h-44 flex-1" canvasOverlay={<>
             <WorkshopPlacementWarning objects={studio.objects} overlapping={overlappingObjects} supports={supportReports} onSupportInspect={region => {
               cancelSupportEdit(); setSupportRegion(region); setSelection({ kind: "body" }); setPanel("contact"); setMobileEditing(true);

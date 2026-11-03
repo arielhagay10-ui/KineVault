@@ -38,8 +38,10 @@ test("optional details keep selected metadata through search and collapse", asyn
   const actions = page.getByRole("group", { name: "Joint actions", exact: true });
   const primary = page.getByRole("group", { name: "Primary muscles", exact: true });
   await expect(primary.getByLabel("Lateral Deltoid", { exact: true })).toBeChecked();
+  await primary.getByText("Edit primary muscles", { exact: true }).click();
   await primary.getByRole("searchbox").fill("shoulders");
   await expect(primary.getByLabel("Lateral Deltoid", { exact: true })).toBeVisible();
+  await actions.getByText("Choose joint actions", { exact: true }).click();
   await actions.getByLabel("Shoulder Abduction role", { exact: true }).selectOption("stabilization");
   await actions.getByRole("searchbox").fill("nothing-matches-123");
   await expect(actions.getByRole("status")).toContainText("No match");
@@ -87,6 +89,7 @@ test("library templates create an independent resumable private draft", async ({
   const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Reusable motion", exact: true }) });
   await card.getByRole("button", { name: "Preview saved motion", exact: true }).click();
   await expect(card.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+  await card.getByText("More actions", { exact: true }).click();
   await card.getByRole("button", { name: "Duplicate / use as template", exact: true }).click();
   await expect(page).toHaveURL(/\/my-exercises\/[0-9a-f-]+\/workshop$/);
   expect(page.url()).not.toContain(source.data!);

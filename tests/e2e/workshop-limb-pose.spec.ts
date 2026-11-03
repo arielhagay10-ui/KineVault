@@ -250,8 +250,10 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
     const machine = await owner.rpc("create_workshop_exercise", { p_scene: pec }); if (machine.error) throw machine.error;
     await page.goto(`/my-exercises/${machine.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Pose hands and feet", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) (hand|foot)$/ })).toHaveCount(0);
-    await expect(page.getByText("Leave the machine to pose hands and feet freely. Move its handles to keep contact.")).toBeVisible();
+    // The pec deck drives the hands only; feet stay free to pose.
+    await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) hand$/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^(Select|Drag) (Left|Right) foot$/ })).toHaveCount(2);
+    await expect(page.getByText("Move the machine's handles or sled to keep this contact, or release it first.")).toBeVisible();
     expect(errors).toEqual([]);
   } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

@@ -1,4 +1,4 @@
-import { openWorkshopDeviceRecovery } from "./workshop-menu.helpers";
+import { openWorkshopDeviceRecovery, openWorkshopMenu } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { dismissWorkshopTutorial } from "./workshop-menu.helpers";
@@ -312,6 +312,7 @@ test("a late save response cannot erase a newer resumed draft", async ({ page, c
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await expect.poll(() => !!release).toBe(true);
     // Client navigation keeps the old component's pending completion in this document.
+    await openWorkshopMenu(page);
     await page.getByRole("link", { name: "Exercise details", exact: true }).click();
     await expect(page).toHaveURL(/\/edit$/, { timeout: 60_000 });
     await page.getByRole("link", { name: "Open motion workshop", exact: true }).click();

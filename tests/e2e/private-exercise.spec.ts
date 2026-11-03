@@ -44,7 +44,9 @@ test("an owner can publish a snapshot, keep private edits independent, share and
   await page.getByLabel("Short description").fill("My cable raise variation.");
   await page.getByLabel("Exercise family").selectOption("lateral-raise");
   await page.getByText("Anatomy (optional)", { exact: true }).click();
+  await page.getByText("Edit primary muscles", { exact: true }).click();
   await page.getByRole("group", { name: "Primary muscles" }).getByLabel("Lateral Deltoid").check();
+  await page.getByText("Choose joint actions", { exact: true }).click();
   await page.getByRole("group", { name: "Joint actions" }).getByLabel("Shoulder Abduction", { exact: true }).check();
   await page.getByText("Edit equipment", { exact: true }).click();
   await page.getByRole("group", { name: "Equipment" }).getByLabel("Cable", { exact: true }).check();

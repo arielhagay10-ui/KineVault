@@ -7,7 +7,7 @@ import { useWorkshopLanguage } from "./workshop-language";
 export type WorkshopManipulationTool = "camera" | "select" | "move" | "rotate" | "limbs" | "free";
 
 export function WorkshopManipulationControls({
-  active, onTool, plane, onPlane, selectedName, disabled, rotating, canMove = true,
+  active, onTool, plane, onPlane, selectedName, hint, disabled, rotating, canMove = true,
   sensitivity, onSensitivity, snap, onSnap,
 }: {
   active: WorkshopManipulationTool;
@@ -15,6 +15,8 @@ export function WorkshopManipulationControls({
   plane: StudioDragPlane;
   onPlane: (plane: StudioDragPlane) => void;
   selectedName: string | null;
+  /** Mode guidance shown on the selection line, so it never adds a row above the canvas. */
+  hint?: string;
   disabled: boolean;
   rotating: boolean;
   canMove?: boolean;
@@ -38,6 +40,18 @@ export function WorkshopManipulationControls({
         className={`${button} ${active === tool ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
         <Icon size={17} aria-hidden="true" className="sm:hidden xl:block" /><span className="hidden sm:inline">{t(label)}</span>
       </button>)}
+      {selectedName && !rotating && active !== "camera" && active !== "select" && <label className="ms-auto flex items-center gap-2 text-sm font-medium"><span className="sr-only sm:not-sr-only">{t("Direction")}</span>
+        <select aria-label={t("Movement plane")} value={plane} disabled={disabled} onChange={event => onPlane(event.target.value as StudioDragPlane)}
+          className="min-h-11 max-w-36 rounded-lg border border-border bg-background px-2 text-sm">
+          <optgroup label={t("Planes")}>
+            <option value="view">{t("Across the view")}</option><option value="front">{t("Front plane")}</option>
+            <option value="side">{t("Side plane")}</option><option value="floor">{t("Along the floor")}</option>
+          </optgroup>
+          <optgroup label={t("One direction")}>
+            <option value="x">{t("Left / right")}</option><option value="y">{t("Up / down")}</option><option value="z">{t("Forward / backward")}</option>
+          </optgroup>
+        </select>
+      </label>}
       <details name="workshop-dropdown" className="relative ms-auto">
         <summary aria-label={t("Drag options")} title={t("Drag options")} className={`${button} cursor-pointer list-none text-muted-foreground hover:bg-muted`}><SlidersHorizontal size={17} className="sm:hidden" /><span className="sr-only sm:not-sr-only">{t("Drag options")}</span></summary>
         <div className="absolute end-0 top-full z-30 mt-1 w-64 space-y-2 rounded-xl border border-border bg-card p-3 shadow-lg">
@@ -55,19 +69,8 @@ export function WorkshopManipulationControls({
       </details>
     </div>
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-1 text-sm">
-      <p className="min-w-0 flex-1 truncate text-muted-foreground">{selectedName ? <><span className="sr-only">{t("Selected:")}</span> <span className="font-semibold text-foreground" data-workshop-translate="false">{selectedName}</span></> : t("Select a joint, the figure or equipment to begin.")}</p>
-      {selectedName && !rotating && active !== "camera" && active !== "select" && <label className="flex items-center gap-2 font-medium"><span className="sr-only sm:not-sr-only">{t("Direction")}</span>
-        <select aria-label={t("Movement plane")} value={plane} disabled={disabled} onChange={event => onPlane(event.target.value as StudioDragPlane)}
-          className="min-h-11 max-w-36 rounded-lg border border-border bg-background px-2 text-sm">
-          <optgroup label={t("Planes")}>
-            <option value="view">{t("Across the view")}</option><option value="front">{t("Front plane")}</option>
-            <option value="side">{t("Side plane")}</option><option value="floor">{t("Along the floor")}</option>
-          </optgroup>
-          <optgroup label={t("One direction")}>
-            <option value="x">{t("Left / right")}</option><option value="y">{t("Up / down")}</option><option value="z">{t("Forward / backward")}</option>
-          </optgroup>
-        </select>
-      </label>}
+      <p className="min-w-0 truncate text-muted-foreground">{selectedName ? <><span className="sr-only">{t("Selected:")}</span> <span className="font-semibold text-foreground" data-workshop-translate="false">{selectedName}</span></> : t("Select a joint, the figure or equipment to begin.")}</p>
+      {hint && <p className="min-w-0 text-muted-foreground">{hint}</p>}
     </div>
     {active === "camera" && <p className="px-1 text-sm text-muted-foreground">{t("Drag to look around. Choose Select to edit the scene.")}</p>}
   </div>;

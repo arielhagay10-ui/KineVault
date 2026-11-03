@@ -105,7 +105,8 @@ test("grip edit excludes fixed supports and covers weights, machines and cable a
     await openWorkshopTool(page, "Contacts");
     for (const object of scene.studio!.objects) {
       await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(object.id);
-      if (object.slug === "bench" || object.slug === "squat-rack") {
+      // Supports and the band have no hand grip to edit.
+      if (["bench", "squat-rack", "stool", "plyo-box", "resistance-band"].includes(object.slug)) {
         await expect(page.getByRole("button", { name: /^Edit (left|right) grip/ })).toHaveCount(0);
         continue;
       }
@@ -127,7 +128,7 @@ test("grip edit excludes fixed supports and covers weights, machines and cable a
     const saved = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
     const layout = saved.data.studio_layout as StudioLayout;
     for (const object of layout.objects) {
-      if (object.slug === "bench" || object.slug === "squat-rack") expect(object.gripOffsets).toBeUndefined();
+      if (["bench", "squat-rack", "stool", "plyo-box", "resistance-band"].includes(object.slug)) expect(object.gripOffsets).toBeUndefined();
       else expect(object.gripOffsets).toEqual(object.id === cable.id ? { left: { x: 0, y: .01, z: 0 } } : { right: { x: .02, y: 0, z: 0 } });
     }
   } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }

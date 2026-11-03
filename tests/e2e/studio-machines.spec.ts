@@ -48,13 +48,20 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       await openWorkshopTool(page, "Position");
       await expect(page.getByText(`The figure follows ${studioAssetNames[slug]}. Select the machine to move it or change travel.`, { exact: true })).toBeVisible();
       await openWorkshopTool(page, "Pose");
-      await selectWorkshopJoint(page, "Torso");
-      await expect(jointField(page, "x")).toBeDisabled();
-      await page.getByRole("button", { name: "Stop using machine to pose freely", exact: true }).click();
+      // Each machine drives only the joints its contact path controls; the rest stay posable.
+      const drivenJoint = { "smith-machine": "Torso", "t-bar-row-machine": "Torso", "leg-press": "Left knee",
+        "lat-pulldown-machine": "Left elbow", "pec-deck": "Left elbow", "cable-row-machine": "Left elbow" }[slug as string];
+      await selectWorkshopJoint(page, drivenJoint ?? "Torso");
+      if (drivenJoint) {
+        await expect(jointField(page, "x")).toBeDisabled();
+        await page.getByRole("button", { name: "Stop using machine to pose freely", exact: true }).click();
+      }
       await expect(jointField(page, "x")).toBeEnabled();
       await selectWorkshopObject(page, studioAssetNames[slug]);
-      await openWorkshopTool(page, "Contacts");
-      await page.getByRole("button", { name: "Use this machine", exact: true }).click();
+      if (drivenJoint) {
+        await openWorkshopTool(page, "Contacts");
+        await page.getByRole("button", { name: "Use this machine", exact: true }).click();
+      }
       await openWorkshopTool(page, "Timeline");
       if (slug === "lat-pulldown-machine") {
         await openWorkshopTool(page, "Contacts");

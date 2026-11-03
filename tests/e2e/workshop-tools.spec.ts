@@ -89,11 +89,12 @@ test("workshop tools are directly accessible without scrolling through unrelated
     const open = async (name: string) => {
       const edit = page.getByRole("button", { name: "Edit controls", exact: true });
       if (await edit.isVisible()) await edit.click();
-      if (["View", "Setups", "Settings"].includes(name)) {
-        const more = tools.locator("details");
-        if (!await more.evaluate(element => (element as HTMLDetailsElement).open)) await more.locator(":scope > summary").click();
-      }
-      const tab = tools.getByRole("tab", { name, exact: true, includeHidden: true }); await expect(tab).toBeInViewport();
+      // Setups and Settings live in the header menu; the other tools are always-visible tabs.
+      const inMenu = ["Setups", "Settings"].includes(name);
+      const menu = page.locator("[data-workshop-menu]");
+      if (inMenu) await openWorkshopMenu(page);
+      else if (await menu.evaluate(element => (element as HTMLDetailsElement).open)) await menu.locator(":scope > summary").click();
+      const tab = (inMenu ? page : tools).getByRole("tab", { name, exact: true, includeHidden: true }); await expect(tab).toBeInViewport();
       await tab.click(); await expect(tab).toHaveAttribute("aria-selected", "true");
     };
     await expect(tools).toBeVisible({ timeout: 5000 });

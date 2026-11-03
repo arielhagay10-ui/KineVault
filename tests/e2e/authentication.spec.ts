@@ -15,9 +15,12 @@ test("password visibility and auth links preserve the original destination", asy
   await page.getByRole("button", { name: "Hide password", exact: true }).click();
   await expect(password).toHaveAttribute("type", "password");
   await page.getByRole("link", { name: "Create an account", exact: true }).click();
+  await expect(page).toHaveURL(/\/sign-up\?/);
   await expect(page.locator('input[name="next"]')).toHaveValue("/exercises?equipment=cable");
-  await page.getByRole("link", { name: "Sign in", exact: true }).click();
+  await page.getByRole("main").getByRole("link", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/sign-in\?/);
   await page.getByRole("link", { name: "Forgot password?", exact: true }).click();
+  await expect(page).toHaveURL(/\/reset-password\?/);
   await expect(page.locator('input[name="next"]')).toHaveValue("/exercises?equipment=cable");
   await page.goto(`/sign-in?next=${encodeURIComponent("/exercises?q=50%25")}`);
   await expect(page.locator('input[name="next"]')).toHaveValue("/exercises?q=50%25");
