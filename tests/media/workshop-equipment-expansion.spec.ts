@@ -47,7 +47,7 @@ for (const slug of ["row-machine", "shoulder-press-machine", "chest-press-machin
     mkdirSync(directory, { recursive: true });
     execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
       `insert into public.render_jobs(id,scene_id,requested_by,status,claim_id,attempt_count,started_at) values ('${jobId}','${saved.data.id}','${account.data.user.id}','running','${randomUUID()}',1,now());`], { stdio: "pipe" });
-    const captured = await run(process.execPath, ["--env-file=.env.local", "--input-type=module", "-e", `
+    const captured = await run(process.execPath, ["--env-file-if-exists=.env.local", "--input-type=module", "-e", `
       import { captureMotion } from './scripts/lib/capture-motion.mjs';
       const [directory, jobId, origin, durationMs] = process.argv.slice(1);
       await captureMotion({ scene: { durationMs: Number(durationMs) }, directory, pageUrl: new URL('/internal/render/' + jobId, origin).href,

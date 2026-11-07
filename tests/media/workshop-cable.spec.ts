@@ -162,7 +162,7 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
       // Private drafts have no submission, so use the worker's shared capture pipeline without claiming queue jobs.
       execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
         `insert into public.render_jobs(id,scene_id,requested_by,status,claim_id,attempt_count,started_at) values ('${jobId}','${renderSceneId}','${account.data.user.id}','running','${randomUUID()}',1,now());`], { stdio: "pipe" });
-      const capture = await run(process.execPath, ["--env-file=.env.local", "--input-type=module", "-e", `
+      const capture = await run(process.execPath, ["--env-file-if-exists=.env.local", "--input-type=module", "-e", `
         import { captureMotion } from './scripts/lib/capture-motion.mjs';
         const [directory, jobId, duration, origin] = process.argv.slice(1);
         await captureMotion({ scene: { durationMs: Number(duration) }, directory,
