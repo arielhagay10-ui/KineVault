@@ -1,6 +1,8 @@
 import { existsSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { buildReviewEmail, deliverResendEmail } from "../src/lib/notifications/email.ts";
+import { deliverMailpitEmail } from "./lib/mailpit.mjs";
+import { localOrigin } from "./lib/operations-validation.mjs";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 const url = process.env.SUPABASE_URL_INTERNAL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -8,7 +10,9 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const apiKey = process.env.RESEND_API_KEY;
 const sender = process.env.NOTIFICATION_EMAIL_FROM;
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-if (!url || !serviceKey || !apiKey || !sender || !siteUrl) throw new Error("Notification worker environment is incomplete");
+// Local rehearsals deliver to the stack's own mail catcher instead of Resend.
+const mailpitUrl = process.env.NOTIFICATION_MAILPIT_URL && localOrigin(process.env.NOTIFICATION_MAILPIT_URL);
+if (!url || !serviceKey || !(apiKey || mailpitUrl) || !sender || !siteUrl) throw new Error("Notification worker environment is incomplete");
 if (new URL(siteUrl).protocol !== "https:" && !["localhost", "127.0.0.1"].includes(new URL(siteUrl).hostname)) throw new Error("Notification links require HTTPS");
 const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
@@ -23,7 +27,8 @@ async function sendOne() {
   });
   const payload = prepared?.[0];
   if (prepareError || !payload?.recipient_email) throw new Error(`Could not prepare notification ${job.delivery_id}`);
-  const result = await deliverResendEmail({ from: payload.sender, to: [payload.recipient_email], subject: payload.subject, text: payload.text_body, html: payload.html_body }, apiKey, job.delivery_id);
+  const message = { from: payload.sender, to: [payload.recipient_email], subject: payload.subject, text: payload.text_body, html: payload.html_body };
+  const result = mailpitUrl ? await deliverMailpitEmail(message, mailpitUrl) : await deliverResendEmail(message, apiKey, job.delivery_id);
   const { error: finishError } = result.success
     ? await supabase.rpc("complete_notification_delivery", { p_delivery_id: job.delivery_id, p_provider_id: result.providerId })
     : await supabase.rpc("fail_notification_delivery", { p_delivery_id: job.delivery_id, p_error_code: result.errorCode, p_retry: result.retry });

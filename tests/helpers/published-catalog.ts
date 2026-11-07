@@ -107,10 +107,14 @@ export async function withPublishedCableRaise(baseURL: string, runChecks: (exerc
     await runChecks({ id: z.uuid().parse(approved.data), name, slug });
   } finally {
     // Retain immutable review history, remove only this fixture from Explore,
-    // and do not leave the fixture account with reviewer privileges.
+    // and do not leave the fixture account with reviewer privileges or unclaimed queue rows.
+    // Matches cleanupLocalFixture, which this helper cannot import under the worker tests' plain Node loader.
     localSql(`update public.exercises set status = 'withdrawn'
       where created_by = '${userId}' and status = 'published';
-      update public.roles set role = 'user' where user_id = '${userId}';`);
+      update public.roles set role = 'user' where user_id = '${userId}';
+      delete from public.render_jobs where requested_by = '${userId}' and status = 'queued';
+      delete from public.notification_deliveries delivery using public.notifications notification
+        where notification.id = delivery.id and notification.user_id = '${userId}' and delivery.status = 'queued';`);
     const remaining = await visitor.from("exercises").select("id").eq("created_by", userId);
     assert.equal(remaining.error, null);
     assert.deepEqual(remaining.data, []);
