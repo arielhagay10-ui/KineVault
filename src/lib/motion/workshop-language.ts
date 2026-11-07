@@ -333,7 +333,7 @@ export const workshopHebrew: Readonly<Record<string, string>> = {
   "Cable position and pulley": "מיקום הכבל והגלגלת",
   "Precise placement": "מיקום מדויק",
   "Drag options": "אפשרויות גרירה",
-  "Save": "שמירה", "Exercise details": "פרטי התרגיל",
+  "Save": "שמירת תרגיל", "Exercise details": "פרטי התרגיל",
   "Drag to rotate the camera. Choose Move to reposition the figure or equipment.": "גררו לסיבוב המצלמה. בחרו הזזה כדי למקם את הדמות או הציוד.",
   "controls contact": "שולט במגע", "controls this arm": "שולט ביד זו",
   "Equipment": "ציוד", "Item settings": "הגדרות פריט", "Add": "הוספה", "Contacts": "מגעים", "Pose": "תנוחה", "Timeline": "ציר זמן", "View": "תצוגה", "Setups": "סידורים", "Settings": "הגדרות",

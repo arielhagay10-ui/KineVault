@@ -94,3 +94,30 @@ Manual rows remain Pending until recorded evidence exists. An automated pass doe
 ## Installed Firefox, 7 October 2026
 
 Playwright's Windows Firefox binary still cannot launch because Windows SideBySide reports a missing `mozglue` assembly. Installed Firefox 157.0.1 runs through Puppeteer's supported WebDriver BiDi protocol: eight catalog/canvas/dialog checks and 14 light/dark axe scans passed, with zero violations and ten incomplete instances retained for manual review. Fixture, draft, browser and profile cleanup were verified. Final-build artifact: `.local-artifacts/firefox-installed/be85be05-3277-4f5a-ac8e-a7c6ef2d81f9/results.json`. Run `npm run test:firefox -- --origin=http://127.0.0.1:3001`; see `firefox-testing.md` for driver isolation and scope. Linux CI still runs the ordinary Playwright Firefox suite. Neither automation certifies physical touch or screen-reader behavior.
+
+## Axe incomplete review, 7 November 2026
+
+Run on a production webpack build at `127.0.0.1:3000` with local Supabase on Linux. `npm run test:readiness` covered Chromium, Firefox and Android touch emulation: 336 axe scans, zero violations, 634 incomplete nodes. WebKit and iPhone touch emulation did not launch on this host (Playwright reports missing `libicu74`, `libxml2` and `libflite`), so this review has no WebKit results. `workshop controls remain named and operable in narrow reflow` fails in all three projects because it waits for the `Editing pose` combobox that commit 8779fcc removed. That test runs no axe scan and was left unchanged.
+
+For each incomplete `color-contrast` node, the review composed the node's background layers up to the first opaque surface. Layers over a canvas, video or image were composed over both black and white, and the lower ratio was kept.
+
+Fixed:
+
+- Placeholders used Tailwind's 50% `currentColor` default, which measured 3.04:1 in the light equipment search. A base `::placeholder` rule now uses `muted-foreground`: 6.27:1 light, 10.04:1 dark.
+- On narrow screens the Hebrew workshop Save button showed "שמירה" but was named "שמירת תרגיל" (a `label-content-name-mismatch` violation on Android). The Hebrew short label now matches the name.
+- Scans run right after a theme switch measured links and buttons mid-transition (1.21–3.88:1 in `dark-media-publication-confirmation`). The audit helper now waits for running CSS transitions before scanning. Settled colors pass.
+
+Justified:
+
+| Rule and reason | Where | Justification |
+| --- | --- | --- |
+| `color-contrast`, overlapped background | Equipment dialog and empty search | Axe cannot resolve the stacking of the native modal dialog. Text sits on the opaque dialog or card surface, measuring at least 6.27:1. Equipment names sit below their in-flow thumbnails, on the card (15.19:1 light, 14.15:1 dark). |
+| `color-contrast`, partially obscured | Classification lists in the admin and review editors, workshop tool panels on Android | Scroll containers clip these elements. They sit on opaque token surfaces, measuring at least 5.76:1. |
+| `color-contrast`, image node | Anatomy credit (`bg-card/90`) and "Drag an arrow to move" (`bg-card/95`) over the WebGL canvas | Worst case over black or white: 6.67:1 for the credit, 14.02:1 for the hint. |
+| `color-contrast`, non-text content | ◐ appearance glyph, −/+ stepper glyphs | Symbols need 3:1 as graphics. They measure at least 8.04:1. |
+| `label-content-name-mismatch`, undetermined | Account/Appearance button (◐ only on narrow screens), −/+ steppers | The visible content is a symbol, not a text label. The names are "Appearance"/"Account" and "Decrease/Increase … by 0.1". |
+| `video-caption` | Exercise detail, submission review and contributor diff videos | Renders are encoded without audio (`-an` in `scripts/lib/capture-motion.mjs`), so captions do not apply. |
+
+Still open: WebKit and iPhone touch emulation results; canvas outlines and handles, which axe cannot measure; and the workshop Save button while saving, whose name stays "Save exercise" while it shows "Saving…" (not scanned). The manual browser, device and screen-reader rows above remain Pending.
+
+Evidence is in `.local-artifacts/readiness/2026-11-07/`: `baseline-chromium.json` (before fixes), `run3-final.json` (after fixes), `run3-incomplete.json`, `run3-measured.json`, and the scripts that produced them.
