@@ -45,6 +45,8 @@ Private links are revocable and require no sign-in. Friends on other devices can
 
 Review updates appear in the account inbox. External emails require a verified sender and provider credentials; keep the email worker stopped until configured. No external review emails have been sent during development.
 
+To check review emails locally, run the worker with `NOTIFICATION_MAILPIT_URL=http://127.0.0.1:15424`. It delivers every queued email to the local inbox instead of Resend and refuses non-loopback URLs.
+
 ## Updates and checks
 
 ```sh
