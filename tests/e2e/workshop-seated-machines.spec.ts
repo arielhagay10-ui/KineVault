@@ -57,7 +57,7 @@ for (const machine of [{ name: "Leg extension", slug: "leg-extension-machine", t
       expect(saved.data.studio_layout.objects[0]).toMatchObject({ slug: machine.slug, machineUse: true });
       expect(saved.data.studio_layout.objects[0].frames).toHaveLength(17);
       await selectWorkshopObject(page, machine.name);
-      await openWorkshopTool(page, "Contacts");
+      await openWorkshopTool(page, "Timeline");
       await expect(page.getByLabel(machine.travel, { exact: true })).toBeVisible();
       expect(errors).toEqual([]);
     } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
