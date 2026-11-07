@@ -17,6 +17,9 @@ export function workshopDemonstrationCaption(object: Pick<StudioObject, "slug" |
     case "t-bar-row-machine": return "Keep the chest on the pad and feet planted; pull the shared T-bar toward the ribs.";
     case "chest-press-machine": return "Press forward and inward; keep the back supported and return with control.";
     case "shoulder-press-machine": return "Press the handles overhead; keep the back supported.";
+    case "leg-extension-machine": return "Straighten both knees against the shin pad; keep the thighs on the seat.";
+    case "lateral-raise-machine": return "Raise both elbows out to shoulder height; keep the back on the pad.";
+    case "leg-curl-machine": return "Curl the heels down and back under the seat; keep the thighs under the pad.";
     default: return "Move through the chosen travel and inspect the intended contacts.";
   }
 }
@@ -31,6 +34,9 @@ const synonyms: Record<string, string[]> = {
   "row-machine": ["plate loaded row", "chest supported row", "lever row"],
   "t-bar-row-machine": ["t bar row", "tbar row", "chest supported t bar row", "incline row"],
   "shoulder-press-machine": ["shoulder press", "overhead press", "military press"],
+  "leg-extension-machine": ["leg extension", "knee extension", "quad extension", "quadriceps machine"],
+  "lateral-raise-machine": ["lateral raise", "machine lateral raise", "side raise", "shoulder raise"],
+  "leg-curl-machine": ["leg curl", "seated leg curl", "hamstring curl", "knee flexion"],
   stool: ["utility seat", "backless seat"], "plyo-box": ["jump box", "plyometric box", "step"],
   "resistance-band": ["elastic band", "resistance bands", "loop band", "power band"],
   bench: ["seat", "incline seat", "flat bench", "incline bench", "weight bench"],
