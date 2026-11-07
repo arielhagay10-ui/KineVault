@@ -8,15 +8,15 @@
 
 ## Tasks
 
-- [ ] Capture desktop/mobile before views, route and equipment inventory, and rendering baseline in `.local-artifacts/visual-pilot/`.
-- [ ] Install official portable Blender in ignored local tools; verify headless scripting and GLB export. Record exact source/version/hash.
-- [ ] Generate machine and page references. Check Figma permissions; use functional local browser prototypes if unavailable.
-- [ ] Generate a rounded, materially differentiated lat-pulldown with separate static structure, moving stack and handle groups at current solver coordinates. Keep cables in the website.
-- [ ] Add manifest validation, independent object instances, lazy loading, disposal and fallback tests. Measure geometry and draw calls. Verify at least 17 motion samples and keyframes.
-- [ ] Implement representative Explore, exercise-detail and workshop layouts. Retain filter URLs, authorization, keyboard controls, responsive layouts, both themes and Hebrew RTL.
-- [ ] Correct outdated Hebrew layout and arm-driven weight guidance without overwriting unrelated documentation.
-- [ ] Verify lint, types, units, isolated database checks, affected browser/media flows, save/reload, actual poster/video output and production build. Record any pre-existing failures separately.
-- [ ] Inspect before/after evidence and working interactions; refresh Graft. Present the concrete review package and wait for feedback before stages 3–4.
+- [x] Capture desktop/mobile before views, route and equipment inventory, and rendering baseline in `.local-artifacts/visual-pilot/`.
+- [x] Install official portable Blender in ignored local tools; verify headless scripting and GLB export. Record exact source/version/hash.
+- [x] Generate machine and page references. Check Figma permissions; use functional local browser prototypes if unavailable.
+- [x] Generate a rounded, materially differentiated lat-pulldown with separate static structure, moving stack and handle groups at current solver coordinates. Keep cables in the website.
+- [x] Add manifest validation, independent object instances, lazy loading, disposal and fallback tests. Measure geometry and draw calls. Verify at least 17 motion samples and keyframes.
+- [x] Implement representative Explore, exercise-detail and workshop layouts. Retain filter URLs, authorization, keyboard controls, responsive layouts, both themes and Hebrew RTL.
+- [x] Correct outdated Hebrew layout and arm-driven weight guidance without overwriting unrelated documentation.
+- [x] Verify lint, types, units, isolated database checks, affected browser/media flows, save/reload, actual poster/video output and production build. Record any pre-existing failures separately.
+- [x] Inspect before/after evidence and working interactions; refresh Graft. Present the concrete review package and wait for feedback before stages 3–4.
 
 ## Execution decisions
 

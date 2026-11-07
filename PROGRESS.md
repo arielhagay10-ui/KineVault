@@ -28,8 +28,7 @@ Earlier local milestone checks below have not all been rerun against the accumul
 ## Content and configuration remaining
 
 - Remaining catalog candidates need complete demonstrations and human content review. The workshop now includes 13 joint controls, adjustable benches, cables, weights, and guided machines; unsupported movements still need appropriate assets and motion.
-- Supinated Lat Pulldown, Frontal Lat Pulldown, Smith Machine Sissy Squat, and 45-Degree Leg Press are editable private drafts in the local contributor account. They are not published or submitted. Other unfinished drafts, including the preacher-curl study, still need review.
-- Before uploading the current code: review the accumulated tracked/untracked changes and model attribution, then create a reviewed commit including required assets and migrations. A Git push does not transfer local draft records or Storage media.
+- As of November 4, 2026 the local catalog has 10 published exercises and 14 candidates waiting for media: Barbell Back Squat, Barbell Bench Press, Barbell Curl, Barbell Romanian Deadlift, Behind-Body Cable Lateral Raise, Conventional Deadlift, Cross-Body Cable Lateral Raise, Lat Pulldown, Leg Extension, Machine Lateral Raise, Overhead Cable Triceps Extension, Pull-Up, Seated Leg Curl and Standing Calf Raise. The earlier private drafts (Supinated and Frontal Lat Pulldown, Smith Machine Sissy Squat, 45-Degree Leg Press, the preacher-curl study) are no longer in the local database.
 - External review emails require a verified sender/API key. Local account updates already work. External email delivery has not been exercised with real provider credentials.
 - If public hosting is requested later: hosted Supabase/app/workers, HTTPS, verified Auth SMTP, backup/restore verification, monitoring, and broader workload/browser checks. Docker/Compose definitions are unverified deployment scaffolding.
 
