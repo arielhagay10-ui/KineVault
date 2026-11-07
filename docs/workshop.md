@@ -30,6 +30,8 @@ Reset seat zeroes the current pelvis offsets and all three torso angles. It pres
 
 Use this machine seats the figure with both hands on the side handles, the knees on the lever axis and the shin roller just above the ankles. Knee extension travel moves the lever from about 88 degrees of knee flexion to 7 degrees; drag the roller or use the travel control. The legs, arms and torso follow the machine, so Pose and Seated position do not edit them.
 
+The seated leg curl uses the same seat and handles. A fixed roller holds the thighs and the lower-leg roller sits behind the ankles. Knee flexion travel curls the legs from about 9 to 88 degrees of knee flexion.
+
 ### Shoulder press
 
 The shoulder press has wide grips for elbows-out pressing and neutral grips for elbows-forward pressing. Both sets share the lever arc. Each arm has independent travel controls and can be dragged separately. The neutral grip uses a visible swivel to retain its orientation without forcing the wrist to follow the lever's full rotation. This swivel is an added design choice for the reference-inspired model, not a mechanism established by the supplied photo.

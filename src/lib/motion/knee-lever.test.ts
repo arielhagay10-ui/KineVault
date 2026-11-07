@@ -11,7 +11,7 @@ import { studioGripOffset } from "./studio-grip";
 import { machineDragValues } from "./workshop-mouse";
 import { limbPoseBlock } from "./limb-pose";
 import { activeSeat } from "./seated-pose";
-import { kneeLever, kneeLeverLever, kneeLeverSlugs } from "./knee-lever";
+import { kneeLever, kneeLeverLever, kneeLeverSlugs, kneeLeverThighPad } from "./knee-lever";
 import { jointLimits } from "./workshop";
 
 const x = new Vector3(1, 0, 0);
@@ -21,7 +21,7 @@ const back = /trapezius|latissimus|rhomboid|infraspinatus|teres|deltoid|gluteus/
 
 describe.each(kneeLeverSlugs)("%s", slug => {
   it("discovers the machine and saves its default repetition", () => {
-    expect(searchWorkshopEquipment(workshopEquipmentOptions(), "leg extension")[0]?.slug).toBe("leg-extension-machine");
+    expect(searchWorkshopEquipment(workshopEquipmentOptions(), slug === "leg-curl-machine" ? "hamstring curl" : "leg extension")[0]?.slug).toBe(slug);
     const scene = createQuickScene(slug);
     expect(workshopSceneSchema.safeParse(JSON.parse(JSON.stringify(scene))).success).toBe(true);
     expect(scene.studio!.objects[0].frames!.length).toBeGreaterThanOrEqual(17);
@@ -78,7 +78,8 @@ describe.each(kneeLeverSlugs)("%s", slug => {
         poseAnatomyRig(rig, {}, true); applyStudioMachine(rig, scene, time);
         rig.root.updateMatrixWorld(true); rig.skeleton.update();
         const inverse = new Quaternion().setFromAxisAngle(x, -lever.angle), point = new Vector3();
-        let roller = Infinity, seat = Infinity, calf = Infinity, pad = Infinity;
+        let roller = Infinity, seat = Infinity, calf = Infinity, pad = Infinity, hold = Infinity;
+        const thighPad = kneeLeverThighPad(slug);
         for (const mesh of rig.meshes) {
           const part = shin.test(mesh.name) ? "shin" : thigh.test(mesh.name) ? "thigh" : back.test(mesh.name) ? "back" : undefined;
           if (!part) continue;
@@ -93,9 +94,10 @@ describe.each(kneeLeverSlugs)("%s", slug => {
               const local = point.clone().sub(lever.pivot).applyQuaternion(inverse);
               roller = Math.min(roller, Math.hypot(local.y - lever.grip.y, local.z - lever.grip.z) - kneeLever.pad.radius);
             }
+            if (thighPad && part === "thigh" && Math.abs(point.x) < kneeLever.pad.width / 2) hold = Math.min(hold, Math.hypot(point.y - thighPad[0], point.z - thighPad[1]) - kneeLever.pad.radius);
             if (Math.abs(point.x) < kneeLever.seat.size[0] / 2 && point.z < seatFront && point.z > seatFront - kneeLever.seat.size[2]) {
               if (part === "thigh") seat = Math.min(seat, point.y - seatTop);
-              else calf = Math.min(calf, Math.max(point.y - seatTop, seatFront - point.z));
+              else calf = Math.min(calf, Math.max(point.y - seatTop, seatTop - kneeLever.seat.size[1] - point.y, point.z - seatFront));
             }
           }
         }
@@ -106,6 +108,10 @@ describe.each(kneeLeverSlugs)("%s", slug => {
         expect(calf, `calf clear of the seat front at ${i}`).toBeGreaterThan(.03);
         expect(pad, `back pad gap at ${i}`).toBeGreaterThan(0);
         expect(pad, `back pad gap at ${i}`).toBeLessThan(.01);
+        if (thighPad) {
+          expect(hold, `thigh pad gap at ${i}`).toBeGreaterThan(0);
+          expect(hold, `thigh pad gap at ${i}`).toBeLessThan(.006);
+        }
       }
     } finally { rig.dispose(); }
   }, 60_000);

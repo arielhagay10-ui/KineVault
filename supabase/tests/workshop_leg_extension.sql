@@ -9,7 +9,7 @@ select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_ex
 select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,machinePositionLeft}', '0.5')), 'shared lever rejects independent leg controls');
 select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,seatOffsetZ}', '0.05')), 'knee axis rejects seat offsets');
 select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,rowGrip}', '"neutral"')), 'row controls remain row-only');
-select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,slug}', '"leg-curl-machine"')), 'unregistered machines remain rejected');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,slug}', '"unknown-machine"')), 'unregistered machines remain rejected');
 select is((select count(*)::integer from public.equipment where slug = 'leg-extension-machine'), 1, 'one normalized equipment record');
 select * from finish();
 rollback;

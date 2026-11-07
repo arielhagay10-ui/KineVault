@@ -22,6 +22,7 @@ export function studioCameraPoints(objects: StudioObject[] | undefined) {
     "pec-deck": { width: 1.3, height: 2.8, depth: [-1.5, 1.05] },
     "t-bar-row-machine": { width: .78, height: 1.62, depth: [-1.12, 1.18] },
     "leg-extension-machine": { width: .62, height: 2.6, depth: [-1.12, 1.45] },
+    "leg-curl-machine": { width: .62, height: 2.6, depth: [-1.12, 1.45] },
   };
   return objects?.flatMap(object => {
     const size = bounds[object.slug];

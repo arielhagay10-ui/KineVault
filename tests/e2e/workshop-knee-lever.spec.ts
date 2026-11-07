@@ -6,7 +6,8 @@ import { addWorkshopEquipment, dismissWorkshopTutorial, openWorkshopTool, select
 
 test.use({ viewport: { width: 1440, height: 1000 }, launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
-for (const machine of [{ name: "Leg extension", slug: "leg-extension-machine", travel: "Knee extension percent" }]) {
+for (const machine of [{ name: "Leg extension", slug: "leg-extension-machine", travel: "Knee extension percent" },
+  { name: "Seated leg curl", slug: "leg-curl-machine", travel: "Knee flexion percent" }]) {
   test(`${machine.name} picker, default repetition, travel and private save survive reload`, async ({ page }) => {
     test.setTimeout(240_000);
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;

@@ -1,4 +1,4 @@
-"""Original seated knee-lever machines: leg extension.
+"""Original seated knee-lever machines: leg extension and seated leg curl.
 
 Metres, workshop Y-up. Shared dimensions come from src/lib/motion/knee-lever.ts.
 The Lever group turns about the seated knee axis; Weights rises with travel.
@@ -85,11 +85,11 @@ def frame():
     eq.tube("Pivot bolt", (.56, py, pz), (.59, py, pz), .025, "chrome", sides=6)
 
 
-def shin_lever(pad_side):
+def shin_lever(machine):
     """Lever arm, range plate and roller pad, modelled at the hanging (0 degree) angle."""
-    pad = knee["pad"]
+    pad = {**knee["pad"], **machine}
     py, pz = knee["pivot"]
-    offset = pad["offset"] * pad_side
+    offset = pad["offset"]
     eq.tube("Lever hub", (.36, 0, 0), (.45, 0, 0), .085, "iron", "Lever", 24)
     eq.tube("Range plate", (.34, 0, 0), (.36, 0, 0), .13, "frame", "Lever", 32)
     eq.beam("Lever arm", (.40, 0, 0), (.40, -pad["along"], offset), .07, parent="Lever")
@@ -101,12 +101,27 @@ def shin_lever(pad_side):
     for x in (-half - .012, half):
         eq.tube("Roller end cap", (x, -pad["along"], offset), (x + .012, -pad["along"], offset), pad["radius"] * .8, "chrome", "Lever", 32)
     eq.groups["Lever"].location = eq.xyz((0, py, pz))
-    eq.groups["Lever"].rotation_euler[0] = math.radians(knee["startDegrees"])
+    eq.groups["Lever"].rotation_euler[0] = math.radians(machine["startDegrees"])
+
+
+def thigh_pad(center):
+    """Fixed roller over the lower thighs, carried from the bearing post."""
+    pad, (py, pz), (ty, tz) = knee["pad"], knee["pivot"], center
+    half = pad["width"] / 2
+    eq.tube("Thigh pad", (-half, ty, tz), (half, ty, tz), pad["radius"], "pad", sides=32)
+    eq.tube("Thigh pad axle", (-half - .03, ty, tz), (.5, ty, tz), .02, "chrome")
+    for x in (-half - .012, half):
+        eq.tube("Thigh pad end cap", (x, ty, tz), (x + .012, ty, tz), pad["radius"] * .8, "chrome", sides=32)
+    eq.beam("Thigh pad arm", (.5, py + .07, pz), (.5, ty, tz), .07)
+    eq.tube("Thigh pad adjuster", (.5, ty + .04, tz), (.5, ty + .1, tz), .022, "accent")
 
 
 def build(name):
+    machine = knee["machines"][name]
     frame()
-    shin_lever(1)
+    shin_lever(machine)
+    if "thighPad" in machine:
+        thigh_pad(machine["thighPad"])
     bpy.ops.wm.save_as_mainfile(filepath=str(eq.EVIDENCE / (name + ".blend")))
     eq.export(name)
     (eq.EVIDENCE / (name + "-export.json")).write_text(json.dumps(eq.stats[name], indent=2))

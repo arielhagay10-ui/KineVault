@@ -62,8 +62,9 @@ validates those controls without granting seat or independent-lever settings.
 The additional asset raises the aggregate library budget to 3.85 MB; individual
 asset limits remain unchanged.
 
-The leg extension is a separate `leg-extension-machine` object. Rebuild it with
-Blender's `--python scripts/equipment/build_knee_lever.py`, then prune and quantize
+The leg extension and seated leg curl are separate `leg-extension-machine` and
+`leg-curl-machine` objects. Rebuild one with Blender's
+`--python scripts/equipment/build_knee_lever.py -- <slug>`, then prune and quantize
 it like the chest press. `src/lib/motion/knee-lever.ts` holds the dimensions the
 generator and solver share. The seat, 10-degree reclined back pad and side handles
 are static; the `Lever` group turns about the seated knee axis and carries the shin
@@ -71,8 +72,13 @@ roller; `Weights` rises with travel. The solver plants each ankle on the lever a
 so the knee stays on the axis from 88 to 7 degrees of flexion. Legs, arms and torso
 follow the machine; seat offsets are not offered. Tests check the real anatomy
 against the roller, seat and back pad. The 226 KB asset has 6,316 triangles and
-12 draws and raises the aggregate library budget to 4.35 MB. Migration
-`20261107200000_workshop_leg_extension.sql` registers the slug.
+12 draws. The leg curl shares the frame, seat, back pad, handles and solver; its
+roller sits behind the lower legs and a fixed roller holds the thighs. It travels
+from 9 to 88 degrees of knee flexion, where the calves still clear the seat front.
+Its 241 KB asset has 6,916 triangles and 13 draws. Together they raise the
+aggregate library budget to 4.6 MB. Migrations
+`20261107200000_workshop_leg_extension.sql` and
+`20261107210000_workshop_leg_curl.sql` register the slugs.
 
 Equipment loads only for objects present in the scene. No mesh textures or new runtime dependencies are needed. Parts merge by material within each moving group. The 24 GLBs total about 3.81 MB across the entire library; a scene loads its selected equipment only. Each asset stays below 1 MB, 20,000 triangles and 16 draws. The bench uses seven draws, including its moving brace. Unit tests enforce these limits and a 3.85 MB total library budget. Measurements and before/after images are under ignored `.local-artifacts/equipment-review/`.
 

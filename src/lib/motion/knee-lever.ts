@@ -12,21 +12,33 @@ export const kneeLever = {
   "seat": { "center": [0, 0.705, 0.215], "size": [0.5, 0.1, 0.74] },
   "back": { "center": [0, 1.295, -0.281], "size": [0.46, 0.8, 0.12] },
   "pivot": [0.817, 0.794], "shank": 0.5525,
-  "pad": { "along": 0.43, "offset": 0.058, "radius": 0.055, "width": 0.6 },
+  "pad": { "radius": 0.055, "width": 0.6 },
   "handle": [0.4, 0.82, 0.05],
-  "startDegrees": 7, "endDegrees": -75, "dorsiflexionDegrees": 10,
-  "weights": 0.3
+  "dorsiflexionDegrees": 10, "weights": 0.3,
+  "machines": {
+    "leg-extension-machine": { "along": 0.43, "offset": 0.058, "startDegrees": 7, "endDegrees": -75 },
+    "leg-curl-machine": { "along": 0.45, "offset": -0.158, "startDegrees": -73, "endDegrees": 7, "thighPad": [1.028, 0.55] }
+  }
 } as const;
 
-export const kneeLeverSlugs = ["leg-extension-machine"] as const;
-export const isKneeLever = (slug: string) => kneeLeverSlugs.some(item => item === slug);
+export type KneeLeverSlug = keyof typeof kneeLever.machines;
+export const kneeLeverSlugs = Object.keys(kneeLever.machines) as KneeLeverSlug[];
+export const isKneeLever = (slug: string): slug is KneeLeverSlug => slug in kneeLever.machines;
 const xAxis = new Vector3(1, 0, 0);
 
+/** Static roller centre (y, z) holding the thighs down, when the machine has one. */
+export function kneeLeverThighPad(slug: string): readonly [number, number] | undefined {
+  const machine = kneeLever.machines[slug as KneeLeverSlug];
+  return machine && "thighPad" in machine ? machine.thighPad : undefined;
+}
+
+/** Roller centre is `grip` from the pivot at zero degrees; positive offset is in front of the shin. */
 export function kneeLeverLever(object: StudioObject) {
+  const machine = kneeLever.machines[object.slug as KneeLeverSlug];
   const travel = Math.max(0, Math.min(1, object.machinePosition ?? 0));
   return { pivot: new Vector3(0, kneeLever.pivot[0], kneeLever.pivot[1]),
-    grip: new Vector3(0, -kneeLever.pad.along, kneeLever.pad.offset),
-    angle: (kneeLever.startDegrees + travel * (kneeLever.endDegrees - kneeLever.startDegrees)) * Math.PI / 180 };
+    grip: new Vector3(0, -machine.along, machine.offset),
+    angle: (machine.startDegrees + travel * (machine.endDegrees - machine.startDegrees)) * Math.PI / 180 };
 }
 
 /** Ankle joint target: the shank turns with the lever about the knee axis. */

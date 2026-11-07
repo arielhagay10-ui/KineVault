@@ -14,7 +14,7 @@ import { EquipmentAsset } from "./equipment-asset";
 import { plateRow } from "@/lib/motion/plate-row";
 import { shoulderPress, shoulderPressGripSegment, shoulderPressLever } from "@/lib/motion/shoulder-press";
 import { tBarRow } from "@/lib/motion/t-bar-row";
-import { isKneeLever, kneeLever } from "@/lib/motion/knee-lever";
+import { isKneeLever, kneeLever, kneeLeverThighPad, type KneeLeverSlug } from "@/lib/motion/knee-lever";
 import { legPress } from "@/lib/motion/leg-press";
 import { chestPress, chestPressLever } from "@/lib/motion/chest-press";
 
@@ -184,7 +184,8 @@ function TBarRowGeometry({ getObject }: { getObject: () => StudioObject }) {
 }
 
 function KneeLeverGeometry({ getObject }: { getObject: () => StudioObject }) {
-  const lever = useRef<Group>(null), { pad: roller, seat, back } = kneeLever;
+  const lever = useRef<Group>(null), { pad: roller, seat, back } = kneeLever, machine = kneeLever.machines[getObject().slug as KneeLeverSlug];
+  const thighPad = kneeLeverThighPad(getObject().slug);
   useFrame(() => {
     const sampled = machineLever(getObject(), "left");
     if (lever.current) { lever.current.position.copy(sampled.pivot); lever.current.rotation.x = sampled.angle; }
@@ -204,10 +205,12 @@ function KneeLeverGeometry({ getObject }: { getObject: () => StudioObject }) {
     <Beam from={[.5, .1, kneeLever.pivot[1]]} to={[.5, kneeLever.pivot[0], kneeLever.pivot[1]]} radius={.045} />
     <group ref={lever} userData={{ workshopSupportExcluded: true }}>
       <Beam from={[.36, 0, 0]} to={[.56, 0, 0]} radius={.075} color={dark} />
-      <Beam from={[.4, 0, 0]} to={[.4, -roller.along, roller.offset]} radius={.035} />
-      <Beam from={[-roller.width / 2, -roller.along, roller.offset]} to={[roller.width / 2, -roller.along, roller.offset]} radius={roller.radius} color={pad} />
-      <Beam from={[roller.width / 2, -roller.along, roller.offset]} to={[.4, -roller.along, roller.offset]} radius={.02} color={chrome} />
+      <Beam from={[.4, 0, 0]} to={[.4, -machine.along, machine.offset]} radius={.035} />
+      <Beam from={[-roller.width / 2, -machine.along, machine.offset]} to={[roller.width / 2, -machine.along, machine.offset]} radius={roller.radius} color={pad} />
+      <Beam from={[roller.width / 2, -machine.along, machine.offset]} to={[.4, -machine.along, machine.offset]} radius={.02} color={chrome} />
     </group>
+    {thighPad && <><Beam from={[-roller.width / 2, ...thighPad]} to={[roller.width / 2, ...thighPad]} radius={roller.radius} color={pad} />
+      <Beam from={[.5, kneeLever.pivot[0], kneeLever.pivot[1]]} to={[.5, ...thighPad]} radius={.035} /></>}
   </>;
 }
 

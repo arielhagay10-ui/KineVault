@@ -17,7 +17,7 @@ import { identityTransform, jointLimits, sampleWorkshopPose, type RigPose, type 
 
 import { chestPressLever, chestPressGripPoint, reachChestPressGrip } from "./chest-press";
 
-export const machineSlugs = ["lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck", "row-machine", "t-bar-row-machine", "shoulder-press-machine", "chest-press-machine", "leg-extension-machine"] as const;
+export const machineSlugs = ["lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck", "row-machine", "t-bar-row-machine", "shoulder-press-machine", "chest-press-machine", "leg-extension-machine", "leg-curl-machine"] as const;
 export type MachineSlug = typeof machineSlugs[number];
 export const isStudioMachine = (slug: string): slug is MachineSlug => machineSlugs.some(machine => machine === slug);
 export type MachineGripChoices = Pick<StudioObject, "machinePalm" | "machineElbowPath">;
@@ -95,7 +95,7 @@ export const machineTravelLabels: Record<MachineSlug, string> = {
   "cable-row-machine": "Row pull", "pec-deck": "Arm closure",
   "row-machine": "Lever pull", "shoulder-press-machine": "Press travel",
   "t-bar-row-machine": "T-bar pull", "chest-press-machine": "Chest press travel",
-  "leg-extension-machine": "Knee extension",
+  "leg-extension-machine": "Knee extension", "leg-curl-machine": "Knee flexion",
 };
 export const machineContactDescriptions: Record<MachineSlug, string> = {
   "chest-press-machine": "Press forward and inward on independent arms. Choose a grip on the open handles, keep the back supported, and return with control.",
@@ -108,6 +108,7 @@ export const machineContactDescriptions: Record<MachineSlug, string> = {
   "t-bar-row-machine": "Rest the chest on the inclined pad, plant both feet on the platforms, and row the shared lever toward the ribs.",
   "shoulder-press-machine": "Press the levers overhead, or release the figure to use your own pose and supports.",
   "leg-extension-machine": "The seat and back pad support the figure, the knees line up with the lever axis and the shin pad rests above the ankles. Both hands hold the seat handles.",
+  "leg-curl-machine": "The seat, back pad and thigh pad hold the figure, the knees line up with the lever axis and the lower-leg pad sits behind the ankles. Both hands hold the seat handles.",
 };
 
 export function setMachinePosition(object: StudioObject, position: number, timeMs: number, side?: "left" | "right"): StudioObject {
@@ -514,6 +515,6 @@ export function machineDemoScene(slug: MachineSlug, id: string, machineGrip: "su
   return { motionStyle: "free", durationMs, cameraAngle: machineGrip === "pronated" && slug === "lat-pulldown-machine" ? "front" : "three_quarter", equipment: null, annotations: [],
     keyframes: frames.map(frame => ({ timeMs: frame.timeMs, poses: { torso: { x: 0, y: 0, z: 0 } } })),
     studio: { body: { ...identityTransform }, frontalPlane: slug === "lat-pulldown-machine" && machineGrip === "pronated" ? true : undefined, objects: [{ ...transform, id, slug, name: studioAssetNames[slug], attachment: slug === "row-machine" ? "both" : "none", ...(slug === "row-machine" ? { rowGrip: "neutral" as const } : {}), pulleyHeight: 2.6, machineUse: true, machineGrip: slug === "lat-pulldown-machine" ? machineGrip : undefined, machineMode: slug === "pec-deck" ? machineMode : undefined, machinePosition: frames[0].machinePosition, frames }],
-      presentation: { highlight: slug === "chest-press-machine" ? "group:chest" : slug === "pec-deck" ? machineMode === "reverse" ? "group:reardelts" : "group:chest" : ["lat-pulldown-machine", "cable-row-machine", "t-bar-row-machine"].includes(slug) ? "group:lats" : "group:quadriceps", isolate: false, view: slug === "leg-press" || isKneeLever(slug) ? "side" : slug === "lat-pulldown-machine" && machineGrip === "pronated" ? "front" : "three_quarter" } } };
+      presentation: { highlight: slug === "chest-press-machine" ? "group:chest" : slug === "pec-deck" ? machineMode === "reverse" ? "group:reardelts" : "group:chest" : ["lat-pulldown-machine", "cable-row-machine", "t-bar-row-machine"].includes(slug) ? "group:lats" : slug === "leg-curl-machine" ? "group:hamstrings" : "group:quadriceps", isolate: false, view: slug === "leg-press" || isKneeLever(slug) ? "side" : slug === "lat-pulldown-machine" && machineGrip === "pronated" ? "front" : "three_quarter" } } };
 }
 
