@@ -58,3 +58,15 @@ The fresh read-only development snapshot failed its queue gate: 90 queued render
 The live database drill passed with the 68-version manifest. It restored an 889,277-byte custom-format dump, preserved all seven table fingerprints, retained owner/reviewer authorization, applied the final pending migration, and passed 59 database assertions. Restore, upgrade and verification took 4.904 seconds; both UUID databases were removed. Artifact: `.local-artifacts/operations/6713639828db41158eae932d19bd634a/database-recovery.json`.
 
 The fresh live Storage drill passed for WebM, MP4 and WebP, including disk-backup checksums, absence after deletion, byte-preserving restore and signed access. Each anonymous/public request returned 404 and each modified-signature request returned 401. Restore and access verification took 0.086 seconds; cleanup passed and an independent read-only bucket-count query returned zero. Artifact: `.local-artifacts/operations/595ac5b5-5bb5-44a0-9cb6-efdf59b00e60/storage-recovery.json`.
+
+## Worker rehearsal, 7 November 2026
+
+The workers ran against a disposable second local stack, `kinevault_rehearsal`, built from a copy of `supabase/` with its own ports (Kong 15521, Postgres 15522, Mailpit 15524). All 86 migrations and the seed were applied to an empty database, and the app ran on port 3010 against it. The development stack and its queues were not used. Evidence: `.local-artifacts/operations/4b9e2f61-7c3a-4d5e-9a18-2f6c0d7e3b45/rehearsal.json`.
+
+| Step | Result |
+| --- | --- |
+| Render | A reviewer account chose **Prepare demonstration**, saved a one-second motion and pressed **Submit for review**. `render:worker` with `RENDER_APP_URL=http://127.0.0.1:3010` claimed the job and finished it in 7 seconds, recording WebM, MP4 and poster media under the claim path. |
+| Restart | A second worker was killed with SIGKILL 1.5 seconds after claiming a job, before capture finished; nothing had been uploaded. The restarted worker left the running job alone until the 10-minute lease expired. 604 seconds after the first claim it reclaimed the job with a new claim ID (attempt 2) and completed it. All three objects are under the new claim path and none under the first. |
+| Notification | An admin requested changes on the review page. `notify:worker` with `NOTIFICATION_MAILPIT_URL` and no Resend key sent the queued delivery. The rehearsal Mailpit holds exactly one message, addressed to the contributor and linking to the submission, and its ID matches the delivery's `provider_id`. |
+
+On one local machine, this shows that a restarted render worker recovers an interrupted job after lease expiry, and that a review decision reaches a mail catcher through the notification worker. It does not prove delivery through Resend or to a real inbox, alert receipt, cleanup after a kill during upload, a notification retry after a kill between prepare and send, or anything about the development backlog or a deployment. The motion was saved through the scene RPC, not drawn in the workshop. The rehearsal stack was stopped with `--no-backup`, and its containers, volumes and network were removed.
