@@ -43,6 +43,11 @@ export function machineDragValues(object: StudioObject, point: Vector3, side: "l
     const wrapped = Math.atan2(Math.sin(angle), Math.cos(angle));
     return { machinePosition: clamp((wrapped - start.angle) / (finish.angle - start.angle), 0, 1), ...(["row-machine", "shoulder-press-machine", "chest-press-machine"].includes(object.slug) ? { side } : {}) };
   }
+  if (object.slug === "lateral-raise-machine") {
+    const start = machineLever({ ...object, machinePosition: 0 }, side), finish = machineLever({ ...object, machinePosition: 1 }, side);
+    const angle = Math.atan2(point.y - start.pivot.y, point.x - start.pivot.x) - Math.atan2(start.grip.y, start.grip.x);
+    return { machinePosition: clamp((Math.atan2(Math.sin(angle), Math.cos(angle)) - start.angle) / (finish.angle - start.angle), 0, 1) };
+  }
   if (object.slug === "cable-row-machine") return { machinePosition: clamp((.88 - point.z) / .58, 0, 1), machineHandleHeight: clamp(point.y, rowHandleHeight.min, rowHandleHeight.max) };
   if (object.slug === "pec-deck") {
     const reverse = object.machineMode === "reverse", sign = (side === "left" ? 1 : -1) * (reverse ? -1 : 1);

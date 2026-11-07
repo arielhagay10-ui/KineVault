@@ -3,6 +3,7 @@ import { machineCarriagePoint, machineLever } from "./studio-machines";
 import { chestPressLever } from "./chest-press";
 import { shoulderPressLever } from "./shoulder-press";
 import { kneeLever } from "./knee-lever";
+import { lateralRaise } from "./lateral-raise";
 import type { CableAttachment, StudioObject } from "./workshop";
 
 /** Internal renderer contract in solver metres/Y-up. All meshes are original. */
@@ -23,6 +24,7 @@ export const equipmentAssets = {
   "t-bar-row-machine": { url: "/models/equipment/t-bar-row-machine.v1.glb", requiredGroups: ["Static", "Lever"] },
   "leg-extension-machine": { url: "/models/equipment/leg-extension-machine.v1.glb", requiredGroups: ["Static", "Weights", "Lever"] },
   "leg-curl-machine": { url: "/models/equipment/leg-curl-machine.v1.glb", requiredGroups: ["Static", "Weights", "Lever"] },
+  "lateral-raise-machine": { url: "/models/equipment/lateral-raise-machine.v1.glb", requiredGroups: ["Static", "Weights", "LeftLever", "RightLever"] },
   "shoulder-press-machine": { url: "/models/equipment/shoulder-press-machine.v2.glb", requiredGroups: ["Static", "Weights", "Handles", "LeftLever", "RightLever", "LeftNeutralGrip", "RightNeutralGrip"] },
   stool: { url: "/models/equipment/stool.v1.glb", requiredGroups: ["Static"] },
   "plyo-box": { url: "/models/equipment/plyo-box.v1.glb", requiredGroups: ["Static"] },
@@ -97,6 +99,7 @@ export function updateEquipmentAsset(instance: EquipmentAssetInstance, object: S
       node.position.copy(lever.pivot);
       if (object.slug === "chest-press-machine") node.quaternion.setFromAxisAngle(chestPressLever(object, side).axis, lever.angle);
       else if (object.slug === "shoulder-press-machine") node.quaternion.setFromAxisAngle(shoulderPressLever(object, side).axis, lever.angle);
+      else if (object.slug === "lateral-raise-machine") node.rotation.set(0, 0, lever.angle);
       else node.rotation.x = lever.angle;
       const swivel = groups[side === "left" ? "LeftNeutralGrip" : "RightNeutralGrip"];
       if (swivel) swivel.quaternion.copy(node.quaternion).invert();
@@ -107,7 +110,7 @@ export function updateEquipmentAsset(instance: EquipmentAssetInstance, object: S
     groups.Handles.visible = object.slug !== "cable-row-machine" || !object.cableAttachment;
   }
   if (groups.Weights) {
-    const distance = ({ "lat-pulldown-machine": .98, "cable-row-machine": .66, "pec-deck": .4, "leg-extension-machine": kneeLever.weights, "leg-curl-machine": kneeLever.weights } as Record<string, number>)[object.slug] ?? 0;
+    const distance = ({ "lat-pulldown-machine": .98, "cable-row-machine": .66, "pec-deck": .4, "leg-extension-machine": kneeLever.weights, "leg-curl-machine": kneeLever.weights, "lateral-raise-machine": lateralRaise.weights } as Record<string, number>)[object.slug] ?? 0;
     groups.Weights.position.y = object.slug === "chest-press-machine"
       ? Math.max(object.machinePositionLeft ?? travel, object.machinePositionRight ?? travel) * .26 : travel * distance;
   }

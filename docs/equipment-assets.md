@@ -80,6 +80,17 @@ aggregate library budget to 4.6 MB. Migrations
 `20261107200000_workshop_leg_extension.sql` and
 `20261107210000_workshop_leg_curl.sql` register the slugs.
 
+The lateral raise machine is a separate `lateral-raise-machine` object. Rebuild it
+with Blender's `--python scripts/equipment/build_lateral_raise.py`, then prune and
+quantize it. `src/lib/motion/lateral-raise.ts` holds the shared dimensions.
+`LeftLever` and `RightLever` turn about front-to-back axes through the seated
+shoulders. The solver grips each neutral handle with the arm lowered, then turns
+the whole arm about that axis, so the elbow keeps a 92-degree hinge and the hand
+stays on the handle. Abduction runs from 12 to 88 degrees; the pads rest on the
+outside of the upper arms above the elbows. The 219 KB asset has 6,212 triangles
+and 15 draws and raises the aggregate library budget to 4.8 MB. Migration
+`20261107220000_workshop_lateral_raise.sql` registers the slug.
+
 Equipment loads only for objects present in the scene. No mesh textures or new runtime dependencies are needed. Parts merge by material within each moving group. The 24 GLBs total about 3.81 MB across the entire library; a scene loads its selected equipment only. Each asset stays below 1 MB, 20,000 triangles and 16 draws. The bench uses seven draws, including its moving brace. Unit tests enforce these limits and a 3.85 MB total library budget. Measurements and before/after images are under ignored `.local-artifacts/equipment-review/`.
 
 Migration `20261022205401_workshop_versatile_equipment.sql` extends saved-scene validation and equipment taxonomy. Existing scenes retain their previous defaults. The previously bundled Poly Haven HDR retains its separate attribution in `public/models/equipment/ATTRIBUTION.md`.

@@ -32,6 +32,10 @@ Use this machine seats the figure with both hands on the side handles, the knees
 
 The seated leg curl uses the same seat and handles. A fixed roller holds the thighs and the lower-leg roller sits behind the ankles. Knee flexion travel curls the legs from about 9 to 88 degrees of knee flexion.
 
+### Lateral raise machine
+
+Use this machine seats the figure against the back pad with the shoulders on the lever axes, elbows bent and hands on the neutral handles. Arm raise travel lifts both upper arms from 12 to 88 degrees of abduction; the pads stay on the outside of the upper arms. The machine controls every joint, like the leg machines.
+
 ### Shoulder press
 
 The shoulder press has wide grips for elbows-out pressing and neutral grips for elbows-forward pressing. Both sets share the lever arc. Each arm has independent travel controls and can be dragged separately. The neutral grip uses a visible swivel to retain its orientation without forcing the wrist to follow the lever's full rotation. This swivel is an added design choice for the reference-inspired model, not a mechanism established by the supplied photo.

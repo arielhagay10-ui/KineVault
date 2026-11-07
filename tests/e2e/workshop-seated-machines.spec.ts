@@ -7,13 +7,14 @@ import { addWorkshopEquipment, dismissWorkshopTutorial, openWorkshopTool, select
 test.use({ viewport: { width: 1440, height: 1000 }, launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
 for (const machine of [{ name: "Leg extension", slug: "leg-extension-machine", travel: "Knee extension percent" },
-  { name: "Seated leg curl", slug: "leg-curl-machine", travel: "Knee flexion percent" }]) {
+  { name: "Seated leg curl", slug: "leg-curl-machine", travel: "Knee flexion percent" },
+  { name: "Lateral raise machine", slug: "lateral-raise-machine", travel: "Arm raise percent" }]) {
   test(`${machine.name} picker, default repetition, travel and private save survive reload`, async ({ page }) => {
     test.setTimeout(240_000);
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     if (!["127.0.0.1", "localhost"].includes(new URL(url).hostname)) throw Error("Local fixtures only");
     const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
-    const email = `knee-lever-${randomUUID()}@example.test`, password = `Knee-${randomUUID()}!`;
+    const email = `seated-machine-${randomUUID()}@example.test`, password = `Seated-${randomUUID()}!`;
     const account = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     if (account.error) throw account.error;
     const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
