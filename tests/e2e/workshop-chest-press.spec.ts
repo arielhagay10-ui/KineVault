@@ -8,7 +8,8 @@ import { addWorkshopEquipment, dismissWorkshopTutorial, openWorkshopRecovery, op
 test.use({ viewport: { width: 1440, height: 1000 }, launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
 test("chest press exposes three grips and plays a complete converging repetition", async ({ page }) => {
-  test.setTimeout(240_000);
+  // 54 software-rendered preview screenshots take 2-4 s each on a 2-core runner (306 s measured).
+  test.setTimeout(480_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw new Error("Local fixture required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
