@@ -8,6 +8,7 @@ import { createQuickScene } from "./quick-create";
 import { machineCarriagePoint, machineHandlePoint } from "./studio-machines";
 import { plateRow } from "./plate-row";
 import { tBarRow } from "./t-bar-row";
+import { kneeLever, kneeLeverHandle, kneeLeverLever } from "./knee-lever";
 
 function source() {
   const root = new Group();
@@ -55,6 +56,27 @@ describe("equipment assets", () => {
         for (const side of ["left", "right"] as const) {
           expect(surfaceDistance(asset.groups.Lever, machineHandlePoint(object, side))).toBeLessThan(.026);
         }
+      }
+    } finally { disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene); }
+  });
+  it("keeps the leg extension seat, back pad, handles and shin roller on the shipped mesh", async () => {
+    const definition = equipmentAssets["leg-extension-machine"], bytes = await readFile(`public${definition.url}`);
+    const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const asset = createEquipmentAssetInstance(gltf.scene, definition), x = new Vector3(1, 0, 0);
+    try {
+      const { seat, back } = kneeLever, recline = kneeLever.reclineDegrees * Math.PI / 180;
+      for (const z of [-.1, .2, .5]) expect(surfaceDistance(asset.groups.Static, new Vector3(0, seat.center[1] + seat.size[1] / 2, z))).toBeLessThan(.002);
+      for (const y of [-.2, 0, .2]) {
+        const face = new Vector3(0, y, back.size[2] / 2).applyAxisAngle(x, recline).add(new Vector3(...back.center));
+        expect(surfaceDistance(asset.groups.Static, face)).toBeLessThan(.002);
+      }
+      for (const side of ["left", "right"] as const) expect(surfaceDistance(asset.groups.Static, kneeLeverHandle(side))).toBeLessThan(.027);
+      for (let i = 0; i <= 16; i++) {
+        const object = { ...createQuickScene("leg-extension-machine").studio!.objects[0], machinePosition: i / 16 };
+        updateEquipmentAsset(asset, object);
+        expect(asset.groups.Weights.position.y).toBeCloseTo(i / 16 * kneeLever.weights);
+        const lever = kneeLeverLever(object), contact = lever.grip.clone().add(new Vector3(0, 0, -kneeLever.pad.radius)).applyAxisAngle(x, lever.angle).add(lever.pivot);
+        for (const offset of [-.18, 0, .18]) expect(surfaceDistance(asset.groups.Lever, contact.clone().setX(offset)), `roller at ${i}`).toBeLessThan(.002);
       }
     } finally { disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene); }
   });
@@ -202,7 +224,7 @@ describe("equipment assets", () => {
     disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene);
   });
 
-  it("keeps the expanded equipment library below 4.2 MB without external textures", async () => {
+  it("keeps the expanded equipment library below 4.35 MB without external textures", async () => {
     let total = 0;
     for (const definition of [...Object.values(equipmentAssets), ...Object.values(attachmentAssets)]) {
       const bytes = await readFile(`public${definition.url}`);
@@ -212,7 +234,7 @@ describe("equipment assets", () => {
       expect(document.images ?? []).toEqual([]);
       expect(document.buffers.every((buffer: { uri?: string }) => !buffer.uri)).toBe(true);
     }
-    expect(total).toBeLessThan(4_200_000);
+    expect(total).toBeLessThan(4_350_000);
   });
 
   it.each(["smith-machine", "leg-press", "cable-row-machine", "pec-deck"] as const)("moves %s GLB groups with the solver at 17 samples", async slug => {

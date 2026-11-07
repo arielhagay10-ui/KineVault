@@ -14,6 +14,7 @@ import { EquipmentAsset } from "./equipment-asset";
 import { plateRow } from "@/lib/motion/plate-row";
 import { shoulderPress, shoulderPressGripSegment, shoulderPressLever } from "@/lib/motion/shoulder-press";
 import { tBarRow } from "@/lib/motion/t-bar-row";
+import { isKneeLever, kneeLever } from "@/lib/motion/knee-lever";
 import { legPress } from "@/lib/motion/leg-press";
 import { chestPress, chestPressLever } from "@/lib/motion/chest-press";
 
@@ -182,6 +183,34 @@ function TBarRowGeometry({ getObject }: { getObject: () => StudioObject }) {
   </>;
 }
 
+function KneeLeverGeometry({ getObject }: { getObject: () => StudioObject }) {
+  const lever = useRef<Group>(null), { pad: roller, seat, back } = kneeLever;
+  useFrame(() => {
+    const sampled = machineLever(getObject(), "left");
+    if (lever.current) { lever.current.position.copy(sampled.pivot); lever.current.rotation.x = sampled.angle; }
+  });
+  return <>
+    <Feet width={.5} front={1.05} back={-1.05} />
+    <Beam from={[0, .1, .2]} to={[0, .64, .2]} radius={.05} />
+    <Block at={[...seat.center]} size={[...seat.size]} color={pad} />
+    <Block at={[...back.center]} size={[...back.size]} rotation={kneeLever.reclineDegrees * Math.PI / 180} color={pad} />
+    <Beam from={[0, .59, -.2]} to={[0, 1.57, -.46]} radius={.043} />
+    {[-1, 1].map(sign => <group key={sign}>
+      <Beam from={[sign * kneeLever.handle[0], .59, -.01]} to={[sign * kneeLever.handle[0], kneeLever.handle[1], -.01]} radius={.025} />
+      <Beam from={[sign * kneeLever.handle[0], kneeLever.handle[1], -.05]} to={[sign * kneeLever.handle[0], kneeLever.handle[1], .18]} radius={.025} color={dark} />
+      <Beam from={[sign * .3, .1, -1.05]} to={[sign * .3, 2.55, -1.05]} radius={.045} />
+    </group>)}
+    {Array.from({ length: 10 }, (_, index) => <MovingBlock key={index} size={[.45, .048, .23]} getAt={() => [0, .2 + index * .063 + (getObject().machinePosition ?? 0) * kneeLever.weights, -1]} />)}
+    <Beam from={[.5, .1, kneeLever.pivot[1]]} to={[.5, kneeLever.pivot[0], kneeLever.pivot[1]]} radius={.045} />
+    <group ref={lever} userData={{ workshopSupportExcluded: true }}>
+      <Beam from={[.36, 0, 0]} to={[.56, 0, 0]} radius={.075} color={dark} />
+      <Beam from={[.4, 0, 0]} to={[.4, -roller.along, roller.offset]} radius={.035} />
+      <Beam from={[-roller.width / 2, -roller.along, roller.offset]} to={[roller.width / 2, -roller.along, roller.offset]} radius={roller.radius} color={pad} />
+      <Beam from={[roller.width / 2, -roller.along, roller.offset]} to={[.4, -roller.along, roller.offset]} radius={.02} color={chrome} />
+    </group>
+  </>;
+}
+
 function ChestPressArm({ getObject, side }: { getObject: () => StudioObject; side: "left" | "right" }) {
   const lever = useRef<Group>(null), handle = useRef<Group>(null), sign = side === "left" ? 1 : -1;
   useFrame(() => {
@@ -227,6 +256,7 @@ function MachineGeometry({ object, currentObject }: { object: StudioObject; curr
   const getTravel = () => getObject().machinePosition ?? .5;
   if (object.slug === "chest-press-machine") return <ChestPressGeometry getObject={getObject} />;
   if (object.slug === "t-bar-row-machine") return <TBarRowGeometry getObject={getObject} />;
+  if (isKneeLever(object.slug)) return <KneeLeverGeometry getObject={getObject} />;
   if (object.slug === "row-machine") return <>
     <Feet width={.70} front={1.14} back={-.83} />
     <Beam from={[0, .1, -.17]} to={[0, .49, -.17]} radius={.06} />

@@ -17,6 +17,7 @@ export function workshopDemonstrationCaption(object: Pick<StudioObject, "slug" |
     case "t-bar-row-machine": return "Keep the chest on the pad and feet planted; pull the shared T-bar toward the ribs.";
     case "chest-press-machine": return "Press forward and inward; keep the back supported and return with control.";
     case "shoulder-press-machine": return "Press the handles overhead; keep the back supported.";
+    case "leg-extension-machine": return "Straighten both knees against the shin pad; keep the thighs on the seat.";
     default: return "Move through the chosen travel and inspect the intended contacts.";
   }
 }
@@ -31,6 +32,7 @@ const synonyms: Record<string, string[]> = {
   "row-machine": ["plate loaded row", "chest supported row", "lever row"],
   "t-bar-row-machine": ["t bar row", "tbar row", "chest supported t bar row", "incline row"],
   "shoulder-press-machine": ["shoulder press", "overhead press", "military press"],
+  "leg-extension-machine": ["leg extension", "knee extension", "quad extension", "quadriceps machine"],
   stool: ["utility seat", "backless seat"], "plyo-box": ["jump box", "plyometric box", "step"],
   "resistance-band": ["elastic band", "resistance bands", "loop band", "power band"],
   bench: ["seat", "incline seat", "flat bench", "incline bench", "weight bench"],

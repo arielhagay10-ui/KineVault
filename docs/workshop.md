@@ -26,6 +26,10 @@ Seated machines and benches expose Seated position in Contacts and the figure's 
 
 Reset seat zeroes the current pelvis offsets and all three torso angles. It preserves leg controls, optional foot-support state, grip selection, machine travel and other keyframes. Seating and pose edits stop at the reachable boundary. Separate checks cover floor, hands, required sled contacts and torso-pad clearance at keyframes and 17 points across the affected interval. Releasing feet at a scrubbed time captures that displayed moment. Restoring automatic feet validates the new stance before applying it. An already invalid automatic stance is rejected during release. For a low chest-support bench, choose Lie face down or raise the pad before freeing the legs.
 
+### Leg extension
+
+Use this machine seats the figure with both hands on the side handles, the knees on the lever axis and the shin roller just above the ankles. Knee extension travel moves the lever from about 88 degrees of knee flexion to 7 degrees; drag the roller or use the travel control. The legs, arms and torso follow the machine, so Pose and Seated position do not edit them.
+
 ### Shoulder press
 
 The shoulder press has wide grips for elbows-out pressing and neutral grips for elbows-forward pressing. Both sets share the lever arc. Each arm has independent travel controls and can be dragged separately. The neutral grip uses a visible swivel to retain its orientation without forcing the wrist to follow the lever's full rotation. This swivel is an added design choice for the reference-inspired model, not a mechanism established by the supplied photo.

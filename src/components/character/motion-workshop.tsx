@@ -32,6 +32,7 @@ import { resetWorkshopJoints } from "@/lib/motion/workshop-pose";
 import { isStudioMachine, machineContactDescriptions, machineTravelLabels, rowHandleHeight, setMachineHandleHeight, setMachinePosition, setPecDeckMode, type MachineReachReport } from "@/lib/motion/studio-machines";
 import { editLeverMachinePose, releasePlateRowFeet } from "@/lib/motion/plate-row-pose";
 import { releaseTBarFeet } from "@/lib/motion/t-bar-row-pose";
+import { isKneeLever } from "@/lib/motion/knee-lever";
 import { rowUsesHand } from "@/lib/motion/plate-row";
 import { WorkshopPlateRowControls } from "./workshop-plate-row-controls";
 import { WorkshopSeatingControls } from "./workshop-seating-controls";
@@ -238,6 +239,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
     if (item.machineUse) {
       if (item.slug === "smith-machine") return true;
       if (item.slug === "t-bar-row-machine") return slug === "torso" || /-(hip|knee|ankle)$/.test(slug) ? item.rowFootSupport !== false || slug === "torso" : rowUsesHand(item, slug.startsWith("left") ? "left" : "right");
+      if (isKneeLever(item.slug)) return true;
       if (slug === "torso") return false;
       if (/-(hip|knee|ankle)$/.test(slug)) return item.slug === "leg-press";
       return !["row-machine", "shoulder-press-machine", "chest-press-machine"].includes(item.slug) && !(item.slug === "cable-row-machine" && item.cableAttachment && slug.endsWith("wrist"));
@@ -248,7 +250,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
   const controllingWeight = selectedJoint ? weightForJoint(selectedJoint) : undefined;
   const blockedJoints = jointSlugs.filter(slug => {
     const weight = weightForJoint(slug);
-    if (elbowFollowsShoulder && slug.endsWith("shoulder") && weight?.machineUse && isStudioMachine(weight.slug) && weight.slug !== "leg-press") return false;
+    if (elbowFollowsShoulder && slug.endsWith("shoulder") && weight?.machineUse && isStudioMachine(weight.slug) && weight.slug !== "leg-press" && !isKneeLever(weight.slug)) return false;
     return !!weight && (!canCarryWithArm(weight) || !!scene.motionStyle && scene.motionStyle !== "free");
   });
   const jointBlocked = !!selectedJoint && Object.keys(jointEditChanges(selectedJoint, { x: 0, y: 0, z: 0 }, bothSides)).some(slug => blockedJoints.includes(slug as JointSlug));

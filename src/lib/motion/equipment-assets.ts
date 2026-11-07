@@ -2,6 +2,7 @@ import { Material, Mesh, Object3D, Texture, Vector3 } from "three";
 import { machineCarriagePoint, machineLever } from "./studio-machines";
 import { chestPressLever } from "./chest-press";
 import { shoulderPressLever } from "./shoulder-press";
+import { kneeLever } from "./knee-lever";
 import type { CableAttachment, StudioObject } from "./workshop";
 
 /** Internal renderer contract in solver metres/Y-up. All meshes are original. */
@@ -20,6 +21,7 @@ export const equipmentAssets = {
   kettlebell: { url: "/models/equipment/kettlebell.v1.glb", requiredGroups: ["Static"] },
   "row-machine": { url: "/models/equipment/row-machine.v3.glb", requiredGroups: ["Static", "Weights", "Handles", "Seat", "LeftLever", "RightLever"] },
   "t-bar-row-machine": { url: "/models/equipment/t-bar-row-machine.v1.glb", requiredGroups: ["Static", "Lever"] },
+  "leg-extension-machine": { url: "/models/equipment/leg-extension-machine.v1.glb", requiredGroups: ["Static", "Weights", "Lever"] },
   "shoulder-press-machine": { url: "/models/equipment/shoulder-press-machine.v2.glb", requiredGroups: ["Static", "Weights", "Handles", "LeftLever", "RightLever", "LeftNeutralGrip", "RightNeutralGrip"] },
   stool: { url: "/models/equipment/stool.v1.glb", requiredGroups: ["Static"] },
   "plyo-box": { url: "/models/equipment/plyo-box.v1.glb", requiredGroups: ["Static"] },
@@ -104,7 +106,7 @@ export function updateEquipmentAsset(instance: EquipmentAssetInstance, object: S
     groups.Handles.visible = object.slug !== "cable-row-machine" || !object.cableAttachment;
   }
   if (groups.Weights) {
-    const distance = ({ "lat-pulldown-machine": .98, "cable-row-machine": .66, "pec-deck": .4 } as Record<string, number>)[object.slug] ?? 0;
+    const distance = ({ "lat-pulldown-machine": .98, "cable-row-machine": .66, "pec-deck": .4, "leg-extension-machine": kneeLever.weights } as Record<string, number>)[object.slug] ?? 0;
     groups.Weights.position.y = object.slug === "chest-press-machine"
       ? Math.max(object.machinePositionLeft ?? travel, object.machinePositionRight ?? travel) * .26 : travel * distance;
   }

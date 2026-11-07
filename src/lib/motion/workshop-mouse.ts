@@ -1,4 +1,5 @@
 import { Vector3 } from "three";
+import { isKneeLever } from "./knee-lever";
 import { jointControlRange, type JointSlug, type StudioObject, type WorkshopScene } from "./workshop";
 import { generateMachineRepetition } from "./quick-create";
 import { isStudioMachine, machineCarriagePoint, machineLever, reversePecDeckSeatZ, rowHandleHeight, setMachineHandleHeight, setMachinePosition } from "./studio-machines";
@@ -36,7 +37,7 @@ export function studioDragDelta(delta: Vector3, right: Vector3, up: Vector3, for
 export function machineDragValues(object: StudioObject, point: Vector3, side: "left" | "right" = "left"): MachineDragValues {
   if (object.slug === "chest-press-machine") return { machinePosition: chestPressPositionAtPoint(object, side, point), side };
   if (object.slug === "shoulder-press-machine") return { machinePosition: shoulderPressPositionAtPoint(object, side, point), side };
-  if (object.slug === "row-machine" || object.slug === "t-bar-row-machine") {
+  if (object.slug === "row-machine" || object.slug === "t-bar-row-machine" || isKneeLever(object.slug)) {
     const start = machineLever({ ...object, machinePosition: 0, machinePositionLeft: 0, machinePositionRight: 0 }, side), finish = machineLever({ ...object, machinePosition: 1, machinePositionLeft: 1, machinePositionRight: 1 }, side);
     const angle = Math.atan2(point.z - start.pivot.z, point.y - start.pivot.y) - Math.atan2(start.grip.z, start.grip.y);
     const wrapped = Math.atan2(Math.sin(angle), Math.cos(angle));

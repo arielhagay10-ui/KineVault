@@ -1,0 +1,15 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(8);
+select set_config('test.leg_extension', '{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"objects":[{"id":"00000000-0000-4000-8000-000000000001","name":"Leg extension","slug":"leg-extension-machine","x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"none","pulleyHeight":1.5,"machineUse":true,"machinePosition":0,"frames":[{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"timeMs":0,"machinePosition":0},{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"timeMs":2400,"machinePosition":1}]}]}', true);
+select ok(private.valid_studio_layout(current_setting('test.leg_extension')::jsonb), 'leg extension default rep can be saved');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,machinePosition}', '1.1')), 'travel remains bounded');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,frames,1,machinePosition}', '-1')), 'animated travel remains bounded');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,machinePositionLeft}', '0.5')), 'shared lever rejects independent leg controls');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,seatOffsetZ}', '0.05')), 'knee axis rejects seat offsets');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,rowGrip}', '"neutral"')), 'row controls remain row-only');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.leg_extension')::jsonb, '{objects,0,slug}', '"leg-curl-machine"')), 'unregistered machines remain rejected');
+select is((select count(*)::integer from public.equipment where slug = 'leg-extension-machine'), 1, 'one normalized equipment record');
+select * from finish();
+rollback;

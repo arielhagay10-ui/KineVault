@@ -8,11 +8,12 @@ import { studioGripOffset } from "./studio-grip";
 import { legPressFootContact } from "./leg-press";
 import { shoulderPressElbowPlane, shoulderPressGripRotation } from "./shoulder-press";
 import { seatedPadPenetration } from "./seated-pad-clearance";
+import { isKneeLever } from "./knee-lever";
 import { identityTransform, jointLimits, sampleWorkshopPose, type RigPose, type StudioObject, type WorkshopScene } from "./workshop";
 
 export function activeSeat(scene: WorkshopScene): StudioObject | undefined {
   const studio = scene.studio;
-  return studio?.objects.find(item => item.machineUse && isStudioMachine(item.slug) && item.slug !== "smith-machine" && item.slug !== "t-bar-row-machine")
+  return studio?.objects.find(item => item.machineUse && isStudioMachine(item.slug) && item.slug !== "smith-machine" && item.slug !== "t-bar-row-machine" && !isKneeLever(item.slug))
     ?? (studio?.seating && !["supine", "prone"].includes(studio.seating.facing)
       ? studio.objects.find(item => item.id === studio.seating!.benchId) : undefined);
 }
