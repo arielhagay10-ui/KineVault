@@ -35,6 +35,11 @@ export async function cleanupLocalFixture({ admin, userId, email, password, owne
   if (signedIn.data.user.id !== userId) throw new Error("Fixture owner does not match its ID");
   let softDelete = false;
   try {
+    // No worker should render or email a fixture; claimed and finished rows stay with their worker and history.
+    execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
+      `delete from public.render_jobs where requested_by = '${userId}' and status = 'queued';
+        delete from public.notification_deliveries delivery using public.notifications notification
+          where notification.id = delivery.id and notification.user_id = '${userId}' and delivery.status = 'queued';`], { stdio: "pipe" });
     const drafts = await authenticated.from("private_exercises").select("id").eq("owner_id", userId);
     if (drafts.error) throw drafts.error;
     for (const draft of drafts.data) {
