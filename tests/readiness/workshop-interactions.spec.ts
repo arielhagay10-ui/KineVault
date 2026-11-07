@@ -60,9 +60,9 @@ test("canvas selection preserves placement and stays available through named con
   }
   const canvas = page.locator("canvas");
   await canvas.scrollIntoViewIfNeeded();
-  // Camera mode changes preview height; project only after its renderer resizes.
+  // Camera mode changes preview height; project only after its renderer resizes to its container.
   await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => {
-    const bounds = element.getBoundingClientRect();
+    const bounds = element.parentElement!.getBoundingClientRect();
     return Math.abs(element.width / element.height - bounds.width / bounds.height);
   })).toBeLessThan(.005);
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));

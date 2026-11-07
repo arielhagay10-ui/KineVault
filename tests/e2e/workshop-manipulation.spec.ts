@@ -37,8 +37,9 @@ test("one editor selects safely and constrains nudges with Undo and saved placem
   await select.click();
   const canvas = page.locator("canvas");
   await canvas.scrollIntoViewIfNeeded();
+  // R3F resizes the canvas (style and buffer) a few frames after its container; compare with the container.
   await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => {
-    const bounds = element.getBoundingClientRect();
+    const bounds = element.parentElement!.getBoundingClientRect();
     return Math.abs(element.width / element.height - bounds.width / bounds.height);
   })).toBeLessThan(.005);
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));

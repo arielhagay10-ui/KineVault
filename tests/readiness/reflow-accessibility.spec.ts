@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 import { test as publicTest } from "../e2e/published-catalog.helpers";
-import { openWorkshopTool } from "../e2e/workshop-menu.helpers";
+import { openWorkshopTool, workshopPose } from "../e2e/workshop-menu.helpers";
 import { auditAccessibility, setAppearance } from "./accessibility.helpers";
 import { test } from "./workshop.fixture";
 
@@ -33,7 +33,7 @@ test("workshop controls remain named and operable in narrow reflow", async ({ pa
   const controls = [page.getByRole("button", { name: "Play", exact: true }),
     page.getByRole("combobox", { name: "Preview speed", exact: true }),
     page.getByRole("button", { name: "Save exercise", exact: true }),
-    page.getByRole("combobox", { name: "Editing pose", exact: true })];
+    workshopPose(page, 0)];
   for (const control of controls) {
     await control.focus();
     await control.scrollIntoViewIfNeeded();
