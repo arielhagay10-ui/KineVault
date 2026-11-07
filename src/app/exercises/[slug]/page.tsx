@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { ArrowLeft, Heart, Info } from "@/components/ui/icons";
 import { MediaGallery, type MediaGroup } from "@/components/catalog/media-gallery";
 import { MotionInspector } from "@/components/character/motion-inspector";
@@ -23,15 +25,32 @@ function label(value: string | null | undefined) {
   return value ? value.replaceAll("_", " ") : "Not classified";
 }
 
+// Metadata and the page share these per-request loads.
+const loadPublishedExercise = cache(async (slug: string) => {
+  const supabase = await createClient();
+  const { data: exercise, error } = await supabase.from("exercises")
+    .select("id,slug,current_content_id,status,favorite_count,verified_at")
+    .eq("slug", slug).eq("status", "published").maybeSingle();
+  if (error) throw new Error("The exercise could not be loaded");
+  if (!exercise) notFound();
+  return exercise;
+});
+
+const loadContent = cache(async (contentId: string) => (await createClient())
+  .from("exercise_content").select("*,exercise_families(name,slug)").eq("id", contentId).single());
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const exercise = await loadPublishedExercise((await params).slug);
+  const { data: content } = await loadContent(exercise.current_content_id);
+  if (!content) return {};
+  return { title: `${content.name} | KineVault`, description: content.short_description?.trim() || undefined };
+}
+
 export default async function ExercisePage({ params }: Props) {
   const { slug } = await params;
   const supabase = await createClient();
   const identityPromise = getIdentity();
-  const { data: exercise, error: exerciseError } = await supabase.from("exercises")
-    .select("id,slug,current_content_id,status,favorite_count,verified_at")
-    .eq("slug", slug).eq("status", "published").maybeSingle();
-  if (exerciseError) throw new Error("The exercise could not be loaded");
-  if (!exercise) notFound();
+  const exercise = await loadPublishedExercise(slug);
   const favoritePromise = identityPromise.then(async identity => {
     const result = identity ? await supabase.from("favorites").select("exercise_id")
       .eq("exercise_id", exercise.id).eq("user_id", identity.userId).maybeSingle() : { data: null, error: null };
@@ -43,7 +62,7 @@ export default async function ExercisePage({ params }: Props) {
   const [contentResult, musclesResult, jointsResult, actionsResult, equipmentResult,
     attachmentsResult, patternsResult, aliasesResult, biomechanicsResult, mediaResult,
     relationsResult, scene, savedFavorite, identity] = await Promise.all([
-    supabase.from("exercise_content").select("*,exercise_families(name,slug)").eq("id", contentId).single(),
+    loadContent(contentId),
     supabase.from("exercise_muscles").select("role,muscles(name,slug)").eq("content_id", contentId),
     supabase.from("exercise_joints").select("role,joints(name,slug)").eq("content_id", contentId),
     supabase.from("exercise_joint_actions").select("role,joint_actions(name,slug,joints(name))").eq("content_id", contentId),

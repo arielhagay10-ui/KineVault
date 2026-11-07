@@ -22,6 +22,7 @@ test("Explore preserves combined anatomy and equipment filters in the URL", asyn
   await expect(page.getByText("2 active filters", { exact: true })).toBeVisible();
   await page.locator(`a[href="/exercises/${publishedCableRaise.slug}"]`).click();
   await expect(page.getByRole("heading", { level: 1, name: publishedCableRaise.name, exact: true })).toBeVisible();
+  await expect(page).toHaveTitle(`${publishedCableRaise.name} | KineVault`);
 });
 
 test("a joint action explains the movement and links to filtered Explore", async ({ page }) => {
