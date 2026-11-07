@@ -317,6 +317,7 @@ Separate destructive actions spatially and state their consequence before confir
 - Role selects beside taxonomy choices are compact, 112px wide, 12px text.
 - Helpers sit under the field, use muted 12px text, and explain uncertainty or requirements.
 - Use actual labels, not placeholder-only labeling. Required/optional fields must be understandable.
+- Placeholder text uses `muted-foreground` globally, which keeps it at least 4.5:1 in both themes.
 - Forms use 20px gaps in two-column groups; collapse to one column on narrower screens.
 - Multi-choice taxonomy fields use bordered scroll areas, usually max-height 192px.
 - Use native selects and `details`/`summary` where sufficient; custom UI is not required to match.

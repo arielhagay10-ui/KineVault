@@ -5,6 +5,9 @@ import { redactEvidence } from "../../scripts/lib/redact-evidence.mjs";
 export async function auditAccessibility(page: Page, testInfo: TestInfo, name: string) {
   // Client navigation may commit content before streamed metadata reaches the head.
   await expect(page).toHaveTitle(/\S/);
+  // A theme switch starts color transitions; axe would measure their intermediate colors.
+  await page.evaluate(() => Promise.allSettled(document.getAnimations()
+    .filter(animation => animation instanceof CSSTransition).map(animation => animation.finished)));
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();

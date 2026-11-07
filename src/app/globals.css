@@ -134,6 +134,8 @@
   .dark { color-scheme: dark; }
   ::selection { background: var(--accent); color: var(--accent-foreground); }
   input, textarea { caret-color: var(--primary); }
+  /* Tailwind's 50% currentColor placeholder is about 3:1 on light surfaces. */
+  ::placeholder { color: var(--muted-foreground); }
   :where(
     button,
     a[href],
