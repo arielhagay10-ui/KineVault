@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect } from "@playwright/test";
 import { test } from "../e2e/published-catalog.helpers";
-import { dismissWorkshopTutorial, openWorkshopTool, setWorkshopLanguage } from "../e2e/workshop-menu.helpers";
+import { dismissWorkshopTutorial, openWorkshopTool, renderCameraAction, setWorkshopLanguage } from "../e2e/workshop-menu.helpers";
 import { performanceRenderBudgets, performanceWorkloadScene, productionBuildMode, type PerformanceWorkload } from "../helpers/workshop-performance";
 
 test("verified production route transfer, lazy anatomy and workshop resource baseline", async ({ page, context, request, publishedCableRaise }) => {
@@ -163,12 +163,10 @@ test("verified production route transfer, lazy anatomy and workshop resource bas
     expect(Number((result.renderer as { geometries: string }).geometries)).toBeLessThanOrEqual(4);
     // Demand canvases stop before the 250 ms metrics interval can publish the
     // final pause solve. Render a settled camera frame before the baseline.
-    await page.getByRole("button", { name: "Zoom out", exact: true }).click();
-    await page.waitForTimeout(500);
     const readyViewer = page.locator('[data-anatomy-state="ready"]').first();
+    await renderCameraAction(page, readyViewer, "Zoom out");
     const solvesBeforeCamera = Number(await readyViewer.getAttribute("data-pose-solves"));
-    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-    await page.waitForTimeout(500);
+    await renderCameraAction(page, readyViewer, "Zoom in");
     result.cameraOnlyPoseSolves = Number(await readyViewer.getAttribute("data-pose-solves")) - solvesBeforeCamera;
     expect(result.cameraOnlyPoseSolves).toBe(0);
     await page.screenshot({ path: ".local-artifacts/efficiency-review/workshop-desktop-dark.png", fullPage: true });
@@ -179,7 +177,6 @@ test("verified production route transfer, lazy anatomy and workshop resource bas
     await cdp.send("HeapProfiler.collectGarbage");
     const beforeComparison = await sample();
     await page.getByRole("button", { name: "Compare start and finish", exact: true }).click();
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toHaveCount(2, { timeout: 60_000 });
     await expect(page.getByRole("link", { name: "CC BY-SA 4.0", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -192,7 +189,6 @@ test("verified production route transfer, lazy anatomy and workshop resource bas
       .screenshot({ path: `.local-artifacts/efficiency-review/comparison-${pose.toLowerCase()}-mobile-dark.png` });
     await openWorkshopTool(page, "View");
     await page.getByRole("button", { name: "Close comparison", exact: true }).click();
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toHaveCount(1, { timeout: 60_000 });
     await cdp.send("HeapProfiler.collectGarbage");
     result.afterComparisonHeapBytes = (await sample()).JSHeapUsedSize;
@@ -204,12 +200,10 @@ test("verified production route transfer, lazy anatomy and workshop resource bas
       await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
       await page.getByRole("button", { name: "Close account options", exact: true }).click();
       await page.goto("/my-exercises/new?metrics=1");
-      if (mobile) await page.getByRole("button", { name: "Preview", exact: true }).click();
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       if (await closeTutorial.isVisible()) await closeTutorial.click();
       await setWorkshopLanguage(page, "en");
       await openWorkshopTool(page, "View");
-      if (mobile) await page.getByRole("button", { name: "Preview", exact: true }).click();
       for (const language of ["en", "he"] as const) {
         await setWorkshopLanguage(page, language);
         if (language === "he") {
@@ -314,11 +308,9 @@ for (const workload of ["blank", "held", "machine"] as const satisfies readonly 
       await page.getByRole("button", { name: "Pause", exact: true }).click();
       await page.waitForTimeout(500);
       // Publish a settled pause frame before checking camera-only solve reuse.
-      await page.getByRole("button", { name: "Zoom out", exact: true }).click();
-      await page.waitForTimeout(500);
+      await renderCameraAction(page, viewer, "Zoom out");
       const cameraBefore = await sample();
-      await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-      await page.waitForTimeout(500);
+      await renderCameraAction(page, viewer, "Zoom in");
       const cameraAfter = await sample();
       result.camera = { before: cameraBefore, after: cameraAfter };
       await page.screenshot({ path: `${directory}/${workload}-workload.png` });

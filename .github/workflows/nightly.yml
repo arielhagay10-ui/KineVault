@@ -66,6 +66,7 @@ jobs:
           path: |
             .local-artifacts/readiness/
             .local-artifacts/efficiency-review/
+            .local-artifacts/supports/performance/
             .local-artifacts/operations/
             test-results/**/error-context.md
             test-results/**/*.png
