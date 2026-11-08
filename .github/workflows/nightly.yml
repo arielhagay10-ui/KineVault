@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - run: bash scripts/ci-install.sh
       # Only readiness covers Firefox and WebKit.
       - run: npx playwright install --with-deps ${{ matrix.suite == 'readiness' && 'chromium firefox webkit' || 'chromium' }}
       - run: npx supabase start --exclude realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor

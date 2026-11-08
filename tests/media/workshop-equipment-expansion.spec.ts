@@ -11,6 +11,8 @@ import { createStudioObject } from "../../src/lib/motion/studio";
 import { defaultBand } from "../../src/lib/motion/studio-band";
 import { identityTransform } from "../../src/lib/motion/workshop";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+// CI falls back to the system ffmpeg when the ffmpeg-static download fails.
+const ffmpegBinary = process.env.FFMPEG_PATH ?? ffmpeg!;
 
 const run = promisify(execFile);
 for (const slug of ["row-machine", "shoulder-press-machine", "chest-press-machine", "t-bar-row-machine", "leg-press"] as const) test(`${slug} and anchored bands render playable private video`, async ({ page, baseURL }) => {
@@ -54,10 +56,10 @@ for (const slug of ["row-machine", "shoulder-press-machine", "chest-press-machin
         token: process.env.RENDER_WORKER_TOKEN, onMetrics: metrics => console.log(JSON.stringify(metrics)) });
     `, directory, jobId, baseURL!, String(durationMs)], { timeout: 540_000 });
     writeFileSync(`${directory}/metrics.json`, captured.stdout);
-    const hashes = execFileSync(ffmpeg!, ["-hide_banner", "-loglevel", "error", "-i", `${directory}/demo.mp4`, "-f", "framemd5", "-"], { encoding: "utf8" })
+    const hashes = execFileSync(ffmpegBinary, ["-hide_banner", "-loglevel", "error", "-i", `${directory}/demo.mp4`, "-f", "framemd5", "-"], { encoding: "utf8" })
       .split("\n").filter(line => line && !line.startsWith("#")).map(line => line.split(",").at(-1)!.trim());
     expect(new Set(hashes).size).toBeGreaterThan(2);
-    for (const [name, time] of [["start", "0"], ["middle", String(durationMs / 2000)], ["return", String(durationMs * .9 / 1000)]]) execFileSync(ffmpeg!, ["-hide_banner", "-loglevel", "error", "-y", "-ss", time,
+    for (const [name, time] of [["start", "0"], ["middle", String(durationMs / 2000)], ["return", String(durationMs * .9 / 1000)]]) execFileSync(ffmpegBinary, ["-hide_banner", "-loglevel", "error", "-y", "-ss", time,
       "-i", `${directory}/demo.mp4`, "-frames:v", "1", `${directory}/${name}.png`], { stdio: "pipe" });
     const mediaUrl = new URL(`/__equipment-media/${slug}.mp4`, baseURL).href;
     await page.route(mediaUrl, route => route.fulfill({ contentType: "video/mp4", body: readFileSync(`${directory}/demo.mp4`) }));

@@ -19,6 +19,8 @@ import { carryHeldWeightsWithBody } from "../../src/lib/motion/held-weight-body"
 import { createAnatomyRig } from "../../src/lib/motion/anatomy";
 import { createSupportSetup } from "../../src/lib/motion/support-setups";
 import { changingElbowPulloverScene, nearLimitPulloverScene, sharedDumbbellScene } from "../helpers/shared-dumbbell";
+// CI falls back to the system ffmpeg when the ffmpeg-static download fails.
+const ffmpegBinary = process.env.FFMPEG_PATH ?? ffmpegStatic!;
 
 const run = promisify(execFile);
 // Each variant creates and removes its own account, scene and media, so CI can split them across shards.
@@ -177,7 +179,7 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
       for (const [source, target] of [["demo.mp4", `${variant}.mp4`], ["demo.webm", `${variant}.webm`], ["poster.webp", `${variant}-poster.webp`]]) {
         writeFileSync(`${folder}/${target}`, readFileSync(`${directory}/${source}`));
       }
-      const decoded = execFileSync(ffmpegStatic!, ["-hide_banner", "-loglevel", "error", "-i", `${folder}/${variant}.mp4`, "-f", "framemd5", "-"], { encoding: "utf8" });
+      const decoded = execFileSync(ffmpegBinary, ["-hide_banner", "-loglevel", "error", "-i", `${folder}/${variant}.mp4`, "-f", "framemd5", "-"], { encoding: "utf8" });
       const frameHashes = decoded.split("\n").filter(line => line && !line.startsWith("#")).map(line => line.split(",").at(-1)!.trim());
       expect(new Set(frameHashes).size, "Rendered movement must contain changing video frames").toBeGreaterThan(2);
       writeFileSync(`${folder}/${variant}-media.json`, JSON.stringify({ sceneId: renderSceneId, jobId, supports: scene.studio!.supports,
@@ -193,7 +195,7 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
       await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.ended), { timeout: 15_000 }).toBe(true);
       for (let sample = 0; sample <= 16; sample++) {
         // Decode samples directly because paused Chrome video screenshots can retain a stale composited frame.
-        execFileSync(ffmpegStatic!, ["-hide_banner", "-loglevel", "error", "-y", "-ss", String(scene.durationMs / 1000 * sample / 16),
+        execFileSync(ffmpegBinary, ["-hide_banner", "-loglevel", "error", "-y", "-ss", String(scene.durationMs / 1000 * sample / 16),
           "-i", `${folder}/${variant}.mp4`, "-frames:v", "1", `${folder}/${variant}-${sample}.png`], { stdio: "pipe" });
       }
       const sampleHashes = Array.from({ length: 17 }, (_, sample) => createHash("sha256").update(readFileSync(`${folder}/${variant}-${sample}.png`)).digest("hex"));

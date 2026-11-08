@@ -22,7 +22,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: tools/workshop-mcp/package-lock.json
-      - run: npm ci
+      - run: bash scripts/ci-install.sh
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: npm test
@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - run: bash scripts/ci-install.sh
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -51,7 +51,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - run: bash scripts/ci-install.sh
       - run: npx supabase start --exclude realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       - run: npm run db:test -- --migrations
       - run: npm run recovery:database
@@ -86,7 +86,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - run: bash scripts/ci-install.sh
       # Only readiness covers Firefox and WebKit.
       - run: npx playwright install --with-deps ${{ matrix.suite == 'readiness' && 'chromium firefox webkit' || 'chromium' }}
       - run: npx supabase start --exclude realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
