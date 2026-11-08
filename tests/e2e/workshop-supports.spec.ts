@@ -40,7 +40,8 @@ const test = base.extend<{ supports: SupportFixture }>({
           const saved = await owner.rpc("save_private_scene", { p_private_id: draftId, p_scene: scene });
           if (saved.error) throw saved.error;
         }
-        await page.goto(`/my-exercises/${draftId}/workshop`);
+        // metrics=1 publishes the camera position for orbit checks.
+        await page.goto(`/my-exercises/${draftId}/workshop?metrics=1`);
         await dismissWorkshopTutorial(page);
         await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       };
@@ -82,13 +83,15 @@ test("Support on picks the human and preserves self bracing after reload", async
   await support.getByRole("button", { name: "Support on…", exact: true }).click();
   const canvas = page.locator("canvas");
   await canvas.scrollIntoViewIfNeeded();
+  // Canvas screenshots take 10 s or more on software-rendered CI while orbit damping keeps rendering.
+  const cameraPosition = () => page.locator("[data-camera-position]").getAttribute("data-camera-position");
   const orbitWithRightButton = async () => {
-    const before = await canvas.screenshot(), box = (await canvas.boundingBox())!;
+    const before = await cameraPosition(), box = (await canvas.boundingBox())!;
     await page.mouse.move(box.x + box.width * .75, box.y + box.height * .5);
     await page.mouse.down({ button: "right" });
     try { await page.mouse.move(box.x + box.width * .85, box.y + box.height * .55, { steps: 12 }); }
     finally { await page.mouse.up({ button: "right" }); }
-    await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
+    await expect.poll(cameraPosition).not.toBe(before);
   };
   await orbitWithRightButton();
   await page.getByRole("button", { name: "Front", exact: true }).click();

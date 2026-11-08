@@ -76,7 +76,8 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await page.getByLabel("Exercise name", { exact: true }).fill("My first workshop exercise");
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
-    await expect(page.getByText(/Saved at.*Private/)).toBeVisible({ timeout: 30_000 });
+    // An autosave can move /new to the saved URL first; this save then mounts the saved route.
+    await expect(page.getByText(/^(Saved privately|Saved at .* · Private)$/)).toBeVisible({ timeout: 30_000 });
     const cleanContext = await browser.newContext({ baseURL, storageState: { cookies: await context.cookies(), origins: [] } });
     try {
       const next = await cleanContext.newPage();

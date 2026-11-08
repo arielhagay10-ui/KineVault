@@ -144,5 +144,6 @@ describe("independent machine palm and elbow choices", () => {
         }
       }
     } finally { rig.dispose(); }
-  });
+  // Loading and posing the atlas model took 5.7 s on a CI runner.
+  }, 15_000);
 });

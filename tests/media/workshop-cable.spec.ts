@@ -20,6 +20,8 @@ import { createSupportSetup } from "../../src/lib/motion/support-setups";
 import { changingElbowPulloverScene, nearLimitPulloverScene, sharedDumbbellScene } from "../helpers/shared-dumbbell";
 
 const run = promisify(execFile);
+// Each variant creates and removes its own account, scene and media, so CI can split them across shards.
+test.describe.configure({ mode: "parallel" });
 
 for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-hand-barbell", "custom-barbell", "custom-rope", "custom-machine", "lat-pulldown", "leg-press", "pec-deck", "automatic-dumbbells", "resting-dumbbells", "joint-driven-dumbbells", "carried-dumbbells", "lying-front-raise-dumbbells", "joint-driven-barbell", "shared-goblet-dumbbells", "shared-pullover-dumbbells", "shared-near-limit-dumbbells", "shared-varying-dumbbells", "shared-left-arm-dumbbells", "supported-row", "supported-floor", "supported-chest"] as const) test(`a saved ${variant} produces playable private media`, async ({ page, baseURL }) => {
   test.setTimeout(600_000);
@@ -162,7 +164,7 @@ for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-
       // Private drafts have no submission, so use the worker's shared capture pipeline without claiming queue jobs.
       execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
         `insert into public.render_jobs(id,scene_id,requested_by,status,claim_id,attempt_count,started_at) values ('${jobId}','${renderSceneId}','${account.data.user.id}','running','${randomUUID()}',1,now());`], { stdio: "pipe" });
-      const capture = await run(process.execPath, ["--env-file=.env.local", "--input-type=module", "-e", `
+      const capture = await run(process.execPath, ["--env-file-if-exists=.env.local", "--input-type=module", "-e", `
         import { captureMotion } from './scripts/lib/capture-motion.mjs';
         const [directory, jobId, duration, origin] = process.argv.slice(1);
         await captureMotion({ scene: { durationMs: Number(duration) }, directory,

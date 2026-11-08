@@ -19,7 +19,8 @@ export default defineConfig({
     ...(process.platform === "win32" ? { channel: "chrome" } : {}),
   },
   webServer: {
-    command: productionServer ? "npm run start" : "npm run dev",
+    // The dev script defaults to port 3002; the later --port wins.
+    command: productionServer ? "npm run start" : "npm run dev -- --port 3000",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !process.env.CI && !productionServer,
     timeout: 60_000,

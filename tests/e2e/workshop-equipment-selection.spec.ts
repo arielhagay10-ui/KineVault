@@ -83,8 +83,9 @@ test("essentials come first and double-click selects equipment for safe keyboard
     await page.getByRole("button", { name: "Camera", exact: true }).click();
     const doubleClickWeight = async () => {
       const canvas = page.locator("canvas");
+      // R3F resizes the canvas (style and buffer) a few frames after its container; compare with the container.
       await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => {
-        const bounds = element.getBoundingClientRect();
+        const bounds = element.parentElement!.getBoundingClientRect();
         return Math.abs(element.width / element.height - bounds.width / bounds.height);
       })).toBeLessThan(.005);
       await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
