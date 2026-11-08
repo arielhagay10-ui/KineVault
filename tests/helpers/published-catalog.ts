@@ -112,6 +112,15 @@ export async function withPublishedCableRaise(baseURL: string, runChecks: (exerc
     localSql(`update public.exercises set status = 'withdrawn'
       where created_by = '${userId}' and status = 'published';
       update public.roles set role = 'user' where user_id = '${userId}';
+      with pending as (
+        select id, status from public.exercise_submissions
+        where owner_id = '${userId}' and status in ('submitted', 'in_review', 'changes_requested') for update
+      ), withdrawn as (
+        update public.exercise_submissions submission set status = 'withdrawn', updated_at = now()
+        from pending where submission.id = pending.id returning submission.id
+      )
+      insert into public.moderation_events (submission_id, actor_id, action, from_status, to_status)
+        select pending.id, '${userId}', 'withdraw', pending.status, 'withdrawn' from pending join withdrawn using (id);
       delete from public.render_jobs where requested_by = '${userId}' and status = 'queued';
       delete from public.notification_deliveries delivery using public.notifications notification
         where notification.id = delivery.id and notification.user_id = '${userId}' and delivery.status = 'queued';`);
