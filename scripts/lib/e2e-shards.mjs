@@ -34,9 +34,11 @@ export const specMinutes = {
 // New specs count as a typical workshop spec until they are measured.
 const unmeasuredMinutes = 1;
 
+export const specCost = spec => specMinutes[spec] ?? unmeasuredMinutes;
+
 // Gives each spec, heaviest first, to the shard with the least work so far.
 export function shardSpecs(specs, total) {
-  const minutes = spec => specMinutes[spec] ?? unmeasuredMinutes;
+  const minutes = specCost;
   const shards = Array.from({ length: total }, () => ({ minutes: 0, specs: [] }));
   for (const spec of [...specs].sort((a, b) => minutes(b) - minutes(a) || a.localeCompare(b))) {
     const lightest = shards.reduce((min, shard) => (shard.minutes < min.minutes ? shard : min));
