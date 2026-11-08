@@ -280,6 +280,17 @@ export function plantAnatomyFeet(rig: AnatomyRig, style: string | undefined, pos
   let lean = 0, height = 1.43, depth = 0, split = 0;
   if (style === "squat") { lean = progress * 20; height -= progress * 0.55; depth = -0.16 * progress; }
   if (style === "hinge") { lean = progress * 55; height -= progress * 0.13; depth = -0.22 * progress; }
+  if (style === "deep-squat") {
+    // The hips travel back ahead of the descent, keeping a back-loaded bar over mid-foot.
+    const back = progress * (2 - progress);
+    lean = 8 + back * 40; height -= progress * 0.92; depth = -0.52 * back;
+  }
+  if (style === "deadlift") {
+    // From the floor the hips rise and the knees travel back with the back angle nearly held;
+    // once the bar passes the knees, hips and knees extend to lockout.
+    const knees = Math.max(0, progress * 2 - 1), hips = Math.min(1, progress * 2);
+    lean = 60 * hips + 5 * knees; height -= 0.2 * hips + 0.37 * knees; depth = -0.58 * hips - 0.02 * knees;
+  }
   if (style === "row") { lean = 55; height = 1.3; depth = -0.22; }
   if (style === "split-squat") { lean = 8; height = 1.28 - progress * 0.42; split = 0.55; }
   if (style === "bench-press") { lean = -45; height = 0.84; depth = 0.35; }

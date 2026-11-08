@@ -404,7 +404,7 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
   const [muscles, setMuscles] = useState<MuscleOption[]>([]);
   const elbowMotion = scene.keyframes.some(frame => (frame.poses["left-elbow"]?.x ?? 0) >= 70)
     && scene.keyframes.every(frame => Math.abs(frame.poses["left-shoulder"]?.z ?? 0) < 30);
-  const styleTargets: Record<string, string> = { squat: "group:quadriceps", "split-squat": "group:quadriceps", hinge: "group:hamstrings", row: "group:lats", "bench-press": "group:chest" };
+  const styleTargets: Record<string, string> = { squat: "group:quadriceps", "deep-squat": "group:quadriceps", "split-squat": "group:quadriceps", hinge: "group:hamstrings", deadlift: "group:glutes", row: "group:lats", "bench-press": "group:chest" };
   const initialTarget = styleTargets[scene.motionStyle ?? ""] ?? (elbowMotion ? scene.equipment?.slug === "single-cable" ? "group:triceps" : "group:biceps" : "group:deltoid");
   const [targetChoice, setTarget] = useState<string | null>(null);
   const savedHighlight = !editor && muscleSlugs !== undefined ? savedMuscleHighlight(muscleSlugs, secondaryMuscleSlugs) : undefined;

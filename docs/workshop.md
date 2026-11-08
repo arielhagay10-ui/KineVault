@@ -50,6 +50,10 @@ Smith Contacts includes lower and upper rail limits, from 0.3 to 3.05 unscaled m
 
 Stools and plyo boxes can be placed, rotated, scaled and used through any solid face with Body support. Bands have two independent anchors in Contacts. Each follows a hand, foot, pelvis, equipment or a point relative to the band item. Offsets and resting span are editable. Removing anchored equipment freezes that end in place; Undo restores the attachment. Bands stretch and sag visually without simulating forces or constraining the figure.
 
+### Planted squat and deadlift
+
+Advanced settings → Movement setup offers Deep squat and Deadlift from the floor beside the shallower Squat and Hip hinge. Both keep the feet flat on their floor targets. The torso Bend value sets depth: 0 stands and 35 is the bottom or floor position. Deep squat moves the hips back ahead of the descent and reaches thighs just below parallel with the trunk about 47 degrees from vertical; a slight lean at the top keeps a bar on the upper back over mid-foot. Deadlift starts with the hips above the knees and the trunk about 25 degrees above horizontal. The knees travel back while the bar rises to them, then the hips and knees extend fully. Held arms stay authored, so set the shoulder angle at each pose to keep a hanging bar close to the legs. Existing movement setups are unchanged.
+
 ## Editor behavior
 
 Rotation rings follow the joint's orientation and stop at movement limits without drifting into another rotation plane.
