@@ -318,7 +318,7 @@ export function supportPoseFromRig(rig: AnatomyRig): RigPose {
 
 function withSupportScene<T>(scene: WorkshopScene, rig: AnatomyRig, timeMs: number, operation: (pose: RigPose) => T): T {
   const parent = rig.root.parent, position = rig.root.position.clone(), rotation = rig.root.quaternion.clone(), scale = rig.root.scale.clone();
-  const bones = [...new Set([...Object.values(rig.bones), ...Object.values(rig.forearmBones), ...Object.values(rig.handBones), ...Object.values(rig.footBones), ...Object.values(rig.shoulderCaps), ...rig.fingerSegments.map(segment => segment.bone)])].map(bone => [bone, bone.quaternion.clone()] as const);
+  const bones = [...new Set([...Object.values(rig.bones), ...Object.values(rig.forearmBones), ...Object.values(rig.handBones), ...Object.values(rig.footBones), ...Object.values(rig.toeBones), ...Object.values(rig.shoulderCaps), ...rig.fingerSegments.map(segment => segment.bone)])].map(bone => [bone, bone.quaternion.clone(), bone.position.clone()] as const);
   const body = new Group(), transform = scene.studio?.body ?? identityTransform;
   body.position.set(transform.x, transform.y, transform.z); body.rotation.set(transform.rotationX * radians, transform.rotationY * radians, transform.rotationZ * radians); body.scale.setScalar(transform.scale); body.add(rig.root);
   try {
@@ -327,7 +327,7 @@ function withSupportScene<T>(scene: WorkshopScene, rig: AnatomyRig, timeMs: numb
     return operation(pose);
   } finally {
     body.remove(rig.root); parent?.add(rig.root); rig.root.position.copy(position); rig.root.quaternion.copy(rotation); rig.root.scale.copy(scale);
-    for (const [bone, quaternion] of bones) bone.quaternion.copy(quaternion);
+    for (const [bone, quaternion, position] of bones) { bone.quaternion.copy(quaternion); bone.position.copy(position); }
     rig.root.updateWorldMatrix(true, true); rig.skeleton.update();
   }
 }
