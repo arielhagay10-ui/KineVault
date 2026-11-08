@@ -55,7 +55,7 @@ describe("planted movement styles", () => {
     } finally { rig.dispose(); }
   });
 
-  it("reaches parallel squat depth and a floor-start deadlift with hips above knees", () => {
+  it("reaches parallel squat depth and a conventional floor-start deadlift", () => {
     const rig = createAnatomyRig(new Group());
     const joint = (name: "left-hip" | "left-knee" | "left-shoulder") => rig.bones[name].getWorldPosition(new Vector3());
     try {
@@ -64,7 +64,11 @@ describe("planted movement styles", () => {
       expect(hip.y).toBeLessThanOrEqual(knee.y);
       plantedState(rig, "deadlift", 35, false);
       const [start, startKnee, shoulder] = [joint("left-hip"), joint("left-knee"), joint("left-shoulder")];
-      expect(start.y - startKnee.y).toBeGreaterThan(.2);
+      expect(start.y).toBeGreaterThan(startKnee.y);
+      expect(start.y).toBeLessThan(shoulder.y);
+      const trunk = Math.atan2(shoulder.y - start.y, shoulder.z - start.z) * 180 / Math.PI;
+      expect(trunk).toBeGreaterThan(30);
+      expect(trunk).toBeLessThan(45);
       expect(shoulder.y).toBeLessThan(1.25);
       plantedState(rig, "deadlift", 0, false);
       expect(rig.root.quaternion.angleTo(new Quaternion())).toBe(0);

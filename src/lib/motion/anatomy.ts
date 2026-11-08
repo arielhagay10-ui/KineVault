@@ -286,10 +286,12 @@ export function plantAnatomyFeet(rig: AnatomyRig, style: string | undefined, pos
     lean = 8 + back * 40; height -= progress * 0.92; depth = -0.52 * back;
   }
   if (style === "deadlift") {
-    // From the floor the hips rise and the knees travel back with the back angle nearly held;
-    // once the bar passes the knees, hips and knees extend to lockout.
-    const knees = Math.max(0, progress * 2 - 1), hips = Math.min(1, progress * 2);
-    lean = 60 * hips + 5 * knees; height -= 0.2 * hips + 0.37 * knees; depth = -0.58 * hips - 0.02 * knees;
+    // [progress, lean, drop, back] from lockout to the floor start. Off the floor the hips move back
+    // as the knees straighten, clearing the shins for the bar, then hips and knees extend to lockout.
+    const path = [[0, 0, 0, 0], [0.5, 58, 0.19, 0.55], [0.75, 58, 0.44, 0.62], [1, 54, 0.698, 0.53]];
+    const next = Math.max(1, path.findIndex(point => point[0] >= progress)), from = path[next - 1], to = path[next];
+    const blend = (axis: number) => from[axis] + (to[axis] - from[axis]) * (progress - from[0]) / (to[0] - from[0]);
+    lean = blend(1); height -= blend(2); depth = -blend(3);
   }
   if (style === "row") { lean = 55; height = 1.3; depth = -0.22; }
   if (style === "split-squat") { lean = 8; height = 1.28 - progress * 0.42; split = 0.55; }
