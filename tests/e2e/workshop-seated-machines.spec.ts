@@ -59,6 +59,10 @@ for (const machine of [{ name: "Leg extension", slug: "leg-extension-machine", t
       await selectWorkshopObject(page, machine.name);
       await openWorkshopTool(page, "Timeline");
       await expect(page.getByLabel(machine.travel, { exact: true })).toBeVisible();
+      // The machine places both hands, so Contacts offers no separate hold.
+      await openWorkshopTool(page, "Contacts");
+      await expect(page.getByRole("button", { name: "Stop using machine", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Hold with/ })).toHaveCount(0);
       expect(errors).toEqual([]);
     } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
   });

@@ -36,8 +36,18 @@ export async function cleanupLocalFixture({ admin, userId, email, password, owne
   let softDelete = false;
   try {
     // No worker should render or email a fixture; claimed and finished rows stay with their worker and history.
+    // Open reviews are withdrawn with an audit event, never rejected: a rejection emails the deleted account.
     execFileSync("docker", ["exec", "supabase_db_kinevault", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
-      `delete from public.render_jobs where requested_by = '${userId}' and status = 'queued';
+      `with pending as (
+          select id, status from public.exercise_submissions
+          where owner_id = '${userId}' and status in ('submitted', 'in_review', 'changes_requested') for update
+        ), withdrawn as (
+          update public.exercise_submissions submission set status = 'withdrawn', updated_at = now()
+          from pending where submission.id = pending.id returning submission.id
+        )
+        insert into public.moderation_events (submission_id, actor_id, action, from_status, to_status)
+          select pending.id, '${userId}', 'withdraw', pending.status, 'withdrawn' from pending join withdrawn using (id);
+        delete from public.render_jobs where requested_by = '${userId}' and status = 'queued';
         delete from public.notification_deliveries delivery using public.notifications notification
           where notification.id = delivery.id and notification.user_id = '${userId}' and delivery.status = 'queued';`], { stdio: "pipe" });
     const drafts = await authenticated.from("private_exercises").select("id").eq("owner_id", userId);

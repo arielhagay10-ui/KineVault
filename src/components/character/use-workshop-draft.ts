@@ -10,7 +10,10 @@ export function useWorkshopDraft({ ownerId, privateId, initialScene, initialName
   ownerId: string; privateId: string | null; initialScene: WorkshopScene; initialName: string;
   scene: WorkshopScene; name: string; firstPoseInitialized: boolean; paused: boolean; gesture?: WorkshopGestureScene;
 }) {
-  const [queue] = useState(() => new DraftSaveQueue(privateId, saveWorkshopScene));
+  // A revalidating action re-renders the current URL. Once the first save moves /new to the
+  // saved URL, that render would mount the saved route and drop this editor's history.
+  const [queue] = useState(() => new DraftSaveQueue(privateId, (id, value, draftName, create) =>
+    saveWorkshopScene(id, value, draftName, create, !!privateId || create)));
   const [sessionId] = useState(() => crypto.randomUUID());
   const [savedId, setSavedId] = useState(privateId);
   const [message, setMessage] = useState(privateId ? "Saved privately" : "Not saved yet");

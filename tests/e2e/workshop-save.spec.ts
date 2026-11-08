@@ -26,6 +26,39 @@ test("a new saved workshop draft keeps its equipment after refresh", async ({ pa
   await expect(page.getByRole("button", { name: "Hold with both hands", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
+test("Save after the first autosave keeps the new editor, its panel and Undo", async ({ page, workshop }) => {
+  test.setTimeout(120_000);
+  await page.goto("/my-exercises/new");
+  await dismissWorkshopTutorial(page);
+  await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+  const editor = await page.getByRole("region", { name: "Workshop editor", exact: true }).elementHandle();
+  await openWorkshopTool(page, "Position");
+  const position = page.getByRole("textbox", { name: "Position X meters", exact: true });
+  await position.fill("0.3");
+  await position.press("Tab");
+  // Autosave waits for captured poses.
+  await page.getByRole("button", { name: "Capture start", exact: true }).click();
+  await selectWorkshopMoment(page, "Finish");
+  await page.getByRole("button", { name: "Capture pose", exact: true }).click();
+  await page.getByLabel("Exercise name", { exact: true }).fill("Autosave then Save fixture");
+  await expect(page).toHaveURL(/\/my-exercises\/[\da-f-]+\/workshop$/, { timeout: 30_000 });
+  await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+  const savedId = new URL(page.url()).pathname.split("/")[2];
+  expect(savedId).not.toBe(workshop.draftId);
+  await position.fill("0.45");
+  await position.press("Tab");
+  const saved = page.waitForResponse(response => response.request().method() === "POST"
+    && new URL(response.url()).pathname === `/my-exercises/${savedId}/workshop` && /"x":0\.45\b/.test(response.request().postData() ?? ""));
+  await page.getByRole("button", { name: "Save exercise", exact: true }).click();
+  expect((await saved).ok()).toBe(true);
+  await expect(page.getByText(/Saved at.*Private/)).toBeVisible();
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(page.getByRole("tab", { name: "Position", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(position).toHaveValue("0.3");
+  expect(await editor!.evaluate(element => element.isConnected)).toBe(true);
+});
+
 async function saveDuringAutosave(page: Page, draftId: string, trigger: "button" | "keyboard" | "captured poses") {
   test.setTimeout(120_000);
   let releaseFirst!: () => void;
