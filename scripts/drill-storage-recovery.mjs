@@ -6,6 +6,8 @@ import { resolve, join } from "node:path";
 import ffmpeg from "ffmpeg-static";
 import { createClient } from "@supabase/supabase-js";
 import { localOrigin, verifyBytes, requireStorageDenial } from "./lib/operations-validation.mjs";
+// CI falls back to the system ffmpeg when the ffmpeg-static download fails.
+const ffmpegBinary = process.env.FFMPEG_PATH ?? ffmpeg;
 
 if (process.argv.includes("--help")) {
   console.log("Usage: node scripts/drill-storage-recovery.mjs\nLoads .env.local when present, retaining explicit environment values. Creates one UUID private local bucket and real tiny WebM/MP4/WebP fixtures. Downloads backups, deletes originals, restores bytes, verifies checksums and signed/unsigned access, then removes only that bucket. Rejects remote URLs.");
@@ -39,7 +41,7 @@ try {
   const visitor = createClient(origin, publicKey, clientOptions);
   for (let index = 0; index < paths.length; index++) {
     const extra = index === 0 ? ["-c:v", "libvpx-vp9"] : index === 1 ? ["-c:v", "libx264", "-pix_fmt", "yuv420p"] : ["-frames:v", "1", "-c:v", "libwebp"];
-    execFileSync(ffmpeg, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=32x32:r=10:d=0.2", ...extra, "-y", join(directory, paths[index])], { timeout: 30000, stdio: "pipe" });
+    execFileSync(ffmpegBinary, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=32x32:r=10:d=0.2", ...extra, "-y", join(directory, paths[index])], { timeout: 30000, stdio: "pipe" });
   }
   creationUncertain = true;
   demand(await service.storage.createBucket(bucketId, { public: false, fileSizeLimit: 1048576, allowedMimeTypes: mimeTypes }));
