@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from "three";
 import type { AnatomyRig } from "./anatomy";
 import type { JointAngles, StudioObject } from "./workshop";
 import { gripOffset } from "./grip-edit";
+import { pullUpBarGrip } from "./pull-up-bar";
 
 export function weightGripPoint(object: StudioObject, side: "left" | "right") {
   if (object.slug === "dumbbell" && object.attachment === "both") {
@@ -10,6 +11,7 @@ export function weightGripPoint(object: StudioObject, side: "left" | "right") {
   const half = object.attachment !== "both" ? 0 : object.slug === "barbell" ? 0.4 : object.slug === "kettlebell" ? 0.12 : 0;
   const base = object.slug === "bench" ? new Vector3(side === "left" ? .24 : -.24, .68, .25)
     : object.slug === "squat-rack" ? new Vector3(side === "left" ? .65 : -.65, 1.4, .3)
+    : object.slug === "pull-up-bar" ? pullUpBarGrip(side)
     : new Vector3(side === "left" ? half : -half, 0.2, 0);
   return base.add(gripOffset(object, side));
 }

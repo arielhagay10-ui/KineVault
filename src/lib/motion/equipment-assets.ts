@@ -30,6 +30,7 @@ export const equipmentAssets = {
   "shoulder-press-machine": { url: "/models/equipment/shoulder-press-machine.v2.glb", requiredGroups: ["Static", "Weights", "Handles", "LeftLever", "RightLever", "LeftNeutralGrip", "RightNeutralGrip"] },
   stool: { url: "/models/equipment/stool.v1.glb", requiredGroups: ["Static"] },
   "plyo-box": { url: "/models/equipment/plyo-box.v1.glb", requiredGroups: ["Static"] },
+  "pull-up-bar": { url: "/models/equipment/pull-up-bar.v1.glb", requiredGroups: ["Static"] },
   "resistance-band": { url: "/models/equipment/resistance-band.v1.glb", requiredGroups: ["Static"] },
 } as const satisfies Record<StudioObject["slug"], { url: string; requiredGroups: readonly string[] }>;
 

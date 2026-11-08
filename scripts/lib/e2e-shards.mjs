@@ -21,7 +21,7 @@ export const specMinutes = {
   "workshop-joint-contacts.spec.ts": 1, "workshop-limb-pose.spec.ts": 1.1, "workshop-manipulation.spec.ts": 1.9,
   "workshop-menu.helpers.spec.ts": 0.1, "workshop-mode-layout.spec.ts": 0.4, "workshop-mouse.spec.ts": 2.3,
   "workshop-picker-dedup.spec.ts": 0.1, "workshop-picker-empty-search.spec.ts": 0.1,
-  "workshop-placement-warning.spec.ts": 0.3, "workshop-plate-row.spec.ts": 1.1, "workshop-preview-regression.spec.ts": 0,
+  "workshop-placement-warning.spec.ts": 0.3, "workshop-plate-row.spec.ts": 1.1, "workshop-preview-regression.spec.ts": 0, "workshop-pull-up.spec.ts": 0.3,
   "workshop-quick-create.spec.ts": 3.6, "workshop-recording.spec.ts": 0.7, "workshop-release.spec.ts": 1.6,
   "workshop-return-navigation.spec.ts": 0.1, "workshop-save.spec.ts": 1, "workshop-seated-freedom.spec.ts": 6.2, "workshop-seated-machines.spec.ts": 1.5,
   "workshop-selection-focus.spec.ts": 0.6, "workshop-shared-dumbbell.spec.ts": 3, "workshop-shortcuts.spec.ts": 0.4,

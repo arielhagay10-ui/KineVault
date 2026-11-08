@@ -40,6 +40,7 @@ const synonyms: Record<string, string[]> = {
   "leg-curl-machine": ["leg curl", "seated leg curl", "hamstring curl", "knee flexion"],
   "calf-raise-machine": ["calf raise", "standing calf raise", "calf machine", "heel raise", "calves"],
   stool: ["utility seat", "backless seat"], "plyo-box": ["jump box", "plyometric box", "step"],
+  "pull-up-bar": ["pull up bar", "pullup bar", "chin up bar", "chin-up bar", "pull-up station", "hanging bar"],
   "resistance-band": ["elastic band", "resistance bands", "loop band", "power band"],
   bench: ["seat", "incline seat", "flat bench", "incline bench", "weight bench"],
   "squat-rack": ["power rack", "power cage", "squat stand"],
@@ -89,7 +90,7 @@ export function searchWorkshopEquipment(options: EquipmentOption[], query: strin
 
 export function equipmentGroup(slug: string): "Machines" | "Weights" | "Supports" {
   const canonical = aliases[slug] ?? slug;
-  return ["barbell", "dumbbell", "kettlebell", "resistance-band"].includes(canonical) ? "Weights" : ["bench", "squat-rack", "stool", "plyo-box"].includes(canonical) ? "Supports" : "Machines";
+  return ["barbell", "dumbbell", "kettlebell", "resistance-band"].includes(canonical) ? "Weights" : ["bench", "squat-rack", "stool", "plyo-box", "pull-up-bar"].includes(canonical) ? "Supports" : "Machines";
 }
 
 export function createQuickScene(slug: string): WorkshopScene {

@@ -103,6 +103,17 @@ shoulders against the pads. The 208 KB asset has 5,780 triangles and 10 draws an
 raises the aggregate library budget to 5 MB. Migration
 `20261108130000_workshop_calf_raise.sql` registers the slug.
 
+The pull-up bar is a static `pull-up-bar` object. Rebuild it with Blender's
+`--python scripts/equipment/build_pull_up_bar.py`, then prune and quantize it.
+`src/lib/motion/pull-up-bar.ts` holds the bar height and grip width the generator,
+grip editor and hanging solver share. The uprights stand outside the widest elbow
+path of a wide-grip pull-up. Tests check the grips against the shipped bar and the
+real head, neck and body against the bar through a full pull-up. The 76 KB asset
+has 2,004 triangles and 4 draws and raises the aggregate library budget to 5.1 MB.
+Migration `20261108140000_workshop_pull_up_bar.sql` adds a top-level validator
+layer: both hands or none may hold the bar, hanging excludes seating, supports and
+machines, and the bar otherwise reuses the rack contract.
+
 The anatomy rig binds each foot's phalanges and the soft tissue in front of the
 metatarsophalangeal joints to a toe bone at load time; the GLB is unchanged. The
 toe bone shares the foot's origin and turns about the joint line only when a

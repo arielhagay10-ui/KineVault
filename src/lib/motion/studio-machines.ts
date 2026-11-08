@@ -7,7 +7,7 @@ import { gripOffset } from "./grip-edit";
 import { supportElbowTarget } from "./support-contacts";
 import { plateRow, plateRowFootPoint, plateRowLever, reachPlateRowGrip, rowLeverPosition, rowUsesHand } from "./plate-row";
 import { reachShoulderPressGrip, shoulderPressGripPoint, shoulderPressLever } from "./shoulder-press";
-import { reachHingedMachineGrip } from "./machine-grip";
+import { poseMachineArm, reachHingedMachineGrip } from "./machine-grip";
 import { tBarRow, tBarRowFootPoint, tBarRowLever, reachTBarRowGrip } from "./t-bar-row";
 import { legPress, legPressCarriagePoint, legPressFootPoint } from "./leg-press";
 import { isKneeLever, kneeLever, kneeLeverAnkle, kneeLeverFootRotation, kneeLeverHandle, kneeLeverLever, reachKneeLeverHandle } from "./knee-lever";
@@ -483,24 +483,6 @@ function reachSmithBar(rig: AnatomyRig, side: "left" | "right", target: Vector3,
   pole.applyAxisAngle(direction, (side === "left" ? 1 : -1) * 2 * Math.PI / 180);
   const elbowTarget = origin.clone().addScaledVector(direction, along).addScaledVector(pole, Math.sqrt(Math.max(0, upper ** 2 - along ** 2)));
   poseMachineArm(rig, side, elbowTarget, wrist, handWorld);
-}
-
-function poseMachineArm(rig: AnatomyRig, side: "left" | "right", elbowTarget: Vector3, wrist: Vector3, handWorld: Quaternion) {
-  const shoulder = rig.bones[`${side}-shoulder`], elbow = rig.bones[`${side}-elbow`];
-  const forearm = rig.forearmBones[side], hand = rig.handBones[side];
-  const origin = shoulder.getWorldPosition(new Vector3());
-  const lowerDirection = wrist.clone().sub(elbowTarget).normalize();
-  const rotation = new Quaternion().setFromUnitVectors(hand.position.clone().normalize(), lowerDirection);
-  const palm = new Vector3(0, 0, 1).applyQuaternion(rotation), desiredPalm = new Vector3(0, 0, 1).applyQuaternion(handWorld);
-  palm.addScaledVector(lowerDirection, -palm.dot(lowerDirection)).normalize();
-  desiredPalm.addScaledVector(lowerDirection, -desiredPalm.dot(lowerDirection)).normalize();
-  rotation.premultiply(new Quaternion().setFromAxisAngle(lowerDirection, Math.atan2(lowerDirection.dot(palm.clone().cross(desiredPalm)), palm.dot(desiredPalm))));
-  shoulder.quaternion.setFromUnitVectors(elbow.position.clone().normalize(), elbowTarget.sub(origin).normalize().applyQuaternion(shoulder.parent!.getWorldQuaternion(new Quaternion()).invert()));
-  rig.root.updateWorldMatrix(true, true);
-  elbow.quaternion.copy(shoulder.getWorldQuaternion(new Quaternion()).invert()).multiply(rotation).multiply(forearm.quaternion.clone().invert());
-  hand.quaternion.copy(rotation.invert().multiply(handWorld));
-  rig.shoulderCaps[side].quaternion.identity().slerp(shoulder.quaternion, 0.82);
-  rig.root.updateWorldMatrix(true, true);
 }
 
 // Keep elbows in the frontal plane and closed hands aligned with the shaft.

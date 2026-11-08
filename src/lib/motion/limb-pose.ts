@@ -21,6 +21,7 @@ export function limbPoseBlock(scene: WorkshopScene, limb: PoseLimb): string | un
     if (held.attachment === "both") return "Both hands share this weight. Move the weight to pose both arms together.";
     if (held.slug === "dumbbell") return;
   }
+  if (held?.slug === "pull-up-bar") return "The hands stay on the bar. Pose the shoulders and elbows to raise or lower the body, or release the bar.";
   if (held && !["row-machine", "shoulder-press-machine", "chest-press-machine"].includes(held.slug)) return "Move the attached equipment to pose this limb, or release it first.";
 }
 

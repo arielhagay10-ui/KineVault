@@ -11,6 +11,7 @@ import { tBarRow } from "./t-bar-row";
 import { kneeLever, kneeLeverHandle, kneeLeverLever, kneeLeverSlugs, kneeLeverThighPad } from "./knee-lever";
 import { lateralRaise, lateralRaiseLever } from "./lateral-raise";
 import { calfRaise, calfRaiseCarriagePoint } from "./calf-raise";
+import { pullUpBar } from "./pull-up-bar";
 
 function source() {
   const root = new Group();
@@ -121,6 +122,16 @@ describe("equipment assets", () => {
         }
         for (const side of ["left", "right"] as const) expect(surfaceDistance(asset.groups.Handles, machineHandlePoint(object, side)), `${side} handle at ${i}`).toBeLessThan(.025);
       }
+    } finally { disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene); }
+  });
+  it("puts the pull-up grips on the shipped bar, high enough for a dead hang", async () => {
+    const definition = equipmentAssets["pull-up-bar"], bytes = await readFile(`public${definition.url}`);
+    const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const asset = createEquipmentAssetInstance(gltf.scene, definition);
+    try {
+      for (const x of [-pullUpBar.grip, 0, pullUpBar.grip]) expect(surfaceDistance(asset.groups.Static, new Vector3(x, pullUpBar.height, 0)) - pullUpBar.radius).toBeLessThan(.003);
+      const bounds = new Box3().setFromObject(asset.groups.Static);
+      expect(bounds.max.y).toBeGreaterThan(pullUpBar.height); expect(bounds.max.x).toBeLessThan(pullUpBar.upright.x + .1);
     } finally { disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene); }
   });
   it("keeps the row seat, chest pad and footplates on their rendered contact surfaces", async () => {
@@ -267,7 +278,7 @@ describe("equipment assets", () => {
     disposeEquipmentAsset(asset.root); disposeEquipmentAsset(gltf.scene);
   });
 
-  it("keeps the expanded equipment library below 5 MB without external textures", async () => {
+  it("keeps the expanded equipment library below 5.1 MB without external textures", async () => {
     let total = 0;
     for (const definition of [...Object.values(equipmentAssets), ...Object.values(attachmentAssets)]) {
       const bytes = await readFile(`public${definition.url}`);
@@ -277,7 +288,7 @@ describe("equipment assets", () => {
       expect(document.images ?? []).toEqual([]);
       expect(document.buffers.every((buffer: { uri?: string }) => !buffer.uri)).toBe(true);
     }
-    expect(total).toBeLessThan(5_000_000);
+    expect(total).toBeLessThan(5_100_000);
   });
 
   it.each(["smith-machine", "leg-press", "cable-row-machine", "pec-deck"] as const)("moves %s GLB groups with the solver at 17 samples", async slug => {

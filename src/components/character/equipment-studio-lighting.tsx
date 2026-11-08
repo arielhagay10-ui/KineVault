@@ -11,7 +11,7 @@ const footprints: Partial<Record<StudioObject["slug"], readonly [number, number]
   "lat-pulldown-machine": [1.5, 1.9], "smith-machine": [2.1, 1.8],
   "leg-press": [1.8, 2.7], "cable-row-machine": [1.5, 2.4], "pec-deck": [1.7, 1.9],
   "cable-machine": [1.4, 1.5], bench: [1.1, 2], "squat-rack": [1.7, 1.8],
-  "t-bar-row-machine": [1.6, 2.4], "leg-extension-machine": [1.3, 2.3], "leg-curl-machine": [1.3, 2.3], "lateral-raise-machine": [2.1, 1.8], "calf-raise-machine": [1.8, 1.9],
+  "t-bar-row-machine": [1.6, 2.4], "leg-extension-machine": [1.3, 2.3], "leg-curl-machine": [1.3, 2.3], "lateral-raise-machine": [2.1, 1.8], "calf-raise-machine": [1.8, 1.9], "pull-up-bar": [1.8, 1.4],
 };
 
 /** Shared equipment reflections; anatomy-only previews make no HDR request. */

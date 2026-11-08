@@ -40,6 +40,10 @@ Use this machine seats the figure against the back pad with the shoulders on the
 
 Use this machine stands the figure on the toe platform with the balls of both feet on its rear edge, the knees straight and the shoulders under the pads. Both hands hold the handles in front of the pads. Heel raise travel takes the ankles from about 17 degrees of dorsiflexion, with the heels below the platform, to about 26 degrees of plantarflexion. The feet pivot on the balls of the feet while the toes stay flat, and the machine lifts the figure and its pads together. The machine controls every joint, like the leg machines.
 
+### Pull-up bar
+
+Select the pull-up bar and choose Hold with both hands in Contacts to hang from it with an overhand grip, slightly wider than the shoulders. The hands carry the body: pose the shoulders and elbows, and the figure rises or lowers until both hands meet the bar. Each arm then closes on its grip, bending toward its posed elbow, so uneven arms still keep both hands on the bar. The legs and torso keep their posed angles and hang freely. Body placement locks while hanging; Release bar in the toolbar or Position frees the figure. Hanging replaces seating, surface supports and movement setups, and a single hand cannot hold the bar. Grip edit moves each hand along the bar.
+
 ### Shoulder press
 
 The shoulder press has wide grips for elbows-out pressing and neutral grips for elbows-forward pressing. Both sets share the lever arc. Each arm has independent travel controls and can be dragged separately. The neutral grip uses a visible swivel to retain its orientation without forcing the wrist to follow the lever's full rotation. This swivel is an added design choice for the reference-inspired model, not a mechanism established by the supplied photo.
