@@ -13,7 +13,8 @@ test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] 
 test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 test("leave equipment from the mobile header, move independently, undo and save", async ({ page }) => {
-  test.setTimeout(180_000);
+  // Each machine and the bench take about 15 seconds on CI.
+  test.setTimeout(30_000 + 20_000 * (machineSlugs.length + 1));
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
