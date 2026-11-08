@@ -1,7 +1,8 @@
 import { expect, it } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
-import { cameraDistanceForPoints, studioCameraPoints } from "./studio-camera";
-import { createStudioObject } from "./studio";
+import { cameraDistanceForPoints, placeViewerCamera, renderCreditInset, studioCameraPoints } from "./studio-camera";
+import { createStudioObject, studioPointToWorld } from "./studio";
+import type { StudioObject } from "./workshop";
 
 it.each(["cable-row-machine", "pec-deck"] as const)("includes the complete %s frame in camera fitting", slug => {
   const object = { ...createStudioObject(slug, "00000000-0000-4000-8000-000000000001", 0), x: 0, z: 0 };
@@ -28,13 +29,32 @@ it("frames taller towers even when a tower is closer to a side-view camera", () 
   }
 });
 
-it("keeps the lateral raise machine's toes above the front render's license line", () => {
-  const object = { ...createStudioObject("lateral-raise-machine", "00000000-0000-4000-8000-000000000001", 0), x: 0, z: 0 };
-  // Mirrors the 640x640 render camera for a front view of a standard-height figure.
-  const target = new Vector3(0, 1.38, 0), offset = new Vector3(0, 0.27, 5.3).multiplyScalar(1.05);
+// The 640x640 render of a standard-height figure; its credit strip covers NDC y below this line.
+const creditLine = renderCreditInset / 320 - 1;
+function renderCamera(view: "front" | "side", objects: StudioObject[]) {
   const camera = new PerspectiveCamera(34, 1, 0.1, 100);
-  camera.position.copy(target).add(offset.clone().normalize().multiplyScalar(cameraDistanceForPoints(studioCameraPoints([object]), target, offset, 34, 1)));
-  camera.lookAt(target); camera.updateMatrixWorld(true);
-  // Toes rest on the floor about 0.8 m in front of the lever axes; the license line covers the bottom 46 px.
-  expect(new Vector3(0, 0, 0.8).project(camera).y).toBeGreaterThan(-(320 - 46) / 320);
+  placeViewerCamera(camera, { view, overhead: false, bench: false, contentHeight: 2.75, bounds: studioCameraPoints(objects), width: 640, height: 640, inset: renderCreditInset });
+  camera.updateMatrixWorld(true);
+  return camera;
+}
+
+it("keeps floor-level barbell plates above the render's credit strip", () => {
+  // A conventional deadlift start: the bar rests on its 0.2 m plates in front of the shins.
+  const barbell = { ...createStudioObject("barbell", "00000000-0000-4000-8000-000000000001", 0), x: 0, y: 0, z: 0.3 };
+  const camera = renderCamera("side", [barbell]);
+  for (const x of [-0.84, 0.84]) for (const z of [-0.2, 0.2]) {
+    expect(studioPointToWorld({ x, y: 0, z }, barbell).project(camera).y).toBeGreaterThan(creditLine);
+  }
+});
+
+it("keeps the lateral raise machine's toes above the front render's credit strip", () => {
+  const object = { ...createStudioObject("lateral-raise-machine", "00000000-0000-4000-8000-000000000001", 0), x: 0, z: 0 };
+  // Toes rest on the floor about 0.8 m in front of the lever axes.
+  expect(new Vector3(0, 0, 0.8).project(renderCamera("front", [object])).y).toBeGreaterThan(creditLine);
+});
+
+it("leaves viewers without the credit strip unshifted", () => {
+  const camera = new PerspectiveCamera(34, 1, 0.1, 100);
+  placeViewerCamera(camera, { view: "side", overhead: false, bench: false, contentHeight: 2.75, bounds: [], width: 640, height: 640 });
+  expect(camera.view).toBeNull();
 });

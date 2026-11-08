@@ -32,7 +32,7 @@ import type { SupportSolveReport } from "@/lib/motion/support-contacts";
 import { WorkshopSupportOverlay } from "./workshop-support-overlay";
 import { applyStudioMachine, type MachineReachReport } from "@/lib/motion/studio-machines";
 import { constrainFrontalPose, resolveStudioObject } from "@/lib/motion/studio-constraints";
-import { cameraDistanceForPoints, studioCameraPoints } from "@/lib/motion/studio-camera";
+import { placeViewerCamera, renderCreditInset, studioCameraPoints } from "@/lib/motion/studio-camera";
 import { rowUsesHand } from "@/lib/motion/plate-row";
 import { styleWorkshopEquipment, fadeWorkshopEquipment, fitWorkshopCamera, oppositeCameraPosition, raisedUpperArm, workshopCameraView, zoomCameraPosition, type WorkshopCameraAction, type WorkshopCameraCommand } from "@/lib/motion/workshop-camera";
 import { workshopEditorForInteraction } from "@/lib/motion/workshop-interaction";
@@ -311,22 +311,15 @@ function WorkshopCameraDriver({ scene, view, command, getFocus }: { scene: Works
 }
 
 type AnatomyView = WorkshopScene["cameraAngle"] | "back";
-function CameraView({ view, overhead, bench, contentHeight, scene }: { view: AnatomyView; overhead: boolean; bench: boolean; contentHeight: number; scene: WorkshopScene }) {
+function CameraView({ view, overhead, bench, contentHeight, scene, inset }: { view: AnatomyView; overhead: boolean; bench: boolean; contentHeight: number; scene: WorkshopScene; inset: number }) {
   const camera = useThree(state => state.camera);
   const invalidate = useThree(state => state.invalidate);
   const { width, height } = useThree(state => state.size);
   const bounds = useMemo(() => studioCameraPoints(scene.studio?.objects.map(object => resolveStudioObject(scene, object, 0))), [scene]);
   useLayoutEffect(() => {
-    const position: [number, number, number] = bench && view === "three_quarter" ? [4, 3.6, 4] : view === "front" ? [0, 1.65, 5.3]
-      : view === "back" ? [0, 1.65, -5.3] : view === "side" ? [5.3, 1.65, 0] : [3.2, 1.85, 5.1];
-    // Leave room for raised arms on narrow screens as well as the resting body.
-    const fit = Math.max(overhead ? 1.23 : 1, 1.05 / (width / height), contentHeight / 2.75);
-    const targetHeight = Math.max(1.38, contentHeight / 2);
-    const target = new Vector3(0, targetHeight, 0), offset = new Vector3(position[0], position[1] - 1.38, position[2]).multiplyScalar(fit);
-    const distance = camera instanceof PerspectiveCamera ? cameraDistanceForPoints(bounds, target, offset, camera.fov, width / height) : offset.length();
-    camera.position.copy(target).add(offset.normalize().multiplyScalar(distance));
-    camera.lookAt(0, targetHeight, 0); invalidate();
-  }, [view, camera, invalidate, width, height, overhead, bench, contentHeight, bounds]);
+    placeViewerCamera(camera, { view, overhead, bench, contentHeight, bounds, width, height, inset });
+    invalidate();
+  }, [view, camera, invalidate, width, height, overhead, bench, contentHeight, bounds, inset]);
   return null;
 }
 
@@ -489,7 +482,7 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
           <PreviewPixelRatio quality={quality} playback={playback} dragging={!!editor?.dragging} />
           <MotionMetrics wrapper={wrapper} solvesRef={solvesRef} solveStartedRef={solveStartedRef} onMetrics={onMetrics} />
           <OrbitControls makeDefault enabled={!editor?.dragging && !editor?.gripEdit?.picking} enableDamping={!onCameraChange} rotateSpeed={editor?.sensitivity ?? 1} panSpeed={editor?.sensitivity ?? 1} zoomSpeed={editor?.sensitivity ?? 1} mouseButtons={{ LEFT: simplifiedControls && mode === "edit" ? undefined : MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: simplifiedControls && mode === "edit" ? MOUSE.ROTATE : MOUSE.PAN }} touches={{ ONE: simplifiedControls && mode === "edit" ? undefined : TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }} target={simplifiedControls ? undefined : [0, 1.38, 0]} enablePan={!!editor || !!onCameraChange} minDistance={simplifiedControls ? 1 : 2.5} maxDistance={simplifiedControls ? 100 : editor ? 25 : 12} />
-          {simplifiedControls ? <WorkshopCameraDriver scene={scene} view={view} command={command} getFocus={getFocus} /> : <CameraView view={view} overhead={overhead} bench={scene.motionStyle === "bench-press"} scene={scene} contentHeight={Math.max(2.75 * (scene.studio?.body.scale ?? 1) + (scene.studio?.body.y ?? 0), ...(scene.studio?.objects.filter(object => object.slug === "cable-machine").map(object => object.y + (maxPulleyHeight + 0.15) * object.scale) ?? []))} />}
+          {simplifiedControls ? <WorkshopCameraDriver scene={scene} view={view} command={command} getFocus={getFocus} /> : <CameraView view={view} overhead={overhead} bench={scene.motionStyle === "bench-press"} scene={scene} inset={showMuscleControls || compact ? 0 : renderCreditInset} contentHeight={Math.max(2.75 * (scene.studio?.body.scale ?? 1) + (scene.studio?.body.y ?? 0), ...(scene.studio?.objects.filter(object => object.slug === "cable-machine").map(object => object.y + (maxPulleyHeight + 0.15) * object.scale) ?? []))} />}
           {onCameraChange && <LinkedCamera value={linkedCamera} onChange={onCameraChange} />}
           </EquipmentReadinessContext.Provider>
         </Canvas>
