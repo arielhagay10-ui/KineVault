@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { blankWorkshopScene, identityTransform, type StudioLayout } from "../../src/lib/motion/workshop";
 import { createStudioObject } from "../../src/lib/motion/studio";
 import { enableWorkshopFreeDrag, jointField, openWorkshopTool, selectWorkshopJoint } from "./workshop-menu.helpers";
@@ -99,7 +100,7 @@ test("duplicate dumbbells grip posed hands, reset without custom offsets, and su
       for (let step = 0; step <= 16; step++) {
         await page.getByLabel("Preview time", { exact: true }).fill(String(3200 * step / 16));
         await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
-        if (step % 2 === 0) await page.locator("canvas").screenshot({ path: `${evidence}/${view.toLowerCase()}-${step}.png` });
+        if (step % 2 === 0) await captureEvidence(page.locator("canvas"), `${evidence}/${view.toLowerCase()}-${step}.png`);
       }
     }
     await page.getByRole("button", { name: "Play", exact: true }).click(); await page.waitForTimeout(3500); await page.getByRole("button", { name: "Pause", exact: true }).click();
