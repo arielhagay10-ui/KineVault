@@ -179,7 +179,6 @@ test("verified production route transfer, lazy anatomy and workshop resource bas
     await cdp.send("HeapProfiler.collectGarbage");
     const beforeComparison = await sample();
     await page.getByRole("button", { name: "Compare start and finish", exact: true }).click();
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toHaveCount(2, { timeout: 60_000 });
     await expect(page.getByRole("link", { name: "CC BY-SA 4.0", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -192,7 +191,6 @@ test("verified production route transfer, lazy anatomy and workshop resource bas
       .screenshot({ path: `.local-artifacts/efficiency-review/comparison-${pose.toLowerCase()}-mobile-dark.png` });
     await openWorkshopTool(page, "View");
     await page.getByRole("button", { name: "Close comparison", exact: true }).click();
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(page.locator('[data-anatomy-state="ready"]')).toHaveCount(1, { timeout: 60_000 });
     await cdp.send("HeapProfiler.collectGarbage");
     result.afterComparisonHeapBytes = (await sample()).JSHeapUsedSize;
@@ -204,12 +202,10 @@ test("verified production route transfer, lazy anatomy and workshop resource bas
       await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
       await page.getByRole("button", { name: "Close account options", exact: true }).click();
       await page.goto("/my-exercises/new?metrics=1");
-      if (mobile) await page.getByRole("button", { name: "Preview", exact: true }).click();
       await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
       if (await closeTutorial.isVisible()) await closeTutorial.click();
       await setWorkshopLanguage(page, "en");
       await openWorkshopTool(page, "View");
-      if (mobile) await page.getByRole("button", { name: "Preview", exact: true }).click();
       for (const language of ["en", "he"] as const) {
         await setWorkshopLanguage(page, language);
         if (language === "he") {
