@@ -488,7 +488,7 @@ def thumbnail(name):
         groups["RightArm"].location = xyz((-.289, 2.62, 0))
         groups["LeftArm"].rotation_euler[2] = math.radians(35.5)
         groups["RightArm"].rotation_euler[2] = -math.radians(35.5)
-    if "LeftLever" in groups:
+    if "LeftLever" in groups and name in ("row-machine", "chest-press-machine", "shoulder-press-machine"):
         row = name == "row-machine"
         chest = name == "chest-press-machine"
         if not row:

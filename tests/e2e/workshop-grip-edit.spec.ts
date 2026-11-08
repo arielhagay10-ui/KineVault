@@ -87,7 +87,9 @@ test("advanced grip editing picks, adjusts, resets, undoes, and persists indepen
 });
 
 test("grip edit excludes fixed supports and covers weights, machines and cable attachments", async ({ page }) => {
-  test.setTimeout(240_000); page.setDefaultTimeout(60_000);
+  // A scene holds at most 20 items, so every asset is covered across as many scenes as needed.
+  const sceneSlugs = Array.from({ length: Math.ceil(studioAssetSlugs.length / 20) }, (_, index) => studioAssetSlugs.slice(index * 20, index * 20 + 20));
+  test.setTimeout(240_000 * sceneSlugs.length); page.setDefaultTimeout(60_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
@@ -96,41 +98,44 @@ test("grip edit excludes fixed supports and covers weights, machines and cable a
   try {
     const owner = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
     await owner.auth.signInWithPassword({ email, password });
-    const scene = structuredClone(blankWorkshopScene);
-    scene.studio!.objects = studioAssetSlugs.map((slug, index) => ({ ...createStudioObject(slug, randomUUID(), index), x: index * .5 - 2, z: 2, scale: .5 }));
-    const created = await owner.rpc("save_workshop_draft", { p_scene: scene, p_name: "Every equipment grip regression" }); if (created.error) throw created.error;
     await page.setViewportSize({ width: 1500, height: 1100 });
     await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
-    await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
-    await openWorkshopTool(page, "Contacts");
-    for (const object of scene.studio!.objects) {
-      await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(object.id);
-      // Supports and the band have no hand grip to edit.
-      if (["bench", "squat-rack", "stool", "plyo-box", "resistance-band"].includes(object.slug)) {
-        await expect(page.getByRole("button", { name: /^Edit (left|right) grip/ })).toHaveCount(0);
-        continue;
+    for (const slugs of sceneSlugs) {
+      const scene = structuredClone(blankWorkshopScene);
+      scene.studio!.objects = slugs.map((slug, index) => ({ ...createStudioObject(slug, randomUUID(), index), x: index * .5 - 2, z: 2, scale: .5 }));
+      const created = await owner.rpc("save_workshop_draft", { p_scene: scene, p_name: "Every equipment grip regression" }); if (created.error) throw created.error;
+      await page.goto(`/my-exercises/${created.data}/workshop`); await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+      await openWorkshopTool(page, "Contacts");
+      for (const object of scene.studio!.objects) {
+        await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(object.id);
+        // Supports and the band have no hand grip to edit.
+        if (["bench", "squat-rack", "stool", "plyo-box", "resistance-band"].includes(object.slug)) {
+          await expect(page.getByRole("button", { name: /^Edit (left|right) grip/ })).toHaveCount(0);
+          continue;
+        }
+        await page.getByRole("button", { name: /^Edit right grip/ }).click();
+        const x = page.getByLabel("Grip X centimeters", { exact: true }); await x.fill("2"); await x.press("Enter"); await expect(x).toHaveValue("2");
       }
-      await page.getByRole("button", { name: /^Edit right grip/ }).click();
-      const x = page.getByLabel("Grip X centimeters", { exact: true }); await x.fill("2"); await x.press("Enter"); await expect(x).toHaveValue("2");
-    }
-    const cable = scene.studio!.objects[0]; await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(cable.id);
-    for (const kind of cableAttachmentSlugs) {
-      await cableAttachmentButton(page, kind).click();
-      await page.getByRole("button", { name: /^Edit left grip/ }).click();
-      const y = page.getByLabel("Grip Y centimeters", { exact: true }); await y.fill("1"); await y.press("Enter"); await expect(y).toHaveValue("1");
-      await page.getByRole("button", { name: "Choose point on equipment", exact: true }).click();
-      await expect(page.getByRole("img", { name: "left grip location", exact: true })).toBeAttached();
-      await page.getByRole("button", { name: "Camera", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Choose point on equipment", exact: true })).toHaveAttribute("aria-pressed", "false");
-    }
-    await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
-    const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single(); if (record.error) throw record.error;
-    const saved = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
-    const layout = saved.data.studio_layout as StudioLayout;
-    for (const object of layout.objects) {
-      if (["bench", "squat-rack", "stool", "plyo-box", "resistance-band"].includes(object.slug)) expect(object.gripOffsets).toBeUndefined();
-      else expect(object.gripOffsets).toEqual(object.id === cable.id ? { left: { x: 0, y: .01, z: 0 } } : { right: { x: .02, y: 0, z: 0 } });
+      const cable = scene.studio!.objects.find(object => object.slug === "cable-machine");
+      if (cable) await page.getByRole("combobox", { name: "Selected item", exact: true }).selectOption(cable.id);
+      for (const kind of cable ? cableAttachmentSlugs : []) {
+        await cableAttachmentButton(page, kind).click();
+        await page.getByRole("button", { name: /^Edit left grip/ }).click();
+        const y = page.getByLabel("Grip Y centimeters", { exact: true }); await y.fill("1"); await y.press("Enter"); await expect(y).toHaveValue("1");
+        await page.getByRole("button", { name: "Choose point on equipment", exact: true }).click();
+        await expect(page.getByRole("img", { name: "left grip location", exact: true })).toBeAttached();
+        await page.getByRole("button", { name: "Camera", exact: true }).click();
+        await expect(page.getByRole("button", { name: "Choose point on equipment", exact: true })).toHaveAttribute("aria-pressed", "false");
+      }
+      await page.getByRole("button", { name: "Save exercise", exact: true }).click(); await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible();
+      const record = await owner.from("private_exercises").select("content_id").eq("id", created.data).single(); if (record.error) throw record.error;
+      const saved = await owner.from("exercise_scenes").select("studio_layout").eq("content_id", record.data.content_id).single(); if (saved.error) throw saved.error;
+      const layout = saved.data.studio_layout as StudioLayout;
+      for (const object of layout.objects) {
+        if (["bench", "squat-rack", "stool", "plyo-box", "resistance-band"].includes(object.slug)) expect(object.gripOffsets).toBeUndefined();
+        else expect(object.gripOffsets).toEqual(object.id === cable?.id ? { left: { x: 0, y: .01, z: 0 } } : { right: { x: .02, y: 0, z: 0 } });
+      }
     }
   } finally { await cleanupLocalFixture({ admin, userId: account.data.user.id, email, password }); }
 });

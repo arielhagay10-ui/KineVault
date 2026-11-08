@@ -53,7 +53,8 @@ for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supina
       await openWorkshopTool(page, "Pose");
       // Each machine drives only the joints its contact path controls; the rest stay posable.
       const drivenJoint = { "smith-machine": "Torso", "t-bar-row-machine": "Torso", "leg-press": "Left knee",
-        "lat-pulldown-machine": "Left elbow", "pec-deck": "Left elbow", "cable-row-machine": "Left elbow" }[slug as string];
+        "lat-pulldown-machine": "Left elbow", "pec-deck": "Left elbow", "cable-row-machine": "Left elbow",
+        "leg-extension-machine": "Left knee", "leg-curl-machine": "Left knee", "lateral-raise-machine": "Left elbow" }[slug as string];
       await selectWorkshopJoint(page, drivenJoint ?? "Torso");
       if (drivenJoint) {
         await expect(jointField(page, "x")).toBeDisabled();

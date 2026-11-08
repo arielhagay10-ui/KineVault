@@ -1,0 +1,13 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select plan(6);
+select set_config('test.lateral_raise', '{"body":{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1},"objects":[{"id":"00000000-0000-4000-8000-000000000001","name":"Lateral raise machine","slug":"lateral-raise-machine","x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"attachment":"none","pulleyHeight":1.5,"machineUse":true,"machinePosition":0,"frames":[{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"timeMs":0,"machinePosition":0},{"x":0,"y":0,"z":0,"rotationX":0,"rotationY":0,"rotationZ":0,"scale":1,"timeMs":2400,"machinePosition":1}]}]}', true);
+select ok(private.valid_studio_layout(current_setting('test.lateral_raise')::jsonb), 'lateral raise default rep can be saved');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.lateral_raise')::jsonb, '{objects,0,machinePosition}', '-0.1')), 'travel remains bounded');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.lateral_raise')::jsonb, '{objects,0,machinePositionLeft}', '0.5')), 'both arms share one travel');
+select ok(not private.valid_studio_layout(jsonb_set(current_setting('test.lateral_raise')::jsonb, '{objects,0,seatOffsetZ}', '0.05')), 'shoulder axes reject seat offsets');
+select ok(private.valid_studio_layout(jsonb_set(current_setting('test.lateral_raise')::jsonb, '{objects,0,slug}', '"leg-curl-machine"')), 'the leg curl remains registered');
+select is((select count(*)::integer from public.equipment where slug = 'lateral-raise-machine'), 1, 'one normalized equipment record');
+select * from finish();
+rollback;

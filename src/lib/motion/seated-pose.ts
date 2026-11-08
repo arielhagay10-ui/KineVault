@@ -1,7 +1,7 @@
 import { Euler, Group, Quaternion, Vector3 } from "three";
 import { createAnatomyRig, poseAnatomyRig } from "./anatomy";
 import { createHeldWeightPoseSampler } from "./held-weight-pose";
-import { machineGripPoint, applyStudioMachine, isStudioMachine } from "./studio-machines";
+import { machineGripPoint, applyStudioMachine, isStudioMachine, machineDrivesFigure } from "./studio-machines";
 import { applyStudioSeating } from "./studio-seat";
 import { machineMotionAt, sampleStudioObject, setStudioObjectAnimated, studioPointToWorld } from "./studio";
 import { studioGripOffset } from "./studio-grip";
@@ -12,7 +12,7 @@ import { identityTransform, jointLimits, sampleWorkshopPose, type RigPose, type 
 
 export function activeSeat(scene: WorkshopScene): StudioObject | undefined {
   const studio = scene.studio;
-  return studio?.objects.find(item => item.machineUse && isStudioMachine(item.slug) && item.slug !== "smith-machine" && item.slug !== "t-bar-row-machine")
+  return studio?.objects.find(item => item.machineUse && isStudioMachine(item.slug) && item.slug !== "smith-machine" && item.slug !== "t-bar-row-machine" && !machineDrivesFigure(item.slug))
     ?? (studio?.seating && !["supine", "prone"].includes(studio.seating.facing)
       ? studio.objects.find(item => item.id === studio.seating!.benchId) : undefined);
 }

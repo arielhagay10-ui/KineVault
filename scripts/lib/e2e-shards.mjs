@@ -23,7 +23,7 @@ export const specMinutes = {
   "workshop-picker-dedup.spec.ts": 0.1, "workshop-picker-empty-search.spec.ts": 0.1,
   "workshop-placement-warning.spec.ts": 0.3, "workshop-plate-row.spec.ts": 1.1, "workshop-preview-regression.spec.ts": 0,
   "workshop-quick-create.spec.ts": 3.6, "workshop-recording.spec.ts": 0.7, "workshop-release.spec.ts": 1.6,
-  "workshop-return-navigation.spec.ts": 0.1, "workshop-save.spec.ts": 1, "workshop-seated-freedom.spec.ts": 6.2,
+  "workshop-return-navigation.spec.ts": 0.1, "workshop-save.spec.ts": 1, "workshop-seated-freedom.spec.ts": 6.2, "workshop-seated-machines.spec.ts": 1.5,
   "workshop-selection-focus.spec.ts": 0.6, "workshop-shared-dumbbell.spec.ts": 3, "workshop-shortcuts.spec.ts": 0.4,
   "workshop-studio.spec.ts": 11.8, "workshop-supports.spec.ts": 2.7, "workshop-t-bar-row.spec.ts": 0.8,
   "workshop-timeline-edit.spec.ts": 0.2, "workshop-timeline.spec.ts": 0.8, "workshop-tools.spec.ts": 0.6,

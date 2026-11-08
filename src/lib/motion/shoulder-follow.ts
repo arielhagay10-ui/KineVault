@@ -2,7 +2,7 @@ import { Euler, Quaternion } from "three";
 import { createHeldWeightPoseSampler, editHeldWeightPose } from "./held-weight-pose";
 import { fitMachinePose } from "./machine-pose-fit";
 import { rowLeverPosition, rowUsesHand } from "./plate-row";
-import { isStudioMachine, setMachinePosition } from "./studio-machines";
+import { isStudioMachine, machineDrivesFigure, setMachinePosition } from "./studio-machines";
 import { clamp, sampleStudioObject, setStudioObjectAnimated } from "./studio";
 import { jointLimits, type JointAngles, type RigPose, type StudioObject, type WorkshopScene } from "./workshop";
 
@@ -11,7 +11,7 @@ const sides = ["left", "right"] as const;
 const shoulderRotation = (angles: JointAngles) => new Quaternion().setFromEuler(new Euler(angles.x * radians, angles.y * radians, -angles.z * radians));
 
 function handMachine(scene: WorkshopScene, side: "left" | "right") {
-  return scene.studio?.objects.find(object => isStudioMachine(object.slug) && object.slug !== "leg-press"
+  return scene.studio?.objects.find(object => isStudioMachine(object.slug) && object.slug !== "leg-press" && !machineDrivesFigure(object.slug)
     && (["row-machine", "t-bar-row-machine"].includes(object.slug) ? rowUsesHand(object, side)
       : object.machineUse || object.slug !== "cable-row-machine" && (object.attachment === side || object.attachment === "both")));
 }
