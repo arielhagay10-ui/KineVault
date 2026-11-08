@@ -25,7 +25,7 @@ describe("quick workshop creation", () => {
     expect(discovered.map(item => item.slug)).toContain("pec-deck");
     expect(discovered.map(item => item.slug)).toContain("leg-press");
     expect(discovered.filter(item => item.slug === "cable-machine")).toHaveLength(1);
-    expect(discovered).toHaveLength(21);
+    expect(discovered).toHaveLength(22);
   });
   it.each(["pec-deck", "cable-row-machine", "lat-pulldown-machine", "leg-press", "smith-machine", "cable-machine", "single-cable", "dumbbell-pair", "barbell", "bench", "kettlebell", "squat-rack"])("creates a validated %s scene without choosing anatomy", slug => {
     const scene = createQuickScene(slug);

@@ -11,7 +11,7 @@ export const specMinutes = {
   "private-library-layout.spec.ts": 0.1, "published-catalog-lifecycle.spec.ts": 0.2, "row-and-pec-deck.spec.ts": 2.6,
   "row-height.spec.ts": 0.9, "site-simplification.spec.ts": 0.1, "studio-machines.spec.ts": 3.9, "ui-states.spec.ts": 0.1,
   "workshop-ankle-rings.spec.ts": 0.2, "workshop-audit-regressions.spec.ts": 1, "workshop-auto-grip.spec.ts": 0.9,
-  "workshop-barbell-joints.spec.ts": 1.6, "workshop-bench.spec.ts": 1.9, "workshop-cable-controls.spec.ts": 0.6,
+  "workshop-barbell-joints.spec.ts": 1.6, "workshop-bench.spec.ts": 1.9, "workshop-calf-raise.spec.ts": 0.4, "workshop-cable-controls.spec.ts": 0.6,
   "workshop-cable-freedom.spec.ts": 1.7, "workshop-camera-click.spec.ts": 0.3, "workshop-chest-press.spec.ts": 1.8,
   "workshop-controls-feedback.spec.ts": 0.9, "workshop-controls-review.spec.ts": 0.9,
   "workshop-current-moment.spec.ts": 0.6, "workshop-dumbbell-editing.spec.ts": 1.2,

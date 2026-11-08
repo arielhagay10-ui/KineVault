@@ -24,6 +24,7 @@ export function studioCameraPoints(objects: StudioObject[] | undefined) {
     "leg-extension-machine": { width: .62, height: 2.6, depth: [-1.12, 1.45] },
     "leg-curl-machine": { width: .62, height: 2.6, depth: [-1.12, 1.45] },
     "lateral-raise-machine": { width: 1.05, height: 2.3, depth: [-.9, .85] },
+    "calf-raise-machine": { width: .9, height: 2.9, depth: [-1.05, .6] },
   };
   return objects?.flatMap(object => {
     const size = bounds[object.slug];
