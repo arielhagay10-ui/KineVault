@@ -13,7 +13,8 @@ import { productionBuildMode } from "../helpers/workshop-performance";
 import { dismissWorkshopTutorial, openWorkshopTool, renderCameraAction, setWorkshopLanguage } from "../e2e/workshop-menu.helpers";
 
 test("production supports: three matched playback runs and camera solve reuse", async ({ page, request }) => {
-  test.setTimeout(360_000);
+  // Six 180-frame captures took 12.5 min at SwiftShader's ~600 ms frames on two CPUs (2.1 min on 24).
+  test.setTimeout(900_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw new Error("Support performance fixtures require local Supabase");
   const origin = new URL(process.env.PERFORMANCE_BASE_URL ?? "http://127.0.0.1:3000");
