@@ -1,4 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { fullSuite, nightlyOnly } from "../helpers/ci";
 import { execFile, execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -24,6 +25,8 @@ const run = promisify(execFile);
 test.describe.configure({ mode: "parallel" });
 
 for (const variant of ["wide-bar", "seated-row-rope", "free-row-deadlift", "one-hand-barbell", "custom-barbell", "custom-rope", "custom-machine", "lat-pulldown", "leg-press", "pec-deck", "automatic-dumbbells", "resting-dumbbells", "joint-driven-dumbbells", "carried-dumbbells", "lying-front-raise-dumbbells", "joint-driven-barbell", "shared-goblet-dumbbells", "shared-pullover-dumbbells", "shared-near-limit-dumbbells", "shared-varying-dumbbells", "shared-left-arm-dumbbells", "supported-row", "supported-floor", "supported-chest"] as const) test(`a saved ${variant} produces playable private media`, async ({ page, baseURL }) => {
+  // Pull requests keep one variant per render path: cable bar, machine-driven rope row, machine, seated, shared and joint-driven weights, supported capture.
+  test.skip(!fullSuite && !["wide-bar", "seated-row-rope", "custom-machine", "automatic-dumbbells", "shared-goblet-dumbbells", "joint-driven-barbell", "supported-row"].includes(variant), nightlyOnly);
   test.setTimeout(600_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");

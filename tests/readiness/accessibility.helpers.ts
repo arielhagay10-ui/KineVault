@@ -1,6 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { redactEvidence } from "../../scripts/lib/redact-evidence.mjs";
+import { fullSuite } from "../helpers/ci";
+
+// Touch projects run their axe audits nightly; their interaction specs run on every pull request.
+export const touchAuditDeferred = ({ hasTouch }: { hasTouch: boolean }) => hasTouch && !fullSuite;
 
 export async function auditAccessibility(page: Page, testInfo: TestInfo, name: string) {
   // Client navigation may commit content before streamed metadata reaches the head.

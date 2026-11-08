@@ -1,4 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { openWorkshopTool, dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { selectWorkshopObject } from "./workshop-menu.helpers";
 import { randomUUID } from "node:crypto";
@@ -61,7 +62,7 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
         await controls.getByLabel("Bench pad angle degrees", { exact: true }).fill(String(angle));
         await controls.getByLabel("Bench pad angle degrees", { exact: true }).press("Enter");
         await expect(controls.getByLabel("Bench pad angle degrees", { exact: true })).toHaveValue(String(angle));
-        await page.locator("canvas").screenshot({ path: `${artifacts}/${facing}-${angle}.png` });
+        await captureEvidence(page.locator("canvas"), `${artifacts}/${facing}-${angle}.png`);
       }
       await controls.getByRole("button", { name: "Flat", exact: true }).click();
       await expect(controls.getByLabel("Bench pad angle degrees", { exact: true })).toHaveValue("0");
@@ -82,7 +83,7 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
           element.dispatchEvent(new Event("input", { bubbles: true }));
         }, frame * 200);
         await expect(page.getByLabel("Preview time")).toHaveValue(String(frame * 200));
-        if (frame % 2 === 0) await page.locator("canvas").screenshot({ path: `${artifacts}/${facing}-saved-side-${frame}.png` });
+        if (frame % 2 === 0) await captureEvidence(page.locator("canvas"), `${artifacts}/${facing}-saved-side-${frame}.png`);
       }
       await page.getByRole("button", { name: "Three-quarter", exact: true }).click();
       for (let frame = 0; frame <= 8; frame++) {
@@ -90,7 +91,7 @@ test("bench positions stay visible, follow the pad, and survive save and reload"
           Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(element, String(value));
           element.dispatchEvent(new Event("input", { bubbles: true }));
         }, frame * 400);
-        await page.locator("canvas").screenshot({ path: `${artifacts}/${facing}-saved-three-quarter-${frame}.png` });
+        await captureEvidence(page.locator("canvas"), `${artifacts}/${facing}-saved-three-quarter-${frame}.png`);
       }
       await page.getByRole("button", { name: "Side", exact: true }).click();
       await page.getByRole("button", { name: "Play", exact: true }).click();

@@ -1,6 +1,7 @@
 import { workshopPose } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { dismissWorkshopTutorial, enableWorkshopFreeDrag, expandWorkshopControls, openWorkshopTool } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -120,8 +121,7 @@ test("free cable poses, explicit row contacts, undo and saved playback", async (
       await page.getByRole("button", { name: view, exact: true }).click();
       for (let i = 0; i <= 8; i++) {
         await page.getByLabel("Preview time", { exact: true }).fill(String(3200 * i / 8));
-        await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
-        await page.locator("canvas").screenshot({ path: `${folder}/${view.toLowerCase()}-${i}.png` });
+        await captureEvidence(page.locator("canvas"), `${folder}/${view.toLowerCase()}-${i}.png`);
       }
     }
     await page.getByRole("button", { name: "Play", exact: true }).click(); await page.waitForTimeout(3600);

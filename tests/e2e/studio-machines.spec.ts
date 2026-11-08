@@ -1,4 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { fullSuite, nightlyOnly } from "../helpers/ci";
 import { openWorkshopTool, selectWorkshopObject, selectWorkshopJoint, jointField } from "./workshop-menu.helpers";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -14,6 +15,8 @@ test.beforeEach(async ({ page }) => page.setDefaultTimeout(60_000));
 
 for (const { slug, grip } of [...machineSlugs.map(slug => ({ slug, grip: "supinated" as const })), { slug: "lat-pulldown-machine" as const, grip: "pronated" as const }]) {
   test(`machine carriages animate, save, reload and remain editable with supported contact: ${slug}${slug === "lat-pulldown-machine" ? ` ${grip}` : ""}`, async ({ page }) => {
+    // Pull requests keep the pronated pulldown (frontal plane, second save cycle) and the leg press (sled and foot contacts).
+    test.skip(!fullSuite && grip !== "pronated" && slug !== "leg-press", nightlyOnly);
     test.setTimeout(300_000);
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw Error("Local fixtures required");
