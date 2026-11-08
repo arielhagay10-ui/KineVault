@@ -74,3 +74,22 @@ export function reachHingedMachineGrip(rig: AnatomyRig, side: "left" | "right", 
   if (palmRotation && hand.getWorldQuaternion(new Quaternion()).angleTo(palmRotation) > 2 * Math.PI / 180) return Infinity;
   return rig.handBones[side].localToWorld(studioGripOffset(side)).distanceTo(target);
 }
+
+/** Pose the arm through an elbow point to a wrist, turning the forearm so the palm matches `handWorld`. */
+export function poseMachineArm(rig: AnatomyRig, side: "left" | "right", elbowTarget: Vector3, wrist: Vector3, handWorld: Quaternion) {
+  const shoulder = rig.bones[`${side}-shoulder`], elbow = rig.bones[`${side}-elbow`];
+  const forearm = rig.forearmBones[side], hand = rig.handBones[side];
+  const origin = shoulder.getWorldPosition(new Vector3());
+  const lowerDirection = wrist.clone().sub(elbowTarget).normalize();
+  const rotation = new Quaternion().setFromUnitVectors(hand.position.clone().normalize(), lowerDirection);
+  const palm = new Vector3(0, 0, 1).applyQuaternion(rotation), desiredPalm = new Vector3(0, 0, 1).applyQuaternion(handWorld);
+  palm.addScaledVector(lowerDirection, -palm.dot(lowerDirection)).normalize();
+  desiredPalm.addScaledVector(lowerDirection, -desiredPalm.dot(lowerDirection)).normalize();
+  rotation.premultiply(new Quaternion().setFromAxisAngle(lowerDirection, Math.atan2(lowerDirection.dot(palm.clone().cross(desiredPalm)), palm.dot(desiredPalm))));
+  shoulder.quaternion.setFromUnitVectors(elbow.position.clone().normalize(), elbowTarget.sub(origin).normalize().applyQuaternion(shoulder.parent!.getWorldQuaternion(new Quaternion()).invert()));
+  rig.root.updateWorldMatrix(true, true);
+  elbow.quaternion.copy(shoulder.getWorldQuaternion(new Quaternion()).invert()).multiply(rotation).multiply(forearm.quaternion.clone().invert());
+  hand.quaternion.copy(rotation.invert().multiply(handWorld));
+  rig.shoulderCaps[side].quaternion.identity().slerp(shoulder.quaternion, 0.82);
+  rig.root.updateWorldMatrix(true, true);
+}

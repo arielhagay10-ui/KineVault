@@ -16,6 +16,7 @@ import { shoulderPress, shoulderPressGripSegment, shoulderPressLever } from "@/l
 import { tBarRow } from "@/lib/motion/t-bar-row";
 import { isKneeLever, kneeLever, kneeLeverThighPad, type KneeLeverSlug } from "@/lib/motion/knee-lever";
 import { lateralRaise, lateralRaiseLever } from "@/lib/motion/lateral-raise";
+import { calfRaise } from "@/lib/motion/calf-raise";
 import { legPress } from "@/lib/motion/leg-press";
 import { chestPress, chestPressLever } from "@/lib/motion/chest-press";
 
@@ -250,6 +251,29 @@ function LateralRaiseGeometry({ getObject }: { getObject: () => StudioObject }) 
   </>;
 }
 
+function CalfRaiseGeometry({ getObject }: { getObject: () => StudioObject }) {
+  const { platform, pad: shoulderPad, handle, guide } = calfRaise, half = handle.length / 2;
+  return <>
+    <Feet width={.62} front={.62} back={-1.2} />
+    <Block at={[0, (platform.top + .1) / 2, (platform.front + platform.edge) / 2]} size={[platform.width, platform.top - .1, platform.front - platform.edge]} color={pad} />
+    {[-1, 1].map(sign => <group key={sign}>
+      <Beam from={[sign * .38, .1, -.6]} to={[sign * .38, 3.05, -.6]} radius={.045} />
+      <Beam from={[sign * guide.x, .25, guide.z]} to={[sign * guide.x, 2.98, guide.z]} radius={.022} color={chrome} />
+    </group>)}
+    <Beam from={[-.38, 3.05, -.6]} to={[.38, 3.05, -.6]} radius={.045} />
+    {Array.from({ length: 10 }, (_, index) => <MovingBlock key={index} size={[.45, .048, .23]} getAt={() => [0, .2 + index * .063 + (getObject().machinePosition ?? 0) * calfRaise.weights, -.95]} />)}
+    <MovingGroup getPosition={() => machineCarriagePoint(getObject())}>
+      {[-1, 1].map(sign => <group key={sign}>
+        <Beam from={[sign * shoulderPad.x, 0, shoulderPad.back]} to={[sign * shoulderPad.x, 0, shoulderPad.front]} radius={shoulderPad.radius} color={pad} />
+        <Beam from={[sign * shoulderPad.x, .062, shoulderPad.back]} to={[sign * guide.x, .062, guide.z]} radius={.03} />
+        <Beam from={[sign * shoulderPad.x, .062, shoulderPad.front]} to={[sign * handle.x, .062, handle.z]} radius={.022} color={chrome} />
+        <Beam from={[sign * handle.x, .062, handle.z]} to={[sign * handle.x, half - handle.drop, handle.z]} radius={.022} color={chrome} />
+        <Beam from={[sign * handle.x, half - handle.drop, handle.z]} to={[sign * handle.x, -half - handle.drop, handle.z]} radius={handle.radius} color={dark} />
+      </group>)}
+    </MovingGroup>
+  </>;
+}
+
 function ChestPressArm({ getObject, side }: { getObject: () => StudioObject; side: "left" | "right" }) {
   const lever = useRef<Group>(null), handle = useRef<Group>(null), sign = side === "left" ? 1 : -1;
   useFrame(() => {
@@ -297,6 +321,7 @@ function MachineGeometry({ object, currentObject }: { object: StudioObject; curr
   if (object.slug === "t-bar-row-machine") return <TBarRowGeometry getObject={getObject} />;
   if (isKneeLever(object.slug)) return <KneeLeverGeometry getObject={getObject} />;
   if (object.slug === "lateral-raise-machine") return <LateralRaiseGeometry getObject={getObject} />;
+  if (object.slug === "calf-raise-machine") return <CalfRaiseGeometry getObject={getObject} />;
   if (object.slug === "row-machine") return <>
     <Feet width={.70} front={1.14} back={-.83} />
     <Beam from={[0, .1, -.17]} to={[0, .49, -.17]} radius={.06} />

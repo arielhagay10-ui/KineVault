@@ -29,6 +29,7 @@ import { supportElbowTarget } from "@/lib/motion/support-contacts";
 import { StudioResistanceBand } from "./studio-resistance-band";
 import { StudioProp } from "./studio-props";
 import { StudioJointRotation } from "./studio-joint-rotation";
+import { pullUpBar } from "@/lib/motion/pull-up-bar";
 
 export type StudioSelection = { kind: "body" } | { kind: "joint"; slug: JointSlug } | { kind: "object"; id: string } | null;
 export type StudioEditor = {
@@ -285,7 +286,12 @@ function StudioAsset({ object, objects, equipmentRoots, body, rig, pose, editor,
         : <EquipmentAsset object={object} currentObject={currentObject} fallback={object.slug === "kettlebell" ? <Kettlebell both={object.attachment === "both"} />
         : object.slug === "bench" ? <AdjustableBench angle={object.benchAngle} />
         : object.slug === "stool" || object.slug === "plyo-box" ? <StudioProp slug={object.slug} />
-        : object.slug === "squat-rack" ? <>
+        : object.slug === "pull-up-bar" ? <>
+          {[-1, 1].map(sign => <group key={sign}>
+            <Beam from={[sign * pullUpBar.upright.x, 0, 0]} to={[sign * pullUpBar.upright.x, pullUpBar.upright.top, 0]} />
+            <Beam from={[sign * pullUpBar.upright.x, .06, pullUpBar.base.back]} to={[sign * pullUpBar.upright.x, .06, pullUpBar.base.front]} />
+          </group>)}<Beam from={[-pullUpBar.upright.x, pullUpBar.height, 0]} to={[pullUpBar.upright.x, pullUpBar.height, 0]} radius={pullUpBar.radius} />
+        </> : object.slug === "squat-rack" ? <>
           {[-0.65, 0.65].map(x => <group key={x}>
             <Beam from={[x, 0, -0.3]} to={[x, 2.3, -0.3]} /><Beam from={[x, 0.06, -0.8]} to={[x, 0.06, 0.6]} />
             <Beam from={[x, 1.4, -0.3]} to={[x, 1.4, 0.5]} radius={0.025} />

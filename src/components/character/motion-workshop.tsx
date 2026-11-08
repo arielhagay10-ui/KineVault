@@ -26,6 +26,7 @@ import { carryHeldWeightsWithBody } from "@/lib/motion/held-weight-body";
 import { captureFirstWorkshopPose, hasIndependentWorkshopMotion, workshopPoseSignature } from "@/lib/motion/workshop-recording";
 import { equipmentLabel } from "@/lib/motion/equipment-label";
 import { equipmentGripHands, normalizeEquipmentContacts } from "@/lib/motion/equipment-capabilities";
+import { hangingBar } from "@/lib/motion/pull-up-bar";
 import { jointEditChanges } from "@/lib/motion/joint-edit";
 import { addWorkshopEquipment, cableTowerPlacement, createFreeCableSetup, editWorkshopMoment, freeWorkshopBody } from "@/lib/motion/workshop-freedom";
 import { resetWorkshopJoints } from "@/lib/motion/workshop-pose";
@@ -233,7 +234,8 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
   const placementLocked = !!object && placementLockedIds.includes(object.id);
   const [placementOverlaps, setPlacementOverlaps] = useState<Record<string, boolean>>({});
   const onPlacementOverlap = useCallback((id: string, overlap: boolean) => setPlacementOverlaps(previous => previous[id] === overlap ? previous : { ...previous, [id]: overlap }), []);
-  const bodyLocked = !object && !selectedJoint && !!(activeMachine || seatedBench || rootSupport);
+  const hanging = hangingBar(studio);
+  const bodyLocked = !object && !selectedJoint && !!(activeMachine || seatedBench || rootSupport || hanging);
   const weightForJoint = (slug: JointSlug) => studio.objects.find(item => {
     if (item.machineUse) {
       if (item.slug === "smith-machine") return true;
@@ -505,7 +507,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
       freeBody(); selectObject({ kind: "body" }); enterEditor({ mode: "move", showJoints: false }); setCaptureElbow(null); return;
     }
     update({ ...scene, motionStyle: "free", studio: { ...studio, seating: undefined,
-      objects: studio.objects.map(item => item.machineUse ? { ...item, machineUse: false } : item) } });
+      objects: studio.objects.map(item => item.machineUse ? { ...item, machineUse: false } : item.id === hanging?.id ? { ...item, attachment: "none" as const } : item) } });
     selectObject({ kind: "body" }); enterEditor({ mode: "move", showJoints: false }); setCaptureElbow(null);
   };
   const transformObject = (id: string, transform: SceneTransform) => {
@@ -526,7 +528,9 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
     try { contact = changeGripAttachment(reset ? { ...rawObject!, gripOffsets: undefined } : rawObject!, attachment); }
     catch (error) { setEditError(error instanceof Error ? error.message : "Could not change this grip."); return; }
     const hands = studioAttachmentSlots({ ...object, attachment });
-    if (!updateContacts(() => ({ ...scene, equipment: attachment === "none" ? scene.equipment : null, studio: { ...studio, objects: studio.objects.map(item => {
+    // Hanging replaces seating, surface supports and movement setups.
+    const hang = object.slug === "pull-up-bar" && attachment !== "none";
+    if (!updateContacts(() => ({ ...scene, ...(hang ? { motionStyle: "free" as const } : {}), equipment: attachment === "none" ? scene.equipment : null, studio: { ...studio, ...(hang ? { seating: undefined, supports: undefined } : {}), objects: studio.objects.map(item => {
       if (item.id === object.id) {
         let placed = item;
         if (["barbell", "dumbbell", "kettlebell"].includes(item.slug) && attachment !== "none") {
@@ -765,7 +769,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
       try { update(constrainSeatedEdit(session.scene, moveMachineWithMouse(session.scene, id, session.timeMs, values, "advanced"), session.timeMs)); }
       catch (error) { setEditError(error instanceof Error ? error.message : "Could not move this handle. Try an existing moment."); }
     },
-    bodyLocked: !!(activeMachine || seatedBench || rootSupport) || limbPosing,
+    bodyLocked: !!(activeMachine || seatedBench || rootSupport || hanging) || limbPosing,
     placementLockedIds, supportObjectIds: [...new Set([...(studio.seating ? [studio.seating.benchId] : []), ...(studio.supports?.flatMap(contact => contact.objectId ? [contact.objectId] : []) ?? [])])], onPlacementOverlap,
     selection, tool, snap, sensitivity, playing, dragging, adjusting, posing, directDragging: freeDragging, limbNudge,
     onLimbNudgeConsumed: id => setLimbNudge(previous => previous?.id === id ? undefined : previous),
@@ -849,7 +853,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
   const weightGripControls = weight && <div className="space-y-3 rounded-xl border border-border p-3">
     <h3 className="font-semibold" data-workshop-translate="false">{objectLabel(object)}</h3>
     {!held && <p className="text-sm text-muted-foreground">{t("Choose a hand to pick it up. It stays on the floor until then.")}</p>}
-    <div className="flex flex-wrap gap-2">{(["left", "right", ...(canHoldBoth ? ["both"] : [])] as ("left" | "right" | "both")[]).map(hand => <button key={hand} type="button" aria-pressed={object.attachment === hand} onClick={() => holdObject(hand)} className={`${buttonClass} ${object.attachment === hand ? "bg-primary text-primary-foreground" : "bg-card"}`}>{t(hand === "both" ? "Hold with both hands" : `Hold with ${hand} hand`)}</button>)}</div>
+    <div className="flex flex-wrap gap-2">{(["left", "right", ...(canHoldBoth ? ["both"] : [])] as ("left" | "right" | "both")[]).filter(hand => equipmentGripHands(object).includes(hand)).map(hand => <button key={hand} type="button" aria-pressed={object.attachment === hand} onClick={() => holdObject(hand)} className={`${buttonClass} ${object.attachment === hand ? "bg-primary text-primary-foreground" : "bg-card"}`}>{t(hand === "both" ? "Hold with both hands" : `Hold with ${hand} hand`)}</button>)}</div>
     {held && <><button type="button" disabled={playing || dragging} title={t("Fits every saved pose and clears custom grip points and elbow locks. Undo restores the movement.")} onClick={() => holdObject(object.attachment, true)} className={buttonClass}>{t("Reset to automatic grip")}</button><button type="button" onClick={() => holdObject("none")} className={buttonClass}>{t("Release")}</button></>}
       <p className="text-sm text-muted-foreground">{t(object.slug === "dumbbell" && object.attachment === "both"
         ? "Both palms support one dumbbell head. Move the weight or pose either arm; the other hand follows."
@@ -1042,7 +1046,7 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
           <button type="button" aria-label={t("Undo")} disabled={!past.length || dragging} onClick={undo} title={t("Undo · Ctrl / ⌘ + Z")} className={buttonClass}><Undo2 size={16} /></button>
           <button type="button" aria-label={t("Redo")} disabled={!future.length || dragging} onClick={redo} title={t("Redo · Ctrl / ⌘ + Shift + Z · Ctrl + Y")} className={buttonClass}><Redo2 size={16} /></button>
         </div>
-        {(activeMachine || studio.seating) && <button type="button" onClick={leaveEquipment} disabled={dragging} aria-label={t(activeMachine ? "Leave machine" : "Stand up")} className={buttonClass}><span className="sm:hidden">{t(activeMachine ? "Leave" : "Stand up")}</span><span className="hidden sm:inline">{t(activeMachine ? "Leave machine" : "Stand up")}</span></button>}
+        {(activeMachine || studio.seating || hanging) && <button type="button" onClick={leaveEquipment} disabled={dragging} aria-label={t(activeMachine ? "Leave machine" : hanging ? "Release bar" : "Stand up")} className={buttonClass}><span className="sm:hidden">{t(activeMachine ? "Leave" : hanging ? "Release" : "Stand up")}</span><span className="hidden sm:inline">{t(activeMachine ? "Leave machine" : hanging ? "Release bar" : "Stand up")}</span></button>}
         {savedId && <Link href={`/my-exercises/${savedId}/edit`} aria-label={t("Add details")} title={t("Add details")} className={buttonClass}><BookOpen size={16} /><span className="hidden sm:inline">{t("Add details")}</span></Link>}
         <button data-tutorial-target="equipment" ref={addButton} aria-label={t("Add equipment")} title={t("Add equipment")} type="button" onClick={event => { event.currentTarget.focus(); setEquipmentPickerView("popular"); setAdding(!adding); }} aria-expanded={adding} className={`${buttonClass} ms-auto`}><Plus size={16} /><span className="hidden sm:inline">{t("Add equipment")}</span></button>
         <details ref={moreHelp} onToggle={event => { setMoreOpen(event.currentTarget.open); if (!event.currentTarget.open && shortcutHelp.current) shortcutHelp.current.open = false; }} name="workshop-dropdown" data-workshop-menu className="relative"><summary className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring sm:px-3 [&::-webkit-details-marker]:hidden">{t("More")}<ChevronDown size={12} className="hidden sm:block" /></summary><div className="absolute end-0 top-full z-50 mt-1 max-h-[calc(100dvh-9rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border bg-card p-1.5 shadow-lg">
@@ -1306,10 +1310,10 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
           </div>}
           {weightGripControls}
           {canHold && !["cable-machine", "cable-row-machine"].includes(object.slug) && <div className="mt-4 rounded-xl bg-primary/5 p-3">
-            {!weight && <><WorkshopGuidance className="mb-2 text-sm">{t("Holding or attaching replaces contacts in the chosen hand and clears their elbow locks. An engaged machine is released. One Undo restores the scene.")}</WorkshopGuidance><h3 className="text-base font-semibold">{t(isStudioMachine(object.slug) ? "Hold this equipment" : "Hold this weight")}</h3>
-            <div className="mt-2 flex flex-wrap gap-2">{(["left", "right", ...(canHoldBoth ? ["both"] : [])] as ("left" | "right" | "both")[]).map(hand => <button key={hand} type="button" aria-pressed={object.attachment === hand} onClick={() => holdObject(hand)} className={`${buttonClass} ${object.attachment === hand ? "bg-primary text-primary-foreground" : "bg-card"}`}>{`Hold with ${hand === "both" ? "both hands" : `${hand} hand`}`}</button>)}</div></>}
+            {!weight && <><WorkshopGuidance className="mb-2 text-sm">{t("Holding or attaching replaces contacts in the chosen hand and clears their elbow locks. An engaged machine is released. One Undo restores the scene.")}</WorkshopGuidance><h3 className="text-base font-semibold">{t(isStudioMachine(object.slug) || object.slug === "pull-up-bar" ? "Hold this equipment" : "Hold this weight")}</h3>
+            <div className="mt-2 flex flex-wrap gap-2">{(["left", "right", ...(canHoldBoth ? ["both"] : [])] as ("left" | "right" | "both")[]).filter(hand => equipmentGripHands(object).includes(hand)).map(hand => <button key={hand} type="button" aria-pressed={object.attachment === hand} onClick={() => holdObject(hand)} className={`${buttonClass} ${object.attachment === hand ? "bg-primary text-primary-foreground" : "bg-card"}`}>{`Hold with ${hand === "both" ? "both hands" : `${hand} hand`}`}</button>)}</div></>}
             {held && <><p className="mt-3 flex items-center gap-1 text-xs font-semibold"><Check size={13} />{object.attachment === "both" ? t("Held with both hands") : `Held with ${object.attachment} hand`}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{t(isStudioMachine(object.slug) ? "Hands follow the machine grips. Body placement and supports stay editable." : "Joint edits keep the weight in the hand. Drag the weight to pose the arm.")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t(object.slug === "pull-up-bar" ? "The hands carry the body. Pose the shoulders and elbows to raise or lower it; the legs hang freely." : isStudioMachine(object.slug) ? "Hands follow the machine grips. Body placement and supports stay editable." : "Joint edits keep the weight in the hand. Drag the weight to pose the arm.")}</p>
               {gripReach[object.id] === false && (object.slug !== "dumbbell" || Object.keys(object.elbowLocks ?? {}).length > 0) && <p role="alert" className="mt-2 text-xs text-amber-700">{Object.keys(object.elbowLocks ?? {}).length ? t("Outside the locked elbow’s reach. Move the weight along the curl arc, or unlock the elbow.") : t("Too far to reach. Move the weight closer to the figure.")}</p>}
               {!weight && <button type="button" onClick={() => holdObject("none")} className={`${buttonClass} mt-2 bg-card`}>{t("Release")}</button>}<div className="mt-2 flex flex-wrap gap-1">{(["left", "right"] as const).filter(side => object.attachment === side || object.attachment === "both").flatMap(side => (["wrist"] as const).map(joint => <button key={`${side}-${joint}`} type="button" onClick={() => selectObject({ kind: "joint", slug: `${side}-${joint}` })} className={`${buttonClass} bg-card`}>{side === "left" ? t("Left") : t("Right")} {joint}</button>))}</div>
               {["barbell", "dumbbell", "kettlebell"].includes(object.slug) && <WorkshopDisclosure title="Elbow support">
@@ -1344,6 +1348,10 @@ export function MotionWorkshop({ privateId, initialScene, equipmentOptions, join
             <p>{t("The figure follows")} <span data-workshop-translate="false">{activeMachine.name}</span>{t(". Select the machine to move it or change travel.")}</p>
             <button type="button" onClick={() => selectObject({ kind: "object", id: activeMachine.id })} className={buttonClass}>{t("Select machine")}</button>
             <button type="button" onClick={() => updateObject(activeMachine.id, { machineUse: false })} className={buttonClass}>{t("Stop using machine to pose freely")}</button>
+          </div> : bodyLocked && hanging ? <div className="mt-3 space-y-3 text-xs">
+            <p>{t("The figure hangs from the bar. Select the bar to move it, or release the bar to place the figure freely.")}</p>
+            <button type="button" onClick={() => selectObject({ kind: "object", id: hanging.id })} className={buttonClass}>{t("Select bar")}</button>
+            <button type="button" onClick={() => updateObject(hanging.id, { attachment: "none" })} className={buttonClass}>{t("Release bar")}</button>
           </div> : bodyLocked && seatedBench ? <div className="mt-3 space-y-3 text-xs">
             <p>{t("The figure follows the bench. Select the bench to move it, or leave the bench to place the figure freely.")}</p>
             <button type="button" onClick={() => selectObject({ kind: "object", id: seatedBench.id })} className={buttonClass}>{t("Select bench")}</button>

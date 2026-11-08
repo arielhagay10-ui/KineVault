@@ -3,8 +3,11 @@ import type { AnatomyRig } from "./anatomy";
 import { sampleStudioObject, studioPointToWorld } from "./studio";
 import { jointLimits, type RigPose, type StudioLayout } from "./workshop";
 import { applyStudioSupports } from "./support-contacts";
+import { hangFromBar, hangingBar } from "./pull-up-bar";
 
 export function applyStudioSeating(rig: AnatomyRig, studio: StudioLayout | undefined, timeMs: number, pose: RigPose) {
+  const bar = hangingBar(studio);
+  if (bar) { hangFromBar(rig, bar, timeMs); return; }
   if (studio?.supports?.length) return applyStudioSupports(rig, studio, timeMs, pose);
   const seating = studio?.seating;
   const item = studio?.objects.find(object => object.id === seating?.benchId && object.slug === "bench");
