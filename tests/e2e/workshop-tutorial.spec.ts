@@ -76,8 +76,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
     await page.getByRole("button", { name: "Capture pose", exact: true }).click();
     await page.getByLabel("Exercise name", { exact: true }).fill("My first workshop exercise");
     await page.getByRole("button", { name: "Save exercise", exact: true }).click();
-    // An autosave can move /new to the saved URL first; this save then mounts the saved route.
-    await expect(page.getByText(/^(Saved privately|Saved at .* · Private)$/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible({ timeout: 30_000 });
     const cleanContext = await browser.newContext({ baseURL, storageState: { cookies: await context.cookies(), origins: [] } });
     try {
       const next = await cleanContext.newPage();
@@ -120,8 +119,7 @@ test("tutorial points to usable controls, resumes and remains optional on later 
       if (result.error) throw result.error;
       return result.data.exercise_content?.name;
     }).toBe("Saved during the tutorial");
-    // Revalidation can mount the saved route after the first save changed /new's URL.
-    await expect(page.getByText(/^(Saved privately|Saved at .* · Private)$/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/^Saved at .* · Private$/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "Saved during the tutorial", exact: true })).toBeVisible();
     await expect(tutorial).toBeVisible();
     await tutorial.getByRole("button", { name: "Finish tutorial", exact: true }).click();
