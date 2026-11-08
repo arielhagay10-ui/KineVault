@@ -6,8 +6,8 @@ export const studioAssetNames: Record<StudioObject["slug"], string> = {
   "lat-pulldown-machine": "Lat pulldown machine", "smith-machine": "Smith machine", "leg-press": "Leg press",
   "cable-row-machine": "Cable row", "pec-deck": "Pec deck",
   "row-machine": "Plate-loaded row", "shoulder-press-machine": "Shoulder press", "chest-press-machine": "Converging chest press",
-  "t-bar-row-machine": "Chest-supported T-bar row", "leg-extension-machine": "Leg extension", "leg-curl-machine": "Seated leg curl", "lateral-raise-machine": "Lateral raise machine",
-  stool: "Stool", "plyo-box": "Plyo box", "resistance-band": "Resistance band",
+  "t-bar-row-machine": "Chest-supported T-bar row", "leg-extension-machine": "Leg extension", "leg-curl-machine": "Seated leg curl", "lateral-raise-machine": "Lateral raise machine", "calf-raise-machine": "Standing calf raise",
+  stool: "Stool", "plyo-box": "Plyo box", "pull-up-bar": "Pull-up bar", "resistance-band": "Resistance band",
 };
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 export const maxPulleyHeight = 3.2;

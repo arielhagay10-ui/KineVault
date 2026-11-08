@@ -4,6 +4,7 @@ import { chestPressLever } from "./chest-press";
 import { shoulderPressLever } from "./shoulder-press";
 import { kneeLever } from "./knee-lever";
 import { lateralRaise } from "./lateral-raise";
+import { calfRaise } from "./calf-raise";
 import type { CableAttachment, StudioObject } from "./workshop";
 
 /** Internal renderer contract in solver metres/Y-up. All meshes are original. */
@@ -25,9 +26,11 @@ export const equipmentAssets = {
   "leg-extension-machine": { url: "/models/equipment/leg-extension-machine.v1.glb", requiredGroups: ["Static", "Weights", "Lever"] },
   "leg-curl-machine": { url: "/models/equipment/leg-curl-machine.v1.glb", requiredGroups: ["Static", "Weights", "Lever"] },
   "lateral-raise-machine": { url: "/models/equipment/lateral-raise-machine.v1.glb", requiredGroups: ["Static", "Weights", "LeftLever", "RightLever"] },
+  "calf-raise-machine": { url: "/models/equipment/calf-raise-machine.v1.glb", requiredGroups: ["Static", "Weights", "Handles"] },
   "shoulder-press-machine": { url: "/models/equipment/shoulder-press-machine.v2.glb", requiredGroups: ["Static", "Weights", "Handles", "LeftLever", "RightLever", "LeftNeutralGrip", "RightNeutralGrip"] },
   stool: { url: "/models/equipment/stool.v1.glb", requiredGroups: ["Static"] },
   "plyo-box": { url: "/models/equipment/plyo-box.v1.glb", requiredGroups: ["Static"] },
+  "pull-up-bar": { url: "/models/equipment/pull-up-bar.v1.glb", requiredGroups: ["Static"] },
   "resistance-band": { url: "/models/equipment/resistance-band.v1.glb", requiredGroups: ["Static"] },
 } as const satisfies Record<StudioObject["slug"], { url: string; requiredGroups: readonly string[] }>;
 
@@ -110,7 +113,7 @@ export function updateEquipmentAsset(instance: EquipmentAssetInstance, object: S
     groups.Handles.visible = object.slug !== "cable-row-machine" || !object.cableAttachment;
   }
   if (groups.Weights) {
-    const distance = ({ "lat-pulldown-machine": .98, "cable-row-machine": .66, "pec-deck": .4, "leg-extension-machine": kneeLever.weights, "leg-curl-machine": kneeLever.weights, "lateral-raise-machine": lateralRaise.weights } as Record<string, number>)[object.slug] ?? 0;
+    const distance = ({ "lat-pulldown-machine": .98, "cable-row-machine": .66, "pec-deck": .4, "leg-extension-machine": kneeLever.weights, "leg-curl-machine": kneeLever.weights, "lateral-raise-machine": lateralRaise.weights, "calf-raise-machine": calfRaise.weights } as Record<string, number>)[object.slug] ?? 0;
     groups.Weights.position.y = object.slug === "chest-press-machine"
       ? Math.max(object.machinePositionLeft ?? travel, object.machinePositionRight ?? travel) * .26 : travel * distance;
   }

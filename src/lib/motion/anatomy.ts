@@ -29,7 +29,7 @@ export function muscleLabel(name: string) {
 
 // Pivots in the source atlas coordinate space (height ~3.24). Left is +X.
 type MainJoint = Exclude<JointSlug, "left-wrist" | "right-wrist" | "left-ankle" | "right-ankle">;
-const pivots: Record<MainJoint | "pelvis", [number, number, number]> = {
+export const pivots: Record<MainJoint | "pelvis", [number, number, number]> = {
   pelvis: [0, 1.73, -0.08], torso: [0, 1.73, -0.08],
   "left-shoulder": [0.34, 2.64, -0.08], "right-shoulder": [-0.34, 2.64, -0.08],
   "left-elbow": [0.42, 2.1, -0.1], "right-elbow": [-0.42, 2.1, -0.1],
@@ -41,6 +41,17 @@ const parents: Partial<Record<MainJoint, MainJoint | "pelvis">> = {
   "left-elbow": "left-shoulder", "right-elbow": "right-shoulder",
   "left-hip": "pelvis", "right-hip": "pelvis", "left-knee": "left-hip", "right-knee": "right-hip",
 };
+// Left metatarsophalangeal joint centers, first to fifth toe (atlas units; the right mirrors x).
+const toeJoints = [[.133, .029, .1485], [.1745, .03, .152], [.206, .024, .141], [.227, .023, .126], [.254, .017, .102]] as const;
+/** Left toe pivot and bend axis: the first-to-fifth MTP line, moved forward so all five heads stay within 1 cm. */
+export const toeAxis = { point: [.1935, .023, .1355], direction: [.121, -.012, -.0465] } as const;
+/** Depth of the MTP crease under a left-side x, interpolated between neighboring joints. */
+function toeCrease(x: number) {
+  let segment = 1;
+  while (segment < toeJoints.length - 1 && x > toeJoints[segment][0]) segment++;
+  const a = toeJoints[segment - 1], b = toeJoints[segment];
+  return a[2] + (b[2] - a[2]) * Math.max(0, Math.min(1, (x - a[0]) / (b[0] - a[0])));
+}
 const smooth = (low: number, high: number, value: number) => {
   const t = Math.max(0, Math.min(1, (value - low) / (high - low)));
   return t * t * (3 - 2 * t);
@@ -76,6 +87,7 @@ export function createAnatomyRig(source: Group) {
   const allBones = names.map(name => bones[name]);
   const shoulderCaps = {} as Record<"left" | "right", Bone>;
   const footBones = {} as Record<"left" | "right", Bone>;
+  const toeBones = {} as Record<"left" | "right", Bone>;
   for (const side of ["left", "right"] as const) {
     const cap = new Bone(); cap.name = `${side}-shoulder-cap`;
     cap.position.copy(bones[`${side}-shoulder`].position); bones.torso.add(cap);
@@ -83,6 +95,10 @@ export function createAnatomyRig(source: Group) {
     const foot = new Bone(); foot.name = `${side}-foot`;
     foot.position.set(0, -0.65, 0); bones[`${side}-knee`].add(foot);
     footBones[side] = foot; bones[`${side}-ankle`] = foot; allBones.push(foot);
+    // The toe bone shares the foot origin, so at rest its matrices equal the foot's bit for bit.
+    // bendAnatomyToes turns it about the MTP pivot instead.
+    const toe = new Bone(); toe.name = `${side}-toes`;
+    foot.add(toe); toeBones[side] = toe;
   }
   const fingerSegments: { bone: Bone; index: number; name: string; side: "left" | "right"; part: string; thumb: boolean; line: Line3 }[] = [];
   source.updateMatrixWorld(true);
@@ -109,6 +125,8 @@ export function createAnatomyRig(source: Group) {
       }
     }
   }
+  // Appended last so every existing bone keeps its skin index.
+  allBones.push(toeBones.left, toeBones.right);
   root.updateMatrixWorld(true);
   const skeleton = new Skeleton(allBones);
   skeleton.calculateInverses();
@@ -172,6 +190,14 @@ export function createAnatomyRig(source: Group) {
         skinIndices[index * 4] = indices.get(`${side}-knee`)!;
         skinIndices[index * 4 + 1] = allBones.indexOf(footBones[side]);
         skinWeights[index * 4] = 1 - footWeight; skinWeights[index * 4 + 1] = footWeight;
+        // Toes follow their own joint (the foot weight is 1 this low). Splits of 0, 0.5 or 1 add
+        // exactly, so a resting toe skins bit-identically to the foot.
+        const crease = positions.getZ(index) - toeCrease(Math.abs(positions.getX(index)));
+        const toe = rigid ? Number(/phalanx_of_\w+_finger_of_foot/.test(name)) : y < .08 ? crease > .006 ? 1 : crease > -.004 ? .5 : 0 : 0;
+        if (toe) {
+          skinIndices[index * 4 + 2] = allBones.indexOf(toeBones[side]);
+          skinWeights[index * 4 + 1] = 1 - toe; skinWeights[index * 4 + 2] = toe;
+        }
       }
       if (arm && y < 1.61) {
         let handWeight = 1 - smooth(1.56, 1.64, y);
@@ -225,7 +251,7 @@ export function createAnatomyRig(source: Group) {
   root.scale.setScalar(0.85);
   let disposed = false, retained = false;
   const scratch = { vector: new Vector3(), target: new Vector3(), origin: new Vector3(), rotation: new Quaternion(), ankleRotation: new Quaternion() };
-  return { root, bones, shoulderCaps, footBones, forearmBones, handBones, fingerSegments, skeleton, meshes, muscles, materials, scratch, batches,
+  return { root, bones, shoulderCaps, footBones, toeBones, forearmBones, handBones, fingerSegments, skeleton, meshes, muscles, materials, scratch, batches,
     retain() { if (!retained) { prepared.viewers++; retained = true; disposed = false; } },
     dispose() {
     if (disposed) return;
@@ -252,6 +278,7 @@ export function poseAnatomyRig(rig: AnatomyRig, pose: RigPose, gripping: boolean
   // Rotate the forearm into a neutral grip, keeping the wrist straight.
   for (const side of ["left", "right"] as const) {
     rig.shoulderCaps[side].quaternion.identity().slerp(rig.bones[`${side}-shoulder`].quaternion, 0.82);
+    rig.toeBones[side].position.set(0, 0, 0); rig.toeBones[side].quaternion.identity();
     const ankle = pose[`${side}-ankle`];
     rig.footBones[side].rotation.set(-(ankle?.x ?? 0) * Math.PI / 180, (ankle?.y ?? 0) * Math.PI / 180, -(ankle?.z ?? 0) * Math.PI / 180);
     const wrist = pose[`${side}-wrist`];
@@ -269,6 +296,13 @@ export function poseAnatomyRig(rig: AnatomyRig, pose: RigPose, gripping: boolean
   }
   rig.root.updateMatrixWorld(true);
   rig.skeleton.update();
+}
+
+/** Turn the toes by a foot-local rotation about the MTP pivot. Callers update the skeleton. */
+export function bendAnatomyToes(rig: AnatomyRig, side: "left" | "right", rotation: Quaternion) {
+  const knee = pivots[`${side}-knee`], pivot = rig.scratch.origin.set((side === "left" ? 1 : -1) * toeAxis.point[0] - knee[0], toeAxis.point[1] - knee[1] + .65, toeAxis.point[2] - knee[2]);
+  rig.toeBones[side].quaternion.copy(rotation);
+  rig.toeBones[side].position.copy(pivot).sub(pivot.applyQuaternion(rotation));
 }
 
 // Two-bone leg solving keeps ankle targets stationary while the pelvis moves.

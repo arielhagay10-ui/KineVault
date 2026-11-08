@@ -7,22 +7,23 @@ import { gripOffset } from "./grip-edit";
 import { supportElbowTarget } from "./support-contacts";
 import { plateRow, plateRowFootPoint, plateRowLever, reachPlateRowGrip, rowLeverPosition, rowUsesHand } from "./plate-row";
 import { reachShoulderPressGrip, shoulderPressGripPoint, shoulderPressLever } from "./shoulder-press";
-import { reachHingedMachineGrip } from "./machine-grip";
+import { poseMachineArm, reachHingedMachineGrip } from "./machine-grip";
 import { tBarRow, tBarRowFootPoint, tBarRowLever, reachTBarRowGrip } from "./t-bar-row";
 import { legPress, legPressCarriagePoint, legPressFootPoint } from "./leg-press";
 import { isKneeLever, kneeLever, kneeLeverAnkle, kneeLeverFootRotation, kneeLeverHandle, kneeLeverLever, reachKneeLeverHandle } from "./knee-lever";
 import { lateralRaiseGripPoint, lateralRaiseLever, reachLateralRaiseHandle } from "./lateral-raise";
+import { calfRaiseCarriagePoint, calfRaiseFoot, calfRaiseHandle, calfRaisePelvisPoint, flattenCalfRaiseToes, reachCalfRaiseHandle } from "./calf-raise";
 export { rowHandleHeight, rowPulleyPoint } from "./studio-row";
 import { machineMotionAt, sampleStudioObject, studioAssetNames, studioPointToWorld } from "./studio";
 import { identityTransform, jointLimits, sampleWorkshopPose, type RigPose, type StudioObject, type WorkshopScene } from "./workshop";
 
 import { chestPressLever, chestPressGripPoint, reachChestPressGrip } from "./chest-press";
 
-export const machineSlugs = ["lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck", "row-machine", "t-bar-row-machine", "shoulder-press-machine", "chest-press-machine", "leg-extension-machine", "leg-curl-machine", "lateral-raise-machine"] as const;
+export const machineSlugs = ["lat-pulldown-machine", "smith-machine", "leg-press", "cable-row-machine", "pec-deck", "row-machine", "t-bar-row-machine", "shoulder-press-machine", "chest-press-machine", "leg-extension-machine", "leg-curl-machine", "lateral-raise-machine", "calf-raise-machine"] as const;
 export type MachineSlug = typeof machineSlugs[number];
 export const isStudioMachine = (slug: string): slug is MachineSlug => machineSlugs.some(machine => machine === slug);
 /** These machines place every joint; Pose, seating and limb dragging leave them alone. */
-export const machineDrivesFigure = (slug: string) => isKneeLever(slug) || slug === "lateral-raise-machine";
+export const machineDrivesFigure = (slug: string) => isKneeLever(slug) || slug === "lateral-raise-machine" || slug === "calf-raise-machine";
 export type MachineGripChoices = Pick<StudioObject, "machinePalm" | "machineElbowPath">;
 export type MachineReachReport = {
   objectId: string; timeMs: number;
@@ -66,6 +67,7 @@ export function machineLever(object: StudioObject, side: "left" | "right") {
 export function machineCarriagePoint(object: StudioObject) {
   const travel = object.machinePosition ?? 0.5;
   if (object.slug === "lat-pulldown-machine") return new Vector3(0, object.machineGrip === "pronated" ? 2.53 - travel * 0.93 : 2.58 - travel * 0.98, 0.22);
+  if (object.slug === "calf-raise-machine") return calfRaiseCarriagePoint(object);
   if (object.slug === "smith-machine") return new Vector3(0, (object.machineRange?.min ?? 1.53) + travel * ((object.machineRange?.max ?? 2.18) - (object.machineRange?.min ?? 1.53)), -0.12);
   if (object.slug === "row-machine" || object.slug === "t-bar-row-machine" || object.slug === "shoulder-press-machine" || object.slug === "chest-press-machine" || isKneeLever(object.slug)) return machineHandlePoint(object, "left").setX(0);
   if (object.slug === "cable-row-machine") return rowCarriagePoint(object);
@@ -78,6 +80,7 @@ export function machineHandlePoint(object: StudioObject, side: "left" | "right")
   if (object.slug === "chest-press-machine") return chestPressGripPoint({ ...object, gripOffsets: undefined }, side);
   if (object.slug === "shoulder-press-machine") return shoulderPressGripPoint({ ...object, gripOffsets: undefined }, side);
   if (object.slug === "lateral-raise-machine") return lateralRaiseGripPoint({ ...object, gripOffsets: undefined }, side);
+  if (object.slug === "calf-raise-machine") return calfRaiseHandle(object, side);
   if (object.slug === "row-machine" || object.slug === "t-bar-row-machine" || isKneeLever(object.slug)) {
     const lever = machineLever(object, side);
     return lever.grip.applyAxisAngle(new Vector3(1, 0, 0), lever.angle).add(lever.pivot);
@@ -100,7 +103,7 @@ export const machineTravelLabels: Record<MachineSlug, string> = {
   "cable-row-machine": "Row pull", "pec-deck": "Arm closure",
   "row-machine": "Lever pull", "shoulder-press-machine": "Press travel",
   "t-bar-row-machine": "T-bar pull", "chest-press-machine": "Chest press travel",
-  "leg-extension-machine": "Knee extension", "leg-curl-machine": "Knee flexion", "lateral-raise-machine": "Arm raise",
+  "leg-extension-machine": "Knee extension", "leg-curl-machine": "Knee flexion", "lateral-raise-machine": "Arm raise", "calf-raise-machine": "Heel raise",
 };
 export const machineContactDescriptions: Record<MachineSlug, string> = {
   "chest-press-machine": "Press forward and inward on independent arms. Choose a grip on the open handles, keep the back supported, and return with control.",
@@ -114,6 +117,7 @@ export const machineContactDescriptions: Record<MachineSlug, string> = {
   "shoulder-press-machine": "Press the levers overhead, or release the figure to use your own pose and supports.",
   "leg-extension-machine": "The seat and back pad support the figure, the knees line up with the lever axis and the shin pad rests above the ankles. Both hands hold the seat handles.",
   "lateral-raise-machine": "The seat and back pad support the figure, the shoulders line up with the lever axes and the pads rest on the outside of the upper arms. Both hands hold the handles.",
+  "calf-raise-machine": "The balls of both feet stand on the platform edge with the toes flat, the knees stay straight and the shoulders sit under the pads. Both hands hold the pad handles. Travel lowers the heels below the platform, then rises onto the toes.",
   "leg-curl-machine": "The seat, back pad and thigh pad hold the figure, the knees line up with the lever axis and the lower-leg pad sits behind the ankles. Both hands hold the seat handles.",
 };
 
@@ -151,6 +155,7 @@ export function machineGripPoint(object: StudioObject, side: "left" | "right"): 
   if (object.slug === "shoulder-press-machine") return shoulderPressGripPoint(object, side);
   if (isKneeLever(object.slug)) return kneeLeverHandle(side).add(gripOffset(object, side));
   if (object.slug === "lateral-raise-machine") return lateralRaiseGripPoint(object, side);
+  if (object.slug === "calf-raise-machine") return calfRaiseHandle(object, side).add(gripOffset(object, side));
   const offset = gripOffset(object, side);
   if (object.slug === "row-machine" || object.slug === "t-bar-row-machine") offset.applyAxisAngle(new Vector3(1, 0, 0), machineLever(object, side).angle);
   return machineHandlePoint(object, side).add(offset);
@@ -266,6 +271,7 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
   const pelvisPoint = object.slug === "smith-machine" ? { x: 0, y: carriage.y - 0.75, z: 0.05 }
     : object.slug === "row-machine" ? { x: 0, y: (object.rowSeatHeight ?? plateRow.seat.standard) + .17, z: plateRow.seat.z }
     : object.slug === "leg-press" ? { x: 0, y: 0.72, z: -0.51 } : isKneeLever(object.slug) ? { x: kneeLever.pelvis[0], y: kneeLever.pelvis[1], z: kneeLever.pelvis[2] }
+    : object.slug === "calf-raise-machine" ? calfRaisePelvisPoint(object)
     : { x: 0, y: 0.82, z: reverse ? reversePecDeckSeatZ : 0 };
   if (object.slug !== "smith-machine") {
     pelvisPoint.x += Math.max(-.1, Math.min(.1, object.seatOffsetX ?? 0));
@@ -291,18 +297,21 @@ export function applyStudioMachine(rig: AnatomyRig, scene: WorkshopScene, timeMs
       : object.slug === "row-machine" ? plateRowFootPoint(side)
       : object.slug === "t-bar-row-machine" ? tBarRowFootPoint(side)
       : isKneeLever(object.slug) ? kneeLeverAnkle(object, side)
+      : object.slug === "calf-raise-machine" ? calfRaiseFoot(object, side).ankle
       : { x: sign * (reverse ? -0.24 : 0.17), y: 0.119, z: object.slug === "smith-machine" ? 0.22 : reverse ? reversePecDeckSeatZ - 0.6 : 0.6 };
     const footRotation = isKneeLever(object.slug) ? kneeLeverFootRotation(object, bodyFacing) : bodyFacing.clone();
+    if (object.slug === "calf-raise-machine") footRotation.multiply(calfRaiseFoot(object, side).rotation);
     if (object.slug === "cable-row-machine") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), rowFootplate.angle));
     if (object.slug === "row-machine") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), plateRow.foot.angle));
     if (object.slug === "t-bar-row-machine") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), tBarRow.foot.angle));
     if (object.slug === "leg-press") footRotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), legPress.footDegrees * Math.PI / 180));
     const pose = sampleWorkshopPose(scene.keyframes, timeMs);
     const authoredLeg = object.slug !== "leg-press" && (object.seatFootSupport === false || ["row-machine", "t-bar-row-machine"].includes(object.slug) && object.rowFootSupport === false);
-    if (!authoredLeg) plantMachineFoot(rig, side, studioPointToWorld(footPoint, object), bodyFacing, footRotation, { ankle: object.slug !== "smith-machine", kneeTurn: object.slug === "leg-press" });
+    if (!authoredLeg) plantMachineFoot(rig, side, studioPointToWorld(footPoint, object), bodyFacing, footRotation, { ankle: object.slug !== "smith-machine" && object.slug !== "calf-raise-machine", kneeTurn: object.slug === "leg-press" });
     if (object.slug === "t-bar-row-machine") { if (rowUsesHand(object, side)) reachTBarRowGrip(rig, object, side, facing); continue; }
     if (isKneeLever(object.slug)) { reachKneeLeverHandle(rig, object, side, facing); continue; }
     if (object.slug === "lateral-raise-machine") { reachLateralRaiseHandle(rig, object, side, facing); continue; }
+    if (object.slug === "calf-raise-machine") { flattenCalfRaiseToes(rig, object, side); reachCalfRaiseHandle(rig, object, side, facing); continue; }
     if (object.slug === "row-machine") {
       if (rowUsesHand(object, side)) {
         reachPlateRowGrip(rig, object, side, facing, pose);
@@ -476,24 +485,6 @@ function reachSmithBar(rig: AnatomyRig, side: "left" | "right", target: Vector3,
   poseMachineArm(rig, side, elbowTarget, wrist, handWorld);
 }
 
-function poseMachineArm(rig: AnatomyRig, side: "left" | "right", elbowTarget: Vector3, wrist: Vector3, handWorld: Quaternion) {
-  const shoulder = rig.bones[`${side}-shoulder`], elbow = rig.bones[`${side}-elbow`];
-  const forearm = rig.forearmBones[side], hand = rig.handBones[side];
-  const origin = shoulder.getWorldPosition(new Vector3());
-  const lowerDirection = wrist.clone().sub(elbowTarget).normalize();
-  const rotation = new Quaternion().setFromUnitVectors(hand.position.clone().normalize(), lowerDirection);
-  const palm = new Vector3(0, 0, 1).applyQuaternion(rotation), desiredPalm = new Vector3(0, 0, 1).applyQuaternion(handWorld);
-  palm.addScaledVector(lowerDirection, -palm.dot(lowerDirection)).normalize();
-  desiredPalm.addScaledVector(lowerDirection, -desiredPalm.dot(lowerDirection)).normalize();
-  rotation.premultiply(new Quaternion().setFromAxisAngle(lowerDirection, Math.atan2(lowerDirection.dot(palm.clone().cross(desiredPalm)), palm.dot(desiredPalm))));
-  shoulder.quaternion.setFromUnitVectors(elbow.position.clone().normalize(), elbowTarget.sub(origin).normalize().applyQuaternion(shoulder.parent!.getWorldQuaternion(new Quaternion()).invert()));
-  rig.root.updateWorldMatrix(true, true);
-  elbow.quaternion.copy(shoulder.getWorldQuaternion(new Quaternion()).invert()).multiply(rotation).multiply(forearm.quaternion.clone().invert());
-  hand.quaternion.copy(rotation.invert().multiply(handWorld));
-  rig.shoulderCaps[side].quaternion.identity().slerp(shoulder.quaternion, 0.82);
-  rig.root.updateWorldMatrix(true, true);
-}
-
 // Keep elbows in the frontal plane and closed hands aligned with the shaft.
 function reachFrontalPulldownGrip(rig: AnatomyRig, side: "left" | "right", target: Vector3, facing: Quaternion) {
   const shoulder = rig.bones[`${side}-shoulder`], elbow = rig.bones[`${side}-elbow`];
@@ -523,6 +514,6 @@ export function machineDemoScene(slug: MachineSlug, id: string, machineGrip: "su
   return { motionStyle: "free", durationMs, cameraAngle: machineGrip === "pronated" && slug === "lat-pulldown-machine" ? "front" : "three_quarter", equipment: null, annotations: [],
     keyframes: frames.map(frame => ({ timeMs: frame.timeMs, poses: { torso: { x: 0, y: 0, z: 0 } } })),
     studio: { body: { ...identityTransform }, frontalPlane: slug === "lat-pulldown-machine" && machineGrip === "pronated" ? true : undefined, objects: [{ ...transform, id, slug, name: studioAssetNames[slug], attachment: slug === "row-machine" ? "both" : "none", ...(slug === "row-machine" ? { rowGrip: "neutral" as const } : {}), pulleyHeight: 2.6, machineUse: true, machineGrip: slug === "lat-pulldown-machine" ? machineGrip : undefined, machineMode: slug === "pec-deck" ? machineMode : undefined, machinePosition: frames[0].machinePosition, frames }],
-      presentation: { highlight: slug === "chest-press-machine" ? "group:chest" : slug === "pec-deck" ? machineMode === "reverse" ? "group:reardelts" : "group:chest" : ["lat-pulldown-machine", "cable-row-machine", "t-bar-row-machine"].includes(slug) ? "group:lats" : slug === "leg-curl-machine" ? "group:hamstrings" : slug === "lateral-raise-machine" ? "group:deltoid" : "group:quadriceps", isolate: false, view: slug === "leg-press" || isKneeLever(slug) ? "side" : slug === "lat-pulldown-machine" && machineGrip === "pronated" || slug === "lateral-raise-machine" ? "front" : "three_quarter" } } };
+      presentation: { highlight: slug === "chest-press-machine" ? "group:chest" : slug === "pec-deck" ? machineMode === "reverse" ? "group:reardelts" : "group:chest" : ["lat-pulldown-machine", "cable-row-machine", "t-bar-row-machine"].includes(slug) ? "group:lats" : slug === "leg-curl-machine" ? "group:hamstrings" : slug === "lateral-raise-machine" ? "group:deltoid" : slug === "calf-raise-machine" ? "group:calves" : "group:quadriceps", isolate: false, view: slug === "leg-press" || isKneeLever(slug) || slug === "calf-raise-machine" ? "side" : slug === "lat-pulldown-machine" && machineGrip === "pronated" || slug === "lateral-raise-machine" ? "front" : "three_quarter" } } };
 }
 

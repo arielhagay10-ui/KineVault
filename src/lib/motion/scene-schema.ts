@@ -90,6 +90,7 @@ export const studioLayoutSchema = z.object({
     }
   });
   if (layout.objects.filter(object => object.machineUse).length > 1) context.addIssue({ code: "custom", path: ["objects"], message: "Use one machine at a time" });
+  if (layout.objects.some(object => object.slug === "pull-up-bar" && object.attachment === "both") && (layout.seating || layout.supports?.length || layout.objects.some(object => object.machineUse))) context.addIssue({ code: "custom", path: ["objects"], message: "Release the bar before sitting, using a machine or adding supports" });
   for (const [index, object] of layout.objects.entries()) {
     if (!["row-machine", "t-bar-row-machine"].includes(object.slug) && (object.rowGrip !== undefined || object.rowFootSupport !== undefined)) context.addIssue({ code: "custom", path: ["objects", index], message: "Row grips and foot supports require a row machine" });
     if (object.slug !== "row-machine" && object.rowSeatHeight !== undefined) context.addIssue({ code: "custom", path: ["objects", index, "rowSeatHeight"], message: "Row seat requires a seated plate-loaded row" });
@@ -180,6 +181,7 @@ export const workshopSceneSchema = z.object({
   if (scene.keyframes[0]?.timeMs !== 0 || previous !== scene.durationMs) {
     context.addIssue({ code: "custom", path: ["keyframes", scene.keyframes[0]?.timeMs !== 0 ? 0 : scene.keyframes.length - 1, "timeMs"], message: "Timeline must start at 0 and end at its duration" });
   }
+  if (scene.motionStyle && scene.motionStyle !== "free" && scene.studio?.objects.some(object => object.slug === "pull-up-bar" && object.attachment === "both")) context.addIssue({ code: "custom", path: ["motionStyle"], message: "Choose Free posing while hanging from the bar" });
   scene.annotations.forEach((item, index) => {
     if (item.endMs > scene.durationMs) context.addIssue({ code: "custom", path: ["annotations", index, "endMs"], message: "Annotation extends beyond the scene" });
   });

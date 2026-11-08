@@ -25,6 +25,8 @@ export function studioCameraPoints(objects: StudioObject[] | undefined) {
     "leg-curl-machine": { width: .62, height: 2.6, depth: [-1.12, 1.45] },
     // This short frame lets the floor set the fit; the extra front depth keeps the feet above the render's license line.
     "lateral-raise-machine": { width: 1.05, height: 2.3, depth: [-.9, 1.15] },
+    "calf-raise-machine": { width: .9, height: 2.9, depth: [-1.05, .6] },
+    "pull-up-bar": { width: .85, height: 3.55, depth: [-.65, .65] },
   };
   return objects?.flatMap(object => {
     const size = bounds[object.slug];

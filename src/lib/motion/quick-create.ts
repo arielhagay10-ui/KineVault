@@ -20,6 +20,7 @@ export function workshopDemonstrationCaption(object: Pick<StudioObject, "slug" |
     case "leg-extension-machine": return "Straighten both knees against the shin pad; keep the thighs on the seat.";
     case "lateral-raise-machine": return "Raise both elbows out to shoulder height; keep the back on the pad.";
     case "leg-curl-machine": return "Curl the heels down and back under the seat; keep the thighs under the pad.";
+    case "calf-raise-machine": return "Rise onto the balls of the feet with straight knees, then lower the heels below the platform.";
     default: return "Move through the chosen travel and inspect the intended contacts.";
   }
 }
@@ -37,7 +38,9 @@ const synonyms: Record<string, string[]> = {
   "leg-extension-machine": ["leg extension", "knee extension", "quad extension", "quadriceps machine"],
   "lateral-raise-machine": ["lateral raise", "machine lateral raise", "side raise", "shoulder raise"],
   "leg-curl-machine": ["leg curl", "seated leg curl", "hamstring curl", "knee flexion"],
+  "calf-raise-machine": ["calf raise", "standing calf raise", "calf machine", "heel raise", "calves"],
   stool: ["utility seat", "backless seat"], "plyo-box": ["jump box", "plyometric box", "step"],
+  "pull-up-bar": ["pull up bar", "pullup bar", "chin up bar", "chin-up bar", "pull-up station", "hanging bar"],
   "resistance-band": ["elastic band", "resistance bands", "loop band", "power band"],
   bench: ["seat", "incline seat", "flat bench", "incline bench", "weight bench"],
   "squat-rack": ["power rack", "power cage", "squat stand"],
@@ -87,7 +90,7 @@ export function searchWorkshopEquipment(options: EquipmentOption[], query: strin
 
 export function equipmentGroup(slug: string): "Machines" | "Weights" | "Supports" {
   const canonical = aliases[slug] ?? slug;
-  return ["barbell", "dumbbell", "kettlebell", "resistance-band"].includes(canonical) ? "Weights" : ["bench", "squat-rack", "stool", "plyo-box"].includes(canonical) ? "Supports" : "Machines";
+  return ["barbell", "dumbbell", "kettlebell", "resistance-band"].includes(canonical) ? "Weights" : ["bench", "squat-rack", "stool", "plyo-box", "pull-up-bar"].includes(canonical) ? "Supports" : "Machines";
 }
 
 export function createQuickScene(slug: string): WorkshopScene {
