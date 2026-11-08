@@ -1,0 +1,51 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  performance:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx supabase start --exclude realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - name: Configure local browser test environment
+        run: |
+          echo "NEXT_PUBLIC_SUPABASE_URL=$(npx supabase status -o env | sed -n 's/^API_URL=//p' | tr -d '"')" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(npx supabase status -o env | sed -n 's/^ANON_KEY=//p' | tr -d '"')" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$(npx supabase status -o env | sed -n 's/^SERVICE_ROLE_KEY=//p' | tr -d '"')" >> "$GITHUB_ENV"
+          render_token=$(openssl rand -hex 32)
+          echo "::add-mask::$render_token"
+          echo "RENDER_WORKER_TOKEN=$render_token" >> "$GITHUB_ENV"
+      - run: npm run build
+      - name: Start production app for performance checks
+        run: |
+          npm start > /tmp/kinevault-performance-server.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/api/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/kinevault-performance-server.log
+          exit 1
+      - run: npm run test:performance
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: performance
+          path: |
+            .local-artifacts/efficiency-review/
+            .local-artifacts/operations/
+            test-results/**/error-context.md
+            test-results/**/*.png
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
