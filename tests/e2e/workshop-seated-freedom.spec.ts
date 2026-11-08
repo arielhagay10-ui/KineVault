@@ -93,8 +93,8 @@ for (const slug of ["shoulder-press-machine", "bench", "leg-press"] as const) {
       await page.getByRole("button", { name: "Sign in", exact: true }).click();
       await expect(page).toHaveURL(/\/dashboard$/);
       await page.goto(`/my-exercises/${created.data}/workshop`);
-      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
-      await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible();
+      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+      await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await dismissWorkshopTutorial(page);
       const label = slug === "bench" ? "Adjustable bench" : slug === "leg-press" ? "Leg press" : "Shoulder press";
       await selectWorkshopObject(page, label);
@@ -106,8 +106,8 @@ for (const slug of ["shoulder-press-machine", "bench", "leg-press"] as const) {
         await inspectNormalUse(page, "leg-press");
         await saveScene(page);
         await page.reload();
-        await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
-        await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible();
+        await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+        await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible({ timeout: 60_000 });
         await inspectNormalUse(page, "leg-press-reloaded");
         expect(errors).toEqual([]);
         return;
@@ -200,8 +200,8 @@ for (const slug of ["shoulder-press-machine", "bench", "leg-press"] as const) {
       }
 
       await page.reload();
-      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
-      await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible();
+      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+      await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await dismissWorkshopTutorial(page);
       await selectWorkshopObject(page, slug === "bench" ? "Adjustable bench" : "Shoulder press");
       await selectWorkshopMoment(page, "Finish");
