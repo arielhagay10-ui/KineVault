@@ -42,6 +42,11 @@ describe("equipment grip capabilities", () => {
     expect(workshopSceneSchema.safeParse(scene(object(slug, { attachment: "left", machineUse: false }))).success).toBe(true);
   });
 
+  it.each(["leg-extension-machine", "leg-curl-machine", "lateral-raise-machine"] as const)("leaves %s hands to the machine", slug => {
+    expect(equipmentGripHands(object(slug))).toEqual([]);
+    expect(workshopSceneSchema.safeParse(scene(object(slug, { attachment: "left", machineUse: false }))).success).toBe(false);
+  });
+
   it("allows both hands on a shared free weight", () => {
     expect(equipmentGripHands(object("dumbbell"))).toEqual(["left", "right", "both"]);
     expect(equipmentGripHands(object("barbell"))).toEqual(["left", "right", "both"]);
