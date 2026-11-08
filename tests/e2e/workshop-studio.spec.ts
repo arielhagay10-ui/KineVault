@@ -1,4 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { enableWorkshopFreeDrag, dismissWorkshopTutorial } from "./workshop-menu.helpers";
 import { openWorkshopTool, selectWorkshopObject, selectWorkshopJoint, jointField, openWorkshopMenu, expandWorkshopControls, cableAttachmentButton } from "./workshop-menu.helpers";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -311,7 +312,7 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
       await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
       for (const view of ["Front", "Side"]) {
         await page.getByRole("button", { name: view, exact: true }).click();
-        await page.locator("canvas").screenshot({ path: `${artifacts}/kettlebell-${grip.replaceAll(" ", "-")}-${view}.png` });
+        await captureEvidence(page.locator("canvas"), `${artifacts}/kettlebell-${grip.replaceAll(" ", "-")}-${view}.png`);
       }
     }
     await openWorkshopTool(page, "Contacts");
@@ -368,7 +369,7 @@ test("kettlebell grips and adjustable cable attachments survive switching, playb
           }, step * 400);
           await expect(page.getByLabel("Preview time")).toHaveValue(String(step * 400));
           await expect(page.getByRole("region", { name: "Selected item", exact: true })).toHaveAttribute("data-grip-reachable", "true");
-          await page.locator("canvas").screenshot({ path: `${artifacts}/${kind}-${view}-${step}.png` });
+          await captureEvidence(page.locator("canvas"), `${artifacts}/${kind}-${view}-${step}.png`);
         }
         await openWorkshopTool(page, "Contacts");
       }

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { blankWorkshopScene, cableAttachmentSlugs, identityTransform, studioAssetSlugs, type StudioLayout } from "../../src/lib/motion/workshop";
 import { createStudioObject } from "../../src/lib/motion/studio";
 import { cableAttachmentButton, openWorkshopTool, setWorkshopLanguage } from "./workshop-menu.helpers";
@@ -68,7 +69,7 @@ test("advanced grip editing picks, adjusts, resets, undoes, and persists indepen
       await page.getByRole("button", { name: view, exact: true }).click();
       for (let i = 0; i <= 16; i++) {
         await page.getByLabel("Preview time", { exact: true }).fill(String(3200 * i / 16));
-        await page.locator("canvas").screenshot({ path: `${evidence}/${view.toLowerCase()}-${i}.png` });
+        await captureEvidence(page.locator("canvas"), `${evidence}/${view.toLowerCase()}-${i}.png`);
         await expect(page.getByText("Too far to reach. Move the weight closer to the figure.", { exact: true })).toHaveCount(0);
       }
     }

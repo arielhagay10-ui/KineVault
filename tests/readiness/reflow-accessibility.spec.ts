@@ -1,11 +1,13 @@
 import { expect } from "@playwright/test";
 import { test as publicTest } from "../e2e/published-catalog.helpers";
 import { openWorkshopTool, workshopPose } from "../e2e/workshop-menu.helpers";
-import { auditAccessibility, setAppearance } from "./accessibility.helpers";
+import { nightlyOnly } from "../helpers/ci";
+import { auditAccessibility, setAppearance, touchAuditDeferred } from "./accessibility.helpers";
 import { test } from "./workshop.fixture";
 
 for (const appearance of ["light", "dark"] as const) {
-  publicTest(`public content reflows at 320 CSS pixels in ${appearance}`, async ({ page, publishedCableRaise }, testInfo) => {
+  publicTest(`public content reflows at 320 CSS pixels in ${appearance}`, async ({ page, hasTouch, publishedCableRaise }, testInfo) => {
+    publicTest.skip(touchAuditDeferred({ hasTouch }), nightlyOnly);
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto("/");
     await setAppearance(page, appearance);

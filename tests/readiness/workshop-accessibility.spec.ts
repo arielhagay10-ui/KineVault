@@ -1,7 +1,10 @@
 import { expect } from "@playwright/test";
 import { openWorkshopMenu, openWorkshopTool, setWorkshopLanguage } from "../e2e/workshop-menu.helpers";
-import { auditAccessibility, setAppearance } from "./accessibility.helpers";
+import { nightlyOnly } from "../helpers/ci";
+import { auditAccessibility, setAppearance, touchAuditDeferred } from "./accessibility.helpers";
 import { test } from "./workshop.fixture";
+
+test.skip(touchAuditDeferred, nightlyOnly);
 
 for (const appearance of ["light", "dark"] as const) {
   test(`owner pages, workshop tools and equipment dialog meet automated checks in ${appearance}`, async ({ page, workshop }, testInfo) => {

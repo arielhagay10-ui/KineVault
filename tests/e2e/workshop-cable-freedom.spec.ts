@@ -1,4 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
@@ -93,8 +94,7 @@ test("row attachments, independent handle movement, free deadlift poses and save
     await page.getByRole("button", { name: "Side", exact: true }).click();
     for (let step = 0; step <= 16; step++) {
       await page.getByLabel("Preview time", { exact: true }).fill(String(step * fixture.durationMs / 16));
-      await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
-      await page.locator("canvas").screenshot({ path: `${folder}/deadlift-${step}.png` });
+      await captureEvidence(page.locator("canvas"), `${folder}/deadlift-${step}.png`);
     }
     await selectWorkshopObject(page, "Cable row");
     await openWorkshopTool(page, "Contacts");

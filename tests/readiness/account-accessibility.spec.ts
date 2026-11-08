@@ -1,8 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { z } from "zod";
 import { expect } from "@playwright/test";
-import { auditAccessibility, setAppearance } from "./accessibility.helpers";
+import { nightlyOnly } from "../helpers/ci";
+import { auditAccessibility, setAppearance, touchAuditDeferred } from "./accessibility.helpers";
 import { test } from "./workshop.fixture";
+
+test.skip(touchAuditDeferred, nightlyOnly);
 
 for (const appearance of ["light", "dark"] as const) {
   test(`administration and submission forms meet automated checks in ${appearance}`, async ({ page, workshop, publishedCableRaise }, testInfo) => {

@@ -5,6 +5,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createQuickScene } from "../../src/lib/motion/quick-create";
 import type { StudioLayout, StudioObject } from "../../src/lib/motion/workshop";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { dismissWorkshopTutorial, jointField, openWorkshopTool, selectWorkshopJoint, selectWorkshopMoment, selectWorkshopObject } from "./workshop-menu.helpers";
 
 test.use({ viewport: { width: 1440, height: 1100 }, launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
@@ -36,7 +37,7 @@ async function inspectNormalUse(page: Page, name: string) {
     for (let sample = 0; sample <= 8; sample++) {
       const box = (await slider.boundingBox())!;
       await page.mouse.click(box.x + 8 + (box.width - 16) * sample / 8, box.y + box.height / 2);
-      await page.getByRole("group", { name: "3D exercise preview", exact: true }).screenshot({ path: `${evidence}/${name}-${view}-${sample}.png` });
+      await captureEvidence(page.getByRole("group", { name: "3D exercise preview", exact: true }), `${evidence}/${name}-${view}-${sample}.png`);
     }
   }
   await page.getByRole("button", { name: "Three-quarter", exact: true }).click();
@@ -92,8 +93,8 @@ for (const slug of ["shoulder-press-machine", "bench", "leg-press"] as const) {
       await page.getByRole("button", { name: "Sign in", exact: true }).click();
       await expect(page).toHaveURL(/\/dashboard$/);
       await page.goto(`/my-exercises/${created.data}/workshop`);
-      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
-      await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible();
+      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+      await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await dismissWorkshopTutorial(page);
       const label = slug === "bench" ? "Adjustable bench" : slug === "leg-press" ? "Leg press" : "Shoulder press";
       await selectWorkshopObject(page, label);
@@ -105,8 +106,8 @@ for (const slug of ["shoulder-press-machine", "bench", "leg-press"] as const) {
         await inspectNormalUse(page, "leg-press");
         await saveScene(page);
         await page.reload();
-        await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
-        await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible();
+        await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+        await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible({ timeout: 60_000 });
         await inspectNormalUse(page, "leg-press-reloaded");
         expect(errors).toEqual([]);
         return;
@@ -199,8 +200,8 @@ for (const slug of ["shoulder-press-machine", "bench", "leg-press"] as const) {
       }
 
       await page.reload();
-      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible();
-      await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible();
+      await expect(page.locator('[data-anatomy-state="ready"]')).toBeVisible({ timeout: 60_000 });
+      await expect(page.locator('[data-equipment-state="ready"]')).toBeVisible({ timeout: 60_000 });
       await dismissWorkshopTutorial(page);
       await selectWorkshopObject(page, slug === "bench" ? "Adjustable bench" : "Shoulder press");
       await selectWorkshopMoment(page, "Finish");

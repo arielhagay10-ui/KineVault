@@ -1,6 +1,9 @@
 import { expect } from "@playwright/test";
 import { test } from "../e2e/published-catalog.helpers";
-import { auditAccessibility, setAppearance } from "./accessibility.helpers";
+import { nightlyOnly } from "../helpers/ci";
+import { auditAccessibility, setAppearance, touchAuditDeferred } from "./accessibility.helpers";
+
+test.skip(touchAuditDeferred, nightlyOnly);
 
 for (const appearance of ["light", "dark"] as const) {
   test(`public pages and open navigation meet automated accessibility checks in ${appearance}`, async ({ page, isMobile, publishedCableRaise }, testInfo) => {
