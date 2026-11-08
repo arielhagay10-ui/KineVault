@@ -27,3 +27,14 @@ it("frames taller towers even when a tower is closer to a side-view camera", () 
     }
   }
 });
+
+it("keeps the lateral raise machine's toes above the front render's license line", () => {
+  const object = { ...createStudioObject("lateral-raise-machine", "00000000-0000-4000-8000-000000000001", 0), x: 0, z: 0 };
+  // Mirrors the 640x640 render camera for a front view of a standard-height figure.
+  const target = new Vector3(0, 1.38, 0), offset = new Vector3(0, 0.27, 5.3).multiplyScalar(1.05);
+  const camera = new PerspectiveCamera(34, 1, 0.1, 100);
+  camera.position.copy(target).add(offset.clone().normalize().multiplyScalar(cameraDistanceForPoints(studioCameraPoints([object]), target, offset, 34, 1)));
+  camera.lookAt(target); camera.updateMatrixWorld(true);
+  // Toes rest on the floor about 0.8 m in front of the lever axes; the license line covers the bottom 46 px.
+  expect(new Vector3(0, 0, 0.8).project(camera).y).toBeGreaterThan(-(320 - 46) / 320);
+});
