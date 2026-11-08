@@ -10,7 +10,7 @@ import { createStudioObject } from "../../src/lib/motion/studio";
 import { blankWorkshopScene } from "../../src/lib/motion/workshop";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
 import { productionBuildMode } from "../helpers/workshop-performance";
-import { dismissWorkshopTutorial, openWorkshopTool, setWorkshopLanguage } from "../e2e/workshop-menu.helpers";
+import { dismissWorkshopTutorial, openWorkshopTool, renderCameraAction, setWorkshopLanguage } from "../e2e/workshop-menu.helpers";
 
 test("production supports: three matched playback runs and camera solve reuse", async ({ page, request }) => {
   test.setTimeout(360_000);
@@ -104,11 +104,9 @@ test("production supports: three matched playback runs and camera solve reuse", 
       runs.push(measurement); p95ByMode[mode].push(capture.p95Ms);
       await page.getByRole("button", { name: "Pause", exact: true }).click();
       await page.waitForTimeout(500);
-      await page.getByRole("button", { name: "Zoom out", exact: true }).click();
-      await page.waitForTimeout(500);
+      await renderCameraAction(page, viewer, "Zoom out");
       const cameraBefore = Number(await viewer.getAttribute("data-pose-solves"));
-      await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-      await page.waitForTimeout(500);
+      await renderCameraAction(page, viewer, "Zoom in");
       const cameraOnlySolves = Number(await viewer.getAttribute("data-pose-solves")) - cameraBefore;
       Object.assign(measurement, { cameraOnlySolves });
       expect.soft(capture.intervals).toHaveLength(120);

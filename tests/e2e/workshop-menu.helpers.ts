@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { cableAttachmentNames } from "../../src/lib/motion/studio-cable";
 import type { CableAttachment } from "../../src/lib/motion/workshop";
 
@@ -138,4 +138,12 @@ export async function setWorkshopLanguage(page: Page, language: "en" | "he") {
   if (await page.locator("[data-workshop-menu]").evaluate(element => (element as HTMLDetailsElement).open)) await page.locator("[data-workshop-menu] > summary").click();
   await expect(page.locator("[data-workshop-menu]")).toHaveJSProperty("open", false);
   await expect.poll(() => page.locator("[data-workshop-controls-scroll]").evaluate(element => element.closest("[inert]") === null)).toBe(true);
+}
+
+/** Clicks a camera action and waits for its frame's metrics; needs `?metrics=1`. Software frames can outlast a fixed sleep. */
+export async function renderCameraAction(page: Page, viewer: Locator, name: "Zoom in" | "Zoom out") {
+  const frames = () => viewer.getAttribute("data-render-frames").then(Number);
+  const before = await frames();
+  await page.getByRole("button", { name, exact: true }).click();
+  await expect.poll(frames).toBeGreaterThan(before);
 }
