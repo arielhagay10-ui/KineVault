@@ -915,6 +915,8 @@ export const workshopHebrew: Readonly<Record<string, string>> = {
   "Free posing": "התאמת תנוחה חופשית",
   "Squat — feet planted": "סקוואט עם כפות רגליים יציבות",
   "Hip hinge — feet planted": "כיפוף בירך עם כפות רגליים יציבות",
+  "Deep squat — feet planted": "סקוואט עמוק עם כפות רגליים יציבות",
+  "Deadlift from the floor — feet planted": "דדליפט מהרצפה עם כפות רגליים יציבות",
   "Bent-over row": "חתירה בהטיית גוף",
   "Stationary lunge": "מכרע במקום",
   "Incline bench press": "לחיצה על ספסל משופע",

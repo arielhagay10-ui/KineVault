@@ -6,7 +6,7 @@ import { searchAnatomy } from "./workshop-anatomy-search";
 import { createStudioObject } from "./studio";
 import { createAdjustableBench } from "./adjustable-bench";
 import { Box3 } from "three";
-import { workshopCameraView } from "./workshop-camera";
+import { raisedUpperArm, workshopCameraView } from "./workshop-camera";
 
 it("fits a translated, scaled body on a narrow screen", () => {
   const scene = { ...blankWorkshopScene, studio: { body: { ...blankWorkshopScene.studio!.body, x: 4, y: 1, scale: 1.5 }, objects: [] } };
@@ -107,4 +107,13 @@ it("renders restored authored views even after a local Side choice", () => {
     expect(fit.position.z > fit.target.z).toBe(view === "front");
     expect(fit.position.x).toBeCloseTo(fit.target.x);
   }
+});
+
+it("frames raised arms by upper-arm direction, not aliased Euler angles", () => {
+  expect(raisedUpperArm({ x: 0, y: 0, z: -150 })).toBe(true);
+  expect(raisedUpperArm({ x: -170, y: 0, z: 0 })).toBe(true);
+  expect(raisedUpperArm({ x: 0, y: 0, z: -90 })).toBe(false);
+  // Back-squat hands on the bar with the upper arms hanging; the same rotation is (26.24, 111, 24.16).
+  expect(raisedUpperArm({ x: -153.76, y: 69, z: -155.84 })).toBe(false);
+  expect(raisedUpperArm(undefined)).toBe(false);
 });

@@ -34,7 +34,7 @@ import { applyStudioMachine, type MachineReachReport } from "@/lib/motion/studio
 import { constrainFrontalPose, resolveStudioObject } from "@/lib/motion/studio-constraints";
 import { cameraDistanceForPoints, studioCameraPoints } from "@/lib/motion/studio-camera";
 import { rowUsesHand } from "@/lib/motion/plate-row";
-import { styleWorkshopEquipment, fadeWorkshopEquipment, fitWorkshopCamera, oppositeCameraPosition, workshopCameraView, zoomCameraPosition, type WorkshopCameraAction, type WorkshopCameraCommand } from "@/lib/motion/workshop-camera";
+import { styleWorkshopEquipment, fadeWorkshopEquipment, fitWorkshopCamera, oppositeCameraPosition, raisedUpperArm, workshopCameraView, zoomCameraPosition, type WorkshopCameraAction, type WorkshopCameraCommand } from "@/lib/motion/workshop-camera";
 import { workshopEditorForInteraction } from "@/lib/motion/workshop-interaction";
 import { muscleGroups } from "@/lib/motion/anatomy";
 import { savedMuscleHighlight, savedMuscleHighlightLabel } from "@/lib/motion/saved-muscle-highlights";
@@ -404,7 +404,7 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
   const [muscles, setMuscles] = useState<MuscleOption[]>([]);
   const elbowMotion = scene.keyframes.some(frame => (frame.poses["left-elbow"]?.x ?? 0) >= 70)
     && scene.keyframes.every(frame => Math.abs(frame.poses["left-shoulder"]?.z ?? 0) < 30);
-  const styleTargets: Record<string, string> = { squat: "group:quadriceps", "split-squat": "group:quadriceps", hinge: "group:hamstrings", row: "group:lats", "bench-press": "group:chest" };
+  const styleTargets: Record<string, string> = { squat: "group:quadriceps", "deep-squat": "group:quadriceps", "split-squat": "group:quadriceps", hinge: "group:hamstrings", deadlift: "group:glutes", row: "group:lats", "bench-press": "group:chest" };
   const initialTarget = styleTargets[scene.motionStyle ?? ""] ?? (elbowMotion ? scene.equipment?.slug === "single-cable" ? "group:triceps" : "group:biceps" : "group:deltoid");
   const [targetChoice, setTarget] = useState<string | null>(null);
   const savedHighlight = !editor && muscleSlugs !== undefined ? savedMuscleHighlight(muscleSlugs, secondaryMuscleSlugs) : undefined;
@@ -412,8 +412,7 @@ export function MotionCanvas({ scene, timeMs, playback, gesture, className = "h-
   const defaultHighlight = presentationHighlight && presentationHighlight !== "none"
     ? presentationHighlight : savedHighlight ?? presentationHighlight;
   const target = (editor ? null : targetChoice) ?? defaultHighlight ?? (editor ? "none" : initialTarget);
-  const overhead = scene.equipment?.slug === "single-cable" || scene.studio?.objects.some(object => object.slug === "cable-machine") || scene.keyframes.some(frame => Math.abs(frame.poses["left-shoulder"]?.z ?? 0) > 120
-    || (Math.abs(frame.poses["left-shoulder"]?.x ?? 0) >= 60 && Math.abs(frame.poses["left-shoulder"]?.z ?? 0) >= 60));
+  const overhead = scene.equipment?.slug === "single-cable" || scene.studio?.objects.some(object => object.slug === "cable-machine") || scene.keyframes.some(frame => raisedUpperArm(frame.poses["left-shoulder"]));
   const [isolateChoice, setIsolate] = useState<boolean | null>(null);
   const isolate = (editor ? null : isolateChoice) ?? scene.studio?.presentation?.isolate ?? false;
   const visibleEquipment = isolate && !editor ? [] : scene.studio?.objects ?? [];

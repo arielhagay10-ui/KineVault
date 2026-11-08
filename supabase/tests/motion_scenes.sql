@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(19);
+select plan(23);
 
 select is((select count(*)::integer from public.rig_joints rj
   join public.rigs r on r.id = rj.rig_id where r.active), 13,
@@ -79,6 +79,22 @@ select is((select motion_style from public.exercise_scenes where id=current_sett
 reset role;
 select set_config('test.incline_clone_id',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.private_id')::uuid),'submission_editorial',null)::text,true);
 select is((select motion_style from public.exercise_scenes where content_id=current_setting('test.incline_clone_id')::uuid),'incline-curl','incline curl survives snapshot cloning');
+set local role authenticated;
+
+select public.save_private_scene(current_setting('test.private_id')::uuid,
+  '{"motionStyle":"deep-squat","durationMs":4000,"cameraAngle":"side","equipment":null,"keyframes":[{"timeMs":0,"poses":{"torso":{"x":0}}},{"timeMs":2000,"poses":{"torso":{"x":35}}},{"timeMs":4000,"poses":{"torso":{"x":0}}}]}'::jsonb);
+select is((select motion_style from public.exercise_scenes where id=current_setting('test.scene_id')::uuid),'deep-squat','deep squat survives saving');
+reset role;
+select set_config('test.deep_squat_clone_id',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.private_id')::uuid),'submission_editorial',null)::text,true);
+select is((select motion_style from public.exercise_scenes where content_id=current_setting('test.deep_squat_clone_id')::uuid),'deep-squat','deep squat survives snapshot cloning');
+set local role authenticated;
+
+select public.save_private_scene(current_setting('test.private_id')::uuid,
+  '{"motionStyle":"deadlift","durationMs":4000,"cameraAngle":"side","equipment":null,"keyframes":[{"timeMs":0,"poses":{"torso":{"x":35}}},{"timeMs":2000,"poses":{"torso":{"x":0}}},{"timeMs":4000,"poses":{"torso":{"x":35}}}]}'::jsonb);
+select is((select motion_style from public.exercise_scenes where id=current_setting('test.scene_id')::uuid),'deadlift','deadlift survives saving');
+reset role;
+select set_config('test.deadlift_clone_id',private.clone_exercise_content((select content_id from public.private_exercises where id=current_setting('test.private_id')::uuid),'submission_editorial',null)::text,true);
+select is((select motion_style from public.exercise_scenes where content_id=current_setting('test.deadlift_clone_id')::uuid),'deadlift','deadlift survives snapshot cloning');
 set local role authenticated;
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000052', true);

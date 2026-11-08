@@ -155,7 +155,7 @@ export const motionAnnotationSchema = z.object({
 
 export const workshopSceneSchema = z.object({
   studio: studioLayoutSchema.optional(),
-  motionStyle: z.enum(["free", "squat", "hinge", "row", "split-squat", "bench-press", "seated-curl", "incline-curl"]).optional(),
+  motionStyle: z.enum(["free", "squat", "hinge", "row", "split-squat", "bench-press", "seated-curl", "incline-curl", "deep-squat", "deadlift"]).optional(),
   durationMs: z.number().int().min(250).max(60_000),
   cameraAngle: z.enum(["front", "side", "three_quarter"]),
   equipment: z.object({

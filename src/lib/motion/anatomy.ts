@@ -314,6 +314,19 @@ export function plantAnatomyFeet(rig: AnatomyRig, style: string | undefined, pos
   let lean = 0, height = 1.43, depth = 0, split = 0;
   if (style === "squat") { lean = progress * 20; height -= progress * 0.55; depth = -0.16 * progress; }
   if (style === "hinge") { lean = progress * 55; height -= progress * 0.13; depth = -0.22 * progress; }
+  if (style === "deep-squat") {
+    // The hips travel back ahead of the descent, keeping a back-loaded bar over mid-foot.
+    const back = progress * (2 - progress);
+    lean = 8 + back * 40; height -= progress * 0.92; depth = -0.52 * back;
+  }
+  if (style === "deadlift") {
+    // [progress, lean, drop, back] from lockout to the floor start. Off the floor the hips move back
+    // as the knees straighten, clearing the shins for the bar, then hips and knees extend to lockout.
+    const path = [[0, 0, 0, 0], [0.5, 58, 0.19, 0.55], [0.75, 58, 0.44, 0.62], [1, 54, 0.698, 0.53]];
+    const next = Math.max(1, path.findIndex(point => point[0] >= progress)), from = path[next - 1], to = path[next];
+    const blend = (axis: number) => from[axis] + (to[axis] - from[axis]) * (progress - from[0]) / (to[0] - from[0]);
+    lean = blend(1); height -= blend(2); depth = -blend(3);
+  }
   if (style === "row") { lean = 55; height = 1.3; depth = -0.22; }
   if (style === "split-squat") { lean = 8; height = 1.28 - progress * 0.42; split = 0.55; }
   if (style === "bench-press") { lean = -45; height = 0.84; depth = 0.35; }

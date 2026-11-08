@@ -1,14 +1,22 @@
-import { Box3, Color, Line, Mesh, MeshStandardMaterial, Vector3, type Object3D } from "three";
+import { Box3, Color, Euler, Line, Mesh, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { cameraDistanceForPoints, studioCameraPoints } from "./studio-camera";
 import { studioPointToWorld } from "./studio";
 import { resolveStudioObject } from "./studio-constraints";
-import { identityTransform, type ScenePresentation, type WorkshopScene } from "./workshop";
+import { identityTransform, type JointAngles, type ScenePresentation, type WorkshopScene } from "./workshop";
 
 export type WorkshopCameraAction = "zoom-in" | "zoom-out" | "fit" | "reset" | "focus" | "opposite";
 export type WorkshopCameraCommand = { id: number; action: WorkshopCameraAction };
 
 export function workshopCameraView(scene: WorkshopScene, editing: boolean, choice: { sceneAngle: WorkshopScene["cameraAngle"]; view: ScenePresentation["view"] } | null) {
   return !editing && choice?.sceneAngle === scene.cameraAngle ? choice.view : scene.studio?.presentation?.view ?? scene.cameraAngle;
+}
+
+/** Shoulder Euler angles alias (x ± 180, 180 − y, z ± 180), so judge a raised arm by where the upper arm points. */
+export function raisedUpperArm(shoulder: JointAngles | undefined) {
+  if (!shoulder) return false;
+  const radians = Math.PI / 180;
+  // Left shoulder-to-elbow rest direction in the atlas; the rig negates authored z.
+  return new Vector3(0.08, -0.54, -0.02).normalize().applyEuler(new Euler(shoulder.x * radians, shoulder.y * radians, -shoulder.z * radians)).y > 0.5;
 }
 
 export function fitWorkshopCamera(scene: WorkshopScene, view: ScenePresentation["view"], aspect: number, fov: number) {

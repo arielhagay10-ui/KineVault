@@ -60,7 +60,7 @@ export const blankWorkshopScene: WorkshopScene = {
   } })),
 };
 export type WorkshopScene = {
-  motionStyle?: "free" | "squat" | "hinge" | "row" | "split-squat" | "bench-press" | "seated-curl" | "incline-curl";
+  motionStyle?: "free" | "squat" | "hinge" | "row" | "split-squat" | "bench-press" | "seated-curl" | "incline-curl" | "deep-squat" | "deadlift";
   durationMs: number;
   cameraAngle: "front" | "side" | "three_quarter";
   equipment: { slug: "dumbbell-pair" | "barbell" | "single-cable"; x: number; y: number; z: number; scale: number } | null;
