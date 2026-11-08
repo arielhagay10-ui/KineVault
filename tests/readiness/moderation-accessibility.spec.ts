@@ -5,7 +5,8 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { z } from "zod";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
-import { auditAccessibility, setAppearance } from "./accessibility.helpers";
+import { nightlyOnly } from "../helpers/ci";
+import { auditAccessibility, setAppearance, touchAuditDeferred } from "./accessibility.helpers";
 
 const run = promisify(execFile);
 const localHosts = ["localhost", "127.0.0.1", "[::1]"];
@@ -44,6 +45,8 @@ async function signIn(page: Page, email: string, password: string) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
 }
+
+test.skip(touchAuditDeferred, nightlyOnly);
 
 test("populated submission, review, history and signed media expose accessible controls", async ({ page, browser, browserName, baseURL }, testInfo) => {
   test.setTimeout(300_000);

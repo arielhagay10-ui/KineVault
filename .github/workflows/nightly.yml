@@ -5,9 +5,17 @@ on:
     - cron: "30 3 * * *"
   workflow_dispatch:
 
+# Runs the variants that pull requests skip as "Runs nightly".
+env:
+  KINEVAULT_FULL_SUITE: "1"
+
 jobs:
-  performance:
+  browser:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [performance, studio-machines, media, readiness]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -15,7 +23,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Only readiness covers Firefox and WebKit.
+      - run: npx playwright install --with-deps ${{ matrix.suite == 'readiness' && 'chromium firefox webkit' || 'chromium' }}
       - run: npx supabase start --exclude realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       - name: Configure local browser test environment
         run: |
@@ -27,21 +36,35 @@ jobs:
           echo "::add-mask::$render_token"
           echo "RENDER_WORKER_TOKEN=$render_token" >> "$GITHUB_ENV"
       - run: npm run build
-      - name: Start production app for performance checks
+      - run: npm run test:e2e -- --reporter=list tests/e2e/studio-machines.spec.ts
+        if: matrix.suite == 'studio-machines'
+        env:
+          KINEVAULT_E2E_PRODUCTION: "1"
+      - run: npm run test:media -- --reporter=list
+        if: matrix.suite == 'media'
+        env:
+          KINEVAULT_E2E_PRODUCTION: "1"
+      - name: Start production app
+        if: matrix.suite == 'performance' || matrix.suite == 'readiness'
         run: |
-          npm start > /tmp/kinevault-performance-server.log 2>&1 &
+          npm start > /tmp/kinevault-server.log 2>&1 &
           for attempt in $(seq 1 60); do
             if curl --fail --silent http://127.0.0.1:3000/api/health > /dev/null; then exit 0; fi
             sleep 1
           done
-          cat /tmp/kinevault-performance-server.log
+          cat /tmp/kinevault-server.log
           exit 1
       - run: npm run test:performance
+        if: matrix.suite == 'performance'
+      # Firefox needs a display for Mesa's software WebGL on Linux runners.
+      - run: xvfb-run -a npm run test:readiness
+        if: matrix.suite == 'readiness'
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: performance
+          name: nightly-${{ matrix.suite }}
           path: |
+            .local-artifacts/readiness/
             .local-artifacts/efficiency-review/
             .local-artifacts/supports/performance/
             .local-artifacts/operations/

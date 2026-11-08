@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { changingElbowPulloverScene, nearLimitPulloverScene, sharedDumbbellScene } from "../helpers/shared-dumbbell";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { dismissWorkshopTutorial, jointField, openWorkshopTool, selectWorkshopJoint, selectWorkshopMoment, selectWorkshopObject } from "./workshop-menu.helpers";
 
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
@@ -42,7 +43,7 @@ for (const variant of ["goblet", "pullover", "near-limit-pullover", "varying-pul
       for (let step = 0; step <= 16; step++) {
         await page.getByLabel("Preview time", { exact: true }).fill(String(step * 200));
         await expect(selected).toHaveAttribute("data-grip-reachable", "true");
-        if (step % 2 === 0) await page.locator("canvas").screenshot({ path: `${artifacts}/${view}-${step}.png` });
+        if (step % 2 === 0) await captureEvidence(page.locator("canvas"), `${artifacts}/${view}-${step}.png`);
       }
     }
     await page.getByRole("button", { name: "Play", exact: true }).click();

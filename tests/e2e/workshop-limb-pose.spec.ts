@@ -1,6 +1,7 @@
 import { workshopPose } from "./workshop-menu.helpers";
 import { selectWorkshopMoment } from "./workshop-menu.helpers";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
@@ -72,7 +73,7 @@ test("one-handed barbell contacts survive grip changes, saving and playback", as
       await page.getByRole("button", { name: view, exact: true }).click();
       for (let step = 0; step <= 16; step++) {
         await page.getByLabel("Preview time", { exact: true }).fill(String(3200 * step / 16));
-        await page.locator("canvas").screenshot({ path: `${evidence}/${view.toLowerCase()}-${step}.png` });
+        await captureEvidence(page.locator("canvas"), `${evidence}/${view.toLowerCase()}-${step}.png`);
         await expect(page.getByText("Too far to reach. Move the weight closer to the figure.", { exact: true })).toHaveCount(0);
       }
     }
@@ -215,8 +216,7 @@ test("hands and feet drag, cancel, undo, and survive saved preview without detac
       await page.getByRole("button", { name: view, exact: true }).click();
       for (let i = 0; i <= 16; i++) {
         await page.getByLabel("Preview time", { exact: true }).fill(String(scene.durationMs * i / 16));
-        await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
-        await canvas.screenshot({ path: `${folder}/${view.toLowerCase()}-${i}.png` });
+        await captureEvidence(canvas, `${folder}/${view.toLowerCase()}-${i}.png`);
       }
     }
     for (const speed of ["1", "0.25"]) {

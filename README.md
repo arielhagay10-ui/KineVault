@@ -53,6 +53,8 @@ npm run test:media
 npm run build
 ```
 
+With `CI` set, browser suites skip the variants marked "Runs nightly"; `KINEVAULT_FULL_SUITE=1` runs them, as the nightly workflow does.
+
 The seed includes 20 original catalog candidates and normalized taxonomies. Candidates remain unpublished until original demonstrations are reviewed. Do not use copied descriptions or media from proprietary exercise databases.
 
 ## Public catalog

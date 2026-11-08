@@ -1,4 +1,5 @@
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { openWorkshopTool, selectWorkshopObject } from "./workshop-menu.helpers";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -49,8 +50,7 @@ test("cable row and pec deck can be added, animated, saved and reloaded", async 
         await page.getByRole("button", { name: view, exact: true }).click();
         for (let step = 0; step <= 8; step++) {
           await page.getByLabel("Preview time", { exact: true }).fill(String(step * 600));
-          await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
-          await page.locator("canvas").screenshot({ path: `${artifacts}/${view.toLowerCase()}-${step}.png` });
+          await captureEvidence(page.locator("canvas"), `${artifacts}/${view.toLowerCase()}-${step}.png`);
         }
       }
       await page.getByRole("button", { name: "Three-quarter", exact: true }).click();

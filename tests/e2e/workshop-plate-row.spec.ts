@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { machineDemoScene } from "../../src/lib/motion/studio-machines";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { dismissWorkshopTutorial, jointField, openWorkshopTool, selectWorkshopJoint, selectWorkshopMoment, selectWorkshopObject } from "./workshop-menu.helpers";
 
 test.use({ viewport: { width: 1440, height: 1000 }, launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
@@ -51,7 +52,7 @@ test("plate row adjusts seat, grips and individual arms without losing seating o
         await page.getByRole("button", { name: view, exact: true }).click();
         for (let index = 0; index <= 16; index += 2) {
           await selectWorkshopPose(page, String(index));
-          await page.screenshot({ path: `.local-artifacts/plate-row/${grip}-${view}-${index}.png` });
+          await captureEvidence(page, `.local-artifacts/plate-row/${grip}-${view}-${index}.png`);
         }
       }
     }

@@ -3,12 +3,13 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { cleanupLocalFixture } from "../helpers/local-fixtures";
+import { captureEvidence } from "../helpers/ci";
 import { addWorkshopEquipment, dismissWorkshopTutorial, openWorkshopRecovery, openWorkshopTool } from "./workshop-menu.helpers";
 
 test.use({ viewport: { width: 1440, height: 1000 }, launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader"] } });
 
 test("chest press exposes three grips and plays a complete converging repetition", async ({ page }) => {
-  // 54 software-rendered preview screenshots take 2-4 s each on a 2-core runner (306 s measured).
+  // Local runs take 54 software-rendered preview screenshots at 2-4 s each on a 2-core machine (306 s measured).
   test.setTimeout(480_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw new Error("Local fixture required");
@@ -62,7 +63,7 @@ test("chest press exposes three grips and plays a complete converging repetition
         for (let sample = 0; sample <= 8; sample++) {
           const box = (await slider.boundingBox())!;
           await page.mouse.click(box.x + 8 + (box.width - 16) * sample / 8, box.y + box.height / 2);
-          await preview.screenshot({ path: `${directory}/${grip}-${view}-${sample}.png` });
+          await captureEvidence(preview, `${directory}/${grip}-${view}-${sample}.png`);
         }
       }
     }
