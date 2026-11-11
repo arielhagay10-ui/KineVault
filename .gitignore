@@ -21,7 +21,5 @@ supabase/.temp/
 public/generated/
 PERFORMANCE_PLANS.txt
 
-# graft's local graph cache — regenerable, not committed (run `graft build`).
-/graft/
 # Playwright CLI output (may contain credentials)
 .playwright-cli/

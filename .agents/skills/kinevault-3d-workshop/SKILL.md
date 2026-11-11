@@ -7,7 +7,7 @@ description: Use when changing KineVault Three.js, R3F, anatomy, equipment, cont
 
 For equipment concepts, mechanics, grips, seating, contacts, or reach limits, read [KineVault equipment quality](C:/Users/ariel/.codex/skills/kinevault-equipment-quality/SKILL.md).
 
-For nontrivial cross-system work, start with Graft. Follow `ARCHITECTURE.md`, `docs/workshop.md`, and `PERFORMANCE.md`.
+For nontrivial cross-system work, follow `ARCHITECTURE.md`, `docs/workshop.md`, and `PERFORMANCE.md`.
 
 - Preserve the single scene owner and solve poses before equipment/contact consumers.
 - Keep frame-loop updates out of React state; dispose owned GPU resources.

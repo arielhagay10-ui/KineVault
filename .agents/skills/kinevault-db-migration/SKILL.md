@@ -5,7 +5,7 @@ description: Use when changing KineVault PostgreSQL, Supabase, RLS, Auth, Storag
 
 # KineVault database changes
 
-Use the official Supabase and Supabase Postgres best-practices skills for current platform guidance. Read `DATABASE.md` and inspect migration callers with Graft before changing schema or policy.
+Use the official Supabase and Supabase Postgres best-practices skills for current platform guidance. Read `DATABASE.md` and inspect migration callers before changing schema or policy.
 
 - Preserve RLS and enforce authorization server-side; test anonymous, owner, non-owner, reviewer, and admin paths as relevant.
 - Never casually reset development records. Preserve moderation and audit history.

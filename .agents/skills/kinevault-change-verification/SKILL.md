@@ -5,7 +5,7 @@ description: Use when selecting checks for changed KineVault files or affected b
 
 # KineVault change verification
 
-Use Graft to map callers and affected systems for cross-cutting changes. Select checks by the changed surface; do not run the full expensive suite for a small isolated edit.
+Map callers and affected systems for cross-cutting changes. Select checks by the changed surface; do not run the full expensive suite for a small isolated edit.
 
 - TypeScript/React/routes: `npm run lint`, `npm run typecheck`, and focused Vitest tests.
 - Worker scripts: `npm run test:worker` and focused worker tests.

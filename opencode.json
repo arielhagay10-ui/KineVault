@@ -1,13 +1,5 @@
 {
   "mcp": {
-    "graft": {
-      "type": "local",
-      "command": [
-        "graft",
-        "mcp"
-      ],
-      "enabled": true
-    },
     "kinevault-workshop": {
       "type": "local",
       "command": [
